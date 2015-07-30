@@ -1,0 +1,5 @@
+(B) trouble with 'useMemProxy' and patch-like save() @bug
+@test case for document.export() and batch.export()
+(C) should we substitute 'Suspect' by 'Hollow'? @idea
+(B) should filter out properties containing a dot '.' @code
+validate data before saving

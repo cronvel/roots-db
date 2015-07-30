@@ -1,0 +1,39 @@
+{
+  "name": "roots-db",
+  "version": "0.0.4",
+  "description": "Even more minimalistic ODM",
+  "main": "lib/rootsDb.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "async-kit": "^0.5.10",
+    "doormen": "^0.2.14",
+    "error-status": "^1.1.1",
+    "harmony-reflect": "^1.4.0",
+    "hash-kit": "^0.1.1",
+    "mongodb": "^1.4.33",
+    "tree-kit": "^0.5.5"
+  },
+  "devDependencies": {
+    "expect.js": "^0.3.1",
+    "jshint": "^2.5.6",
+    "mocha": "^1.21.4",
+    "string-kit": "^0.1.8"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cronvel/odm-kit.git"
+  },
+  "keywords": [
+    "odm"
+  ],
+  "author": "Cédric Ronvel",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cronvel/odm-kit/issues"
+  }
+}
