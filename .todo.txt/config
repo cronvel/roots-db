@@ -1,6 +1,6 @@
 # === EDIT FILE LOCATIONS BELOW ===
 
-PROJECT_NAME='odm-kit'
+PROJECT_NAME='Roots DB'
 
 echo -ne "\n\t\e[0;35m~~> \e[1;35m$PROJECT_NAME\e[0;35m todo-list <~~\e[0m\n\n"
 
