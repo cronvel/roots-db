@@ -229,7 +229,7 @@ describe( "Build collections' indexes" , function() {
 
 
 
-describe( "ID creation" , function() {
+describe( "ID" , function() {
 	
 	it( "should create ID (like Mongo ID)" , function() {
 		
@@ -239,6 +239,10 @@ describe( "ID creation" , function() {
 		expect( users.createId() ).to.match( /^[0-9a-f]{24}$/ ) ;
 		expect( users.createId() ).to.match( /^[0-9a-f]{24}$/ ) ;
 	} ) ;
+	
+	it( "$id in document" ) ;
+	it( "$id in fingerprint" ) ;
+	it( "$id in criteria (queryObject)" ) ;
 } ) ;
 
 
@@ -668,13 +672,13 @@ describe( "Fingerprint" , function() {
 	
 	it( "should detect uniqueness correctly" , function() {
 		
-		expect( users.createFingerprint( { _id: 'somehash' } ).$.unique ).to.be( true ) ;
+		expect( users.createFingerprint( { _id: '123456789012345678901234' } ).$.unique ).to.be( true ) ;
 		expect( users.createFingerprint( { firstName: 'Terry' } ).$.unique ).to.be( false ) ;
 		expect( users.createFingerprint( { firstName: 'Terry', lastName: 'Bogard' } ).$.unique ).to.be( false ) ;
-		expect( users.createFingerprint( { _id: 'somehash', firstName: 'Terry', lastName: 'Bogard' } ).$.unique ).to.be( true ) ;
-		expect( users.createFingerprint( { jobId: 'somehash' } ).$.unique ).to.be( false ) ;
+		expect( users.createFingerprint( { _id: '123456789012345678901234', firstName: 'Terry', lastName: 'Bogard' } ).$.unique ).to.be( true ) ;
+		expect( users.createFingerprint( { jobId: '123456789012345678901234' } ).$.unique ).to.be( false ) ;
 		expect( users.createFingerprint( { memberSid: 'terry-bogard' } ).$.unique ).to.be( false ) ;
-		expect( users.createFingerprint( { jobId: 'somehash', memberSid: 'terry-bogard' } ).$.unique ).to.be( true ) ;
+		expect( users.createFingerprint( { jobId: '123456789012345678901234', memberSid: 'terry-bogard' } ).$.unique ).to.be( true ) ;
 	} ) ;
 } ) ;
 
