@@ -63,21 +63,22 @@ var usersDescriptor = {
 			maxLength: 30 ,
 			default: 'Doe'
 		} ,
-		godfatherId: { optional: true } ,
-		jobId: { optional: true } ,
+		godfather: { type: 'rootsDb.link' , optional: true , collection: 'users' } ,
+		job: { type: 'rootsDb.link' , optional: true , collection: 'jobs' } ,
 		memberSid: {
 			optional: true ,
 			type: 'string' ,
 			maxLength: 30
 		}
 	} ,
+	/*
 	meta: {
 		godfather: { type: 'link' , collection: 'users' , property: 'godfatherId' } ,
-		job: { type: 'link' , collection: 'jobs' , property: 'jobId' }
-	} ,
+		job: { type: 'link' , collection: 'jobs' , property: 'job' }
+	} ,*/
 	indexes: [
-		{ properties: { jobId: 1 } } ,
-		{ properties: { jobId: 1 , memberSid: 1 } , unique: true }
+		{ properties: { job: 1 } } ,
+		{ properties: { job: 1 , memberSid: 1 } , unique: true }
 	] ,
 	hooks: {
 		afterCreateDocument: //[
@@ -104,9 +105,10 @@ var jobsDescriptor = {
 			default: 0
 		}
 	} ,
+	/*
 	meta: {
-		members: { type: 'backlink' , collection: 'users' , property: 'jobId' }
-	}
+		members: { type: 'backlink' , collection: 'users' , property: 'job' }
+	}*/
 } ;
 
 var townsDescriptor = {
@@ -208,7 +210,7 @@ describe( "Build collections' indexes" , function() {
 	
 	it( "should build indexes" , function( done ) {
 		
-		expect( users.uniques ).to.be.eql( [ [ '_id' ], [ 'jobId', 'memberSid' ] ] ) ;
+		expect( users.uniques ).to.be.eql( [ [ '_id' ], [ 'job', 'memberSid' ] ] ) ;
 		expect( jobs.uniques ).to.be.eql( [ [ '_id' ] ] ) ;
 		
 		async.foreach( world.collections , function( collection , name , foreachCallback )
@@ -676,9 +678,9 @@ describe( "Fingerprint" , function() {
 		expect( users.createFingerprint( { firstName: 'Terry' } ).$.unique ).to.be( false ) ;
 		expect( users.createFingerprint( { firstName: 'Terry', lastName: 'Bogard' } ).$.unique ).to.be( false ) ;
 		expect( users.createFingerprint( { _id: '123456789012345678901234', firstName: 'Terry', lastName: 'Bogard' } ).$.unique ).to.be( true ) ;
-		expect( users.createFingerprint( { jobId: '123456789012345678901234' } ).$.unique ).to.be( false ) ;
+		expect( users.createFingerprint( { job: '123456789012345678901234' } ).$.unique ).to.be( false ) ;
 		expect( users.createFingerprint( { memberSid: 'terry-bogard' } ).$.unique ).to.be( false ) ;
-		expect( users.createFingerprint( { jobId: '123456789012345678901234', memberSid: 'terry-bogard' } ).$.unique ).to.be( true ) ;
+		expect( users.createFingerprint( { job: '123456789012345678901234', memberSid: 'terry-bogard' } ).$.unique ).to.be( true ) ;
 	} ) ;
 } ) ;
 
@@ -699,7 +701,7 @@ describe( "Get documents by unique fingerprint" , function() {
 		var memberSid = user.memberSid ;
 		
 		var job = jobs.createDocument() ;
-		user.jobId = job._id ;
+		user.job = job._id ;
 		
 		async.series( [
 			function( callback ) {
@@ -709,14 +711,14 @@ describe( "Get documents by unique fingerprint" , function() {
 				job.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.getUnique( { memberSid: memberSid , jobId: job._id } , function( error , u ) {
+				users.getUnique( { memberSid: memberSid , job: job._id } , function( error , u ) {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user ) ;
 					expect( error ).not.to.be.ok() ;
 					expect( u.$ ).to.be.a( rootsDb.DocumentWrapper ) ;
 					expect( u._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( u._id ).to.eql( id ) ;
-					expect( u ).to.eql( tree.extend( null , { _id: user._id , jobId: job._id , firstName: 'Bill' , lastName: "Cut'throat" , memberSid: "Bill Cut'throat" } ) ) ;
+					expect( u ).to.eql( tree.extend( null , { _id: user._id , job: job._id , firstName: 'Bill' , lastName: "Cut'throat" , memberSid: "Bill Cut'throat" } ) ) ;
 					callback() ;
 				} ) ;
 			}
@@ -1070,6 +1072,77 @@ describe( "Embedded documents" , function() {
 		.exec( done ) ;
 	} ) ;
 } ) ;
+
+
+
+describe( "Links" , function() {
+	
+	it( "basic link (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var id = user._id ;
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		//console.log( job ) ;
+		var jobId = job.$.id ;
+		
+		// Link the documents!
+		user.$.setLink( 'job' , job ) ;
+		
+		expect( user.job ).to.eql( jobId ) ;
+		
+		async.series( [
+			function( callback ) {
+				job.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				jobs.get( jobId , function( error , job ) {
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'Job:' , job ) ;
+					expect( error ).not.to.be.ok() ;
+					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( job._id ).to.eql( jobId ) ;
+					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 } ) ;
+					
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				users.get( id , function( error , user ) {
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'User:' , user ) ;
+					expect( error ).not.to.be.ok() ;
+					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( { _id: user._id, job: jobId, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
+					
+					//user.$.toto = 'toto' ;
+					
+					user.$.getLink( "job" , function( error , job ) {
+						expect( job ).to.eql( { _id: jobId , title: 'developer' , salary: 60000 } ) ;
+						callback() ;
+					} ) ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+} ) ;
+
+
 
 
 
