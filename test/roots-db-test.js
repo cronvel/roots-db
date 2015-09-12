@@ -1082,6 +1082,8 @@ describe( "Embedded documents" , function() {
 
 describe( "Links" , function() {
 	
+	beforeEach( clearDB ) ;
+	
 	it( "basic link (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
 		
 		var user = users.createDocument( {
@@ -1204,16 +1206,16 @@ describe( "Links" , function() {
 					
 					//user.$.toto = 'toto' ;
 					
-					user.$.getLink( "connection.A" , function( error , job ) {
-						expect( job ).to.eql( {
+					user.$.getLink( "connection.A" , function( error , userA ) {
+						expect( userA ).to.eql( {
 							_id: connectionAId ,
 							firstName: 'John' ,
 							lastName: "Fergusson" ,
 							memberSid: "John Fergusson"
 						} ) ;
 						
-						user.$.getLink( "connection.B" , function( error , job ) {
-							expect( job ).to.eql( {
+						user.$.getLink( "connection.B" , function( error , userB ) {
+							expect( userB ).to.eql( {
 								_id: connectionBId ,
 								firstName: 'Andy' ,
 								lastName: "Fergusson" ,
@@ -1224,6 +1226,113 @@ describe( "Links" , function() {
 					} ) ;
 				} ) ;
 			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+	it( "unexistant links, non-link properties" , function( done ) {
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var id = user._id ;
+		
+		var connectionA = users.createDocument( {
+			firstName: 'John' ,
+			lastName: 'Fergusson'
+		} ) ;
+		
+		var connectionB = users.createDocument( {
+			firstName: 'Andy' ,
+			lastName: 'Fergusson'
+		} ) ;
+		
+		var connectionAId = connectionA.$.id ;
+		var connectionBId = connectionB.$.id ;
+		
+		user.$.setLink( 'connection.A' , connectionA ) ;
+		doormen.shouldThrow( function() { user.$.setLink( 'unexistant' , connectionB ) ; } ) ;
+		doormen.shouldThrow( function() { user.$.setLink( 'firstName' , connectionB ) ; } ) ;
+		doormen.shouldThrow( function() { user.$.setLink( 'firstName.blah' , connectionB ) ; } ) ;
+		
+		async.series( [
+			function( callback ) {
+				connectionA.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				connectionB.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.get( id , function( error , user_ ) {
+					user = user_ ;
+					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( {
+						_id: user._id,
+						firstName: 'Jilbert',
+						lastName: 'Polson' ,
+						connection: {
+							A: connectionAId
+						} ,
+						memberSid: 'Jilbert Polson'
+					} ) ;
+					
+					//user.$.toto = 'toto' ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "connection.A" , function( error , userA ) {
+					expect( userA ).to.eql( {
+						_id: connectionAId ,
+						firstName: 'John' ,
+						lastName: "Fergusson" ,
+						memberSid: "John Fergusson"
+					} ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "connection.B" , function( error , userB ) {
+					expect( error ).to.be.ok() ;
+					expect( error.type ).to.be( 'notFound' ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "unexistant" , function( error , userB ) {
+					expect( error ).to.be.ok() ;
+					expect( error.type ).to.be( 'badRequest' ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "unexistant.unexistant" , function( error , userB ) {
+					expect( error ).to.be.ok() ;
+					expect( error.type ).to.be( 'badRequest' ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "firstName" , function( error , userB ) {
+					expect( error ).to.be.ok() ;
+					expect( error.type ).to.be( 'badRequest' ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "firstName.blah" , function( error , userB ) {
+					expect( error ).to.be.ok() ;
+					expect( error.type ).to.be( 'badRequest' ) ;
+					callback() ;
+				} ) ;
+			} ,
 		] )
 		.exec( done ) ;
 	} ) ;
