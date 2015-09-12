@@ -64,6 +64,11 @@ var usersDescriptor = {
 			default: 'Doe'
 		} ,
 		godfather: { type: 'rootsDb.link' , optional: true , collection: 'users' } ,
+		connection: {
+			type: 'strictObject' ,
+			optional: true ,
+			of: { type: 'rootsDb.link' , collection: 'users' }
+		} ,
 		job: { type: 'rootsDb.link' , optional: true , collection: 'jobs' } ,
 		memberSid: {
 			optional: true ,
@@ -1134,6 +1139,88 @@ describe( "Links" , function() {
 					user.$.getLink( "job" , function( error , job ) {
 						expect( job ).to.eql( { _id: jobId , title: 'developer' , salary: 60000 } ) ;
 						callback() ;
+					} ) ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+	it( "basic nested links (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var id = user._id ;
+		
+		var connectionA = users.createDocument( {
+			firstName: 'John' ,
+			lastName: 'Fergusson'
+		} ) ;
+		
+		var connectionB = users.createDocument( {
+			firstName: 'Andy' ,
+			lastName: 'Fergusson'
+		} ) ;
+		
+		//console.log( job ) ;
+		var connectionAId = connectionA.$.id ;
+		var connectionBId = connectionB.$.id ;
+		
+		// Link the documents!
+		user.$.setLink( 'connection.A' , connectionA ) ;
+		user.$.setLink( 'connection.B' , connectionB ) ;
+		
+		expect( user.connection.A ).to.eql( connectionAId ) ;
+		expect( user.connection.B ).to.eql( connectionBId ) ;
+		
+		async.series( [
+			function( callback ) {
+				connectionA.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				connectionB.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.get( id , function( error , user ) {
+					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( {
+						_id: user._id,
+						firstName: 'Jilbert',
+						lastName: 'Polson' ,
+						connection: {
+							A: connectionAId ,
+							B: connectionBId
+						} ,
+						memberSid: 'Jilbert Polson'
+					} ) ;
+					
+					//user.$.toto = 'toto' ;
+					
+					user.$.getLink( "connection.A" , function( error , job ) {
+						expect( job ).to.eql( {
+							_id: connectionAId ,
+							firstName: 'John' ,
+							lastName: "Fergusson" ,
+							memberSid: "John Fergusson"
+						} ) ;
+						
+						user.$.getLink( "connection.B" , function( error , job ) {
+							expect( job ).to.eql( {
+								_id: connectionBId ,
+								firstName: 'Andy' ,
+								lastName: "Fergusson" ,
+								memberSid: "Andy Fergusson"
+							} ) ;
+							callback() ;
+						} ) ;
 					} ) ;
 				} ) ;
 			}

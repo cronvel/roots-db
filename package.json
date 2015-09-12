@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "async-kit": "^0.5.10",
-    "doormen": "^0.2.16",
+    "doormen": "^0.2.17",
     "error-status": "^1.1.1",
     "hash-kit": "^0.2.0",
     "mongodb": "^1.4.33",
