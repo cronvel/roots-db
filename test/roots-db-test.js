@@ -52,6 +52,7 @@ var users , jobs , towns ;
 
 var usersDescriptor = {
 	url: 'mongodb://localhost:27017/test/users' ,
+	attachementUrl: __dirname + '/tmp/' ,
 	properties: {
 		firstName: {
 			type: 'string' ,
@@ -64,6 +65,7 @@ var usersDescriptor = {
 			default: 'Doe'
 		} ,
 		godfather: { type: 'link' , optional: true , collection: 'users' } ,
+		file: { type: 'attachment' , optional: true } ,
 		connection: {
 			type: 'strictObject' ,
 			optional: true ,
@@ -1127,7 +1129,8 @@ describe( "Links" , function() {
 				} ) ;
 			} ,
 			function( callback ) {
-				users.get( id , function( error , user ) {
+				users.get( id , function( error , user_ ) {
+					user = user_ ;
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user ) ;
 					expect( error ).not.to.be.ok() ;
@@ -1135,14 +1138,21 @@ describe( "Links" , function() {
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( user._id ).to.eql( id ) ;
 					expect( user ).to.eql( { _id: user._id, job: jobId, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
-					
-					//user.$.toto = 'toto' ;
-					
-					user.$.getLink( "job" , function( error , job ) {
-						expect( job ).to.eql( { _id: jobId , title: 'developer' , salary: 60000 } ) ;
-						callback() ;
-					} ) ;
+					callback() ;
 				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "job" , function( error , job ) {
+					expect( job ).to.eql( { _id: jobId , title: 'developer' , salary: 60000 } ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				expect( user.$.getLinkDetails( "job" ) ).to.eql( {
+					collection: 'jobs' ,
+					id: jobId
+				} ) ;
+				callback() ;
 			}
 		] )
 		.exec( done ) ;
@@ -1335,6 +1345,81 @@ describe( "Links" , function() {
 			} ,
 		] )
 		.exec( done ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Attachment links" , function() {
+	
+	beforeEach( clearDB ) ;
+	
+	it( "basic link (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var id = user._id ;
+		
+		// Link the documents!
+		user.$.setLink( 'file' , "grigrigredin menufretin" ) ;
+		
+		/*
+		expect( user.job ).to.eql( jobId ) ;
+		
+		async.series( [
+			function( callback ) {
+				job.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				jobs.get( jobId , function( error , job ) {
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'Job:' , job ) ;
+					expect( error ).not.to.be.ok() ;
+					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( job._id ).to.eql( jobId ) ;
+					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 } ) ;
+					
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				users.get( id , function( error , user_ ) {
+					user = user_ ;
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'User:' , user ) ;
+					expect( error ).not.to.be.ok() ;
+					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( { _id: user._id, job: jobId, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "job" , function( error , job ) {
+					expect( job ).to.eql( { _id: jobId , title: 'developer' , salary: 60000 } ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				expect( user.$.getLinkDetails( "job" ) ).to.eql( {
+					collection: 'jobs' ,
+					id: jobId
+				} ) ;
+				callback() ;
+			}
+		] )
+		.exec( done ) ;
+		//*/
+		
+		callback() ;
 	} ) ;
 } ) ;
 

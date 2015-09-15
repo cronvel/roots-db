@@ -9,6 +9,7 @@
 *.js.gz
 *.png
 .spellcast
+test/tmp/*
 build
 _build
 _templates
