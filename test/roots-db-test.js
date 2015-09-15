@@ -52,7 +52,7 @@ var users , jobs , towns ;
 
 var usersDescriptor = {
 	url: 'mongodb://localhost:27017/test/users' ,
-	attachementUrl: __dirname + '/tmp/' ,
+	attachmentUrl: __dirname + '/tmp/' ,
 	properties: {
 		firstName: {
 			type: 'string' ,
@@ -1143,6 +1143,7 @@ describe( "Links" , function() {
 			} ,
 			function( callback ) {
 				user.$.getLink( "job" , function( error , job ) {
+					expect( error ).not.to.be.ok() ;
 					expect( job ).to.eql( { _id: jobId , title: 'developer' , salary: 60000 } ) ;
 					callback() ;
 				} ) ;
@@ -1217,6 +1218,7 @@ describe( "Links" , function() {
 					//user.$.toto = 'toto' ;
 					
 					user.$.getLink( "connection.A" , function( error , userA ) {
+						expect( error ).not.to.be.ok() ;
 						expect( userA ).to.eql( {
 							_id: connectionAId ,
 							firstName: 'John' ,
@@ -1225,6 +1227,7 @@ describe( "Links" , function() {
 						} ) ;
 						
 						user.$.getLink( "connection.B" , function( error , userB ) {
+							expect( error ).not.to.be.ok() ;
 							expect( userB ).to.eql( {
 								_id: connectionBId ,
 								firstName: 'Andy' ,
@@ -1299,6 +1302,7 @@ describe( "Links" , function() {
 			} ,
 			function( callback ) {
 				user.$.getLink( "connection.A" , function( error , userA ) {
+					expect( error ).not.to.be.ok() ;
 					expect( userA ).to.eql( {
 						_id: connectionAId ,
 						firstName: 'John' ,
@@ -1364,30 +1368,24 @@ describe( "Attachment links" , function() {
 		var id = user._id ;
 		
 		// Link the documents!
-		user.$.setLink( 'file' , "grigrigredin menufretin" ) ;
+		var content = "grigrigredin menufretin\n" ;
+		var attachment = user.$.createAttachment( { filename: 'joke.txt' } , content ) ;
+		//console.error( attachment ) ;
 		
-		/*
-		expect( user.job ).to.eql( jobId ) ;
+		user.$.setLink( 'file' , attachment ) ;
+		//console.error( user.file ) ;
+		
+		expect( user.file ).to.eql( {
+			filename: 'joke.txt' ,
+			id: user.file.id	// Unpredictable
+		} ) ;
 		
 		async.series( [
 			function( callback ) {
-				job.$.save( callback ) ;
+				attachment.save( callback ) ;
 			} ,
 			function( callback ) {
 				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				jobs.get( jobId , function( error , job ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Job:' , job ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( job._id ).to.eql( jobId ) ;
-					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 } ) ;
-					
-					callback() ;
-				} ) ;
 			} ,
 			function( callback ) {
 				users.get( id , function( error , user_ ) {
@@ -1398,28 +1396,57 @@ describe( "Attachment links" , function() {
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( { _id: user._id, job: jobId, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
+					expect( user ).to.eql( {
+						_id: user._id,
+						firstName: 'Jilbert',
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson' ,
+						file:{
+							filename: 'joke.txt' ,
+							id: user.file.id	// Unpredictable
+						}
+					} ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				user.$.getLink( "job" , function( error , job ) {
-					expect( job ).to.eql( { _id: jobId , title: 'developer' , salary: 60000 } ) ;
+				user.$.getLink( "file" , function( error , file ) {
+					expect( error ).not.to.be.ok() ;
+					expect( file ).to.eql( {
+						id: user.file.id ,
+						filename: 'joke.txt' ,
+						collectionName: 'users' ,
+						documentId: user._id.toString() ,
+						incoming: undefined ,
+						baseUrl: file.baseUrl ,
+						fullUrl: file.baseUrl + file.id.toString()
+					} ) ;
+					attachment = file ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				expect( user.$.getLinkDetails( "job" ) ).to.eql( {
-					collection: 'jobs' ,
-					id: jobId
+				attachment.load( function( error , data ) {
+					expect( error ).not.to.be.ok() ;
+					expect( data.toString() ).to.be( content ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				var details = user.$.getLinkDetails( "file" ) ;
+				expect( details ).to.eql( {
+					id: user.file.id ,
+					filename: 'joke.txt' ,
+					collectionName: 'users' ,
+					documentId: user._id.toString() ,
+					incoming: undefined ,
+					baseUrl: details.baseUrl ,
+					fullUrl: details.baseUrl + details.id.toString()
 				} ) ;
 				callback() ;
 			}
 		] )
 		.exec( done ) ;
-		//*/
-		
-		callback() ;
 	} ) ;
 } ) ;
 
