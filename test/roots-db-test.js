@@ -63,13 +63,13 @@ var usersDescriptor = {
 			maxLength: 30 ,
 			default: 'Doe'
 		} ,
-		godfather: { type: 'rootsDb.link' , optional: true , collection: 'users' } ,
+		godfather: { type: 'link' , optional: true , collection: 'users' } ,
 		connection: {
 			type: 'strictObject' ,
 			optional: true ,
-			of: { type: 'rootsDb.link' , collection: 'users' }
+			of: { type: 'link' , collection: 'users' }
 		} ,
-		job: { type: 'rootsDb.link' , optional: true , collection: 'jobs' } ,
+		job: { type: 'link' , optional: true , collection: 'jobs' } ,
 		memberSid: {
 			optional: true ,
 			type: 'string' ,
