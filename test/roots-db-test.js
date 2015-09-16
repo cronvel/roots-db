@@ -1419,7 +1419,7 @@ describe( "Attachment links" , function() {
 						documentId: user._id.toString() ,
 						incoming: undefined ,
 						baseUrl: file.baseUrl ,
-						fullUrl: file.baseUrl + file.id.toString()
+						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
 					} ) ;
 					attachment = file ;
 					callback() ;
@@ -1441,7 +1441,7 @@ describe( "Attachment links" , function() {
 					documentId: user._id.toString() ,
 					incoming: undefined ,
 					baseUrl: details.baseUrl ,
-					fullUrl: details.baseUrl + details.id.toString()
+					fullUrl: details.baseUrl + details.documentId.toString() + '/' + details.id.toString()
 				} ) ;
 				callback() ;
 			}
