@@ -1369,7 +1369,7 @@ describe( "Attachment links" , function() {
 		
 		// Link the documents!
 		var content = "grigrigredin menufretin\n" ;
-		var attachment = user.$.createAttachment( { filename: 'joke.txt' } , content ) ;
+		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , content ) ;
 		//console.error( attachment ) ;
 		
 		user.$.setLink( 'file' , attachment ) ;
@@ -1377,7 +1377,8 @@ describe( "Attachment links" , function() {
 		
 		expect( user.file ).to.eql( {
 			filename: 'joke.txt' ,
-			id: user.file.id	// Unpredictable
+			id: user.file.id ,	// Unpredictable
+			contentType: 'text/plain'
 		} ) ;
 		
 		async.series( [
@@ -1403,7 +1404,8 @@ describe( "Attachment links" , function() {
 						memberSid: 'Jilbert Polson' ,
 						file:{
 							filename: 'joke.txt' ,
-							id: user.file.id	// Unpredictable
+							id: user.file.id ,	// Unpredictable
+							contentType: 'text/plain'
 						}
 					} ) ;
 					callback() ;
@@ -1415,6 +1417,7 @@ describe( "Attachment links" , function() {
 					expect( file ).to.eql( {
 						id: user.file.id ,
 						filename: 'joke.txt' ,
+						contentType: 'text/plain' ,
 						collectionName: 'users' ,
 						documentId: user._id.toString() ,
 						incoming: undefined ,
@@ -1437,6 +1440,7 @@ describe( "Attachment links" , function() {
 				expect( details ).to.eql( {
 					id: user.file.id ,
 					filename: 'joke.txt' ,
+					contentType: 'text/plain' ,
 					collectionName: 'users' ,
 					documentId: user._id.toString() ,
 					incoming: undefined ,
