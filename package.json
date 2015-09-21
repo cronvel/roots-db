@@ -10,7 +10,7 @@
     "async-kit": "^0.5.10",
     "doormen": "^0.2.17",
     "error-status": "^1.1.1",
-    "fs-kit": "^0.0.2",
+    "fs-kit": "^0.0.3",
     "hash-kit": "^0.2.0",
     "mongodb": "^2.0.43",
     "tree-kit": "^0.5.5"
