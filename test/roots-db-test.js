@@ -1150,6 +1150,7 @@ describe( "Links" , function() {
 			} ,
 			function( callback ) {
 				expect( user.$.getLinkDetails( "job" ) ).to.eql( {
+					type: 'link' ,
 					collection: 'jobs' ,
 					id: jobId
 				} ) ;
@@ -1438,14 +1439,19 @@ describe( "Attachment links" , function() {
 			function( callback ) {
 				var details = user.$.getLinkDetails( "file" ) ;
 				expect( details ).to.eql( {
-					id: user.file.id ,
-					filename: 'joke.txt' ,
-					contentType: 'text/plain' ,
-					collectionName: 'users' ,
-					documentId: user._id.toString() ,
-					incoming: undefined ,
-					baseUrl: details.baseUrl ,
-					fullUrl: details.baseUrl + details.documentId.toString() + '/' + details.id.toString()
+					type: 'attachment' ,
+					attachment: {
+						id: user.file.id ,
+						filename: 'joke.txt' ,
+						contentType: 'text/plain' ,
+						collectionName: 'users' ,
+						documentId: user._id.toString() ,
+						incoming: undefined ,
+						baseUrl: details.attachment.baseUrl ,
+						fullUrl: details.attachment.baseUrl +
+							details.attachment.documentId.toString() +
+							'/' + details.attachment.id.toString()
+					}
 				} ) ;
 				callback() ;
 			}
