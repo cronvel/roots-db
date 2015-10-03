@@ -1,6 +1,6 @@
 {
   "name": "roots-db",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "description": "Even more minimalistic ODM",
   "main": "lib/rootsDb.js",
   "directories": {
