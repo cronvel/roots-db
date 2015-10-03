@@ -1462,6 +1462,119 @@ describe( "Populate links" , function() {
 		.exec( done ) ;
 	} ) ;
 	
+	it( "batch with multiple link population (create, link, save, get with populate option)" , function( done ) {
+		
+		var user1 = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var user2 = users.createDocument( {
+			firstName: 'Thomas' ,
+			lastName: 'Campbell'
+		} ) ;
+		
+		var user3 = users.createDocument( {
+			firstName: 'Harry' ,
+			lastName: 'Campbell'
+		} ) ;
+		
+		var godfather = users.createDocument( {
+			firstName: 'DA' ,
+			lastName: 'GODFATHER'
+		} ) ;
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		// Link the documents!
+		user1.$.setLink( 'job' , job ) ;
+		user1.$.setLink( 'godfather' , godfather ) ;
+		user3.$.setLink( 'godfather' , godfather ) ;
+		
+		async.series( [
+			function( callback ) {
+				job.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				godfather.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user1.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user3.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.collect( {} , { populate: [ 'job' , 'godfather' ] } , function( error , batch ) {
+					expect( error ).not.to.be.ok() ;
+					
+					// Sort that first...
+					batch.sort( function( a , b ) {
+						return a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ;
+					} ) ;
+					
+					expect( batch ).to.eql( [
+						{
+							firstName: 'DA',
+							lastName: 'GODFATHER',
+							_id: batch[ 0 ]._id,
+							memberSid: 'DA GODFATHER',
+							job: null,
+							godfather: null
+						},
+						{
+							firstName: 'Harry',
+							lastName: 'Campbell',
+							_id: batch[ 1 ]._id,
+							memberSid: 'Harry Campbell',
+							godfather: {
+								firstName: 'DA',
+								lastName: 'GODFATHER',
+								_id: batch[ 0 ]._id,
+								memberSid: 'DA GODFATHER'
+							},
+							job: null
+						},
+						{
+							firstName: 'Jilbert',
+							lastName: 'Polson',
+							_id: batch[ 2 ]._id,
+							memberSid: 'Jilbert Polson',
+							job: {
+								title: 'developer',
+								salary: 60000,
+								_id: job._id
+							},
+							godfather: {
+								firstName: 'DA',
+								lastName: 'GODFATHER',
+								_id: batch[ 0 ]._id,
+								memberSid: 'DA GODFATHER'
+							}
+						},
+						{
+							firstName: 'Thomas',
+							lastName: 'Campbell',
+							_id: batch[ 3 ]._id,
+							memberSid: 'Thomas Campbell',
+							job: null,
+							godfather: null
+						},
+					] ) ;
+					
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
 	/*
 	it( "basic nested links (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
 		
