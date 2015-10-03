@@ -1355,6 +1355,310 @@ describe( "Links" , function() {
 
 
 
+describe( "Populate links" , function() {
+	
+	beforeEach( clearDB ) ;
+	
+	it( "link population (create both, link, save both, get with populate option)" , function( done ) {
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var id = user._id ;
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		//console.log( job ) ;
+		var jobId = job.$.id ;
+		
+		// Link the documents!
+		user.$.setLink( 'job' , job ) ;
+		
+		expect( user.job ).to.eql( jobId ) ;
+		
+		async.series( [
+			function( callback ) {
+				job.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.get( id , { populate: 'job' } , function( error , user_ ) {
+					user = user_ ;
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'User:' , user ) ;
+					expect( error ).not.to.be.ok() ;
+					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( { _id: user._id, job: job, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+	it( "multiple link population (create, link, save, get with populate option)" , function( done ) {
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var godfather = users.createDocument( {
+			firstName: 'DA' ,
+			lastName: 'GODFATHER'
+		} ) ;
+		
+		var id = user._id ;
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		// Link the documents!
+		user.$.setLink( 'job' , job ) ;
+		user.$.setLink( 'godfather' , godfather ) ;
+		
+		async.series( [
+			function( callback ) {
+				job.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				godfather.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.get( id , { populate: [ 'job' , 'godfather' ] } , function( error , user_ ) {
+					user = user_ ;
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'User:' , user ) ;
+					expect( error ).not.to.be.ok() ;
+					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( {
+						_id: user._id ,
+						job: job ,
+						godfather: godfather ,
+						firstName: 'Jilbert' ,
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson'
+					} ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+	/*
+	it( "basic nested links (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var id = user._id ;
+		
+		var connectionA = users.createDocument( {
+			firstName: 'John' ,
+			lastName: 'Fergusson'
+		} ) ;
+		
+		var connectionB = users.createDocument( {
+			firstName: 'Andy' ,
+			lastName: 'Fergusson'
+		} ) ;
+		
+		//console.log( job ) ;
+		var connectionAId = connectionA.$.id ;
+		var connectionBId = connectionB.$.id ;
+		
+		// Link the documents!
+		user.$.setLink( 'connection.A' , connectionA ) ;
+		user.$.setLink( 'connection.B' , connectionB ) ;
+		
+		expect( user.connection.A ).to.eql( connectionAId ) ;
+		expect( user.connection.B ).to.eql( connectionBId ) ;
+		
+		async.series( [
+			function( callback ) {
+				connectionA.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				connectionB.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.get( id , function( error , user ) {
+					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( {
+						_id: user._id,
+						firstName: 'Jilbert',
+						lastName: 'Polson' ,
+						connection: {
+							A: connectionAId ,
+							B: connectionBId
+						} ,
+						memberSid: 'Jilbert Polson'
+					} ) ;
+					
+					//user.$.toto = 'toto' ;
+					
+					user.$.getLink( "connection.A" , function( error , userA ) {
+						expect( error ).not.to.be.ok() ;
+						expect( userA ).to.eql( {
+							_id: connectionAId ,
+							firstName: 'John' ,
+							lastName: "Fergusson" ,
+							memberSid: "John Fergusson"
+						} ) ;
+						
+						user.$.getLink( "connection.B" , function( error , userB ) {
+							expect( error ).not.to.be.ok() ;
+							expect( userB ).to.eql( {
+								_id: connectionBId ,
+								firstName: 'Andy' ,
+								lastName: "Fergusson" ,
+								memberSid: "Andy Fergusson"
+							} ) ;
+							callback() ;
+						} ) ;
+					} ) ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+	it( "unexistant links, non-link properties" , function( done ) {
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var id = user._id ;
+		
+		var connectionA = users.createDocument( {
+			firstName: 'John' ,
+			lastName: 'Fergusson'
+		} ) ;
+		
+		var connectionB = users.createDocument( {
+			firstName: 'Andy' ,
+			lastName: 'Fergusson'
+		} ) ;
+		
+		var connectionAId = connectionA.$.id ;
+		var connectionBId = connectionB.$.id ;
+		
+		user.$.setLink( 'connection.A' , connectionA ) ;
+		doormen.shouldThrow( function() { user.$.setLink( 'unexistant' , connectionB ) ; } ) ;
+		doormen.shouldThrow( function() { user.$.setLink( 'firstName' , connectionB ) ; } ) ;
+		doormen.shouldThrow( function() { user.$.setLink( 'firstName.blah' , connectionB ) ; } ) ;
+		
+		async.series( [
+			function( callback ) {
+				connectionA.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				connectionB.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.get( id , function( error , user_ ) {
+					user = user_ ;
+					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( {
+						_id: user._id,
+						firstName: 'Jilbert',
+						lastName: 'Polson' ,
+						connection: {
+							A: connectionAId
+						} ,
+						memberSid: 'Jilbert Polson'
+					} ) ;
+					
+					//user.$.toto = 'toto' ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "connection.A" , function( error , userA ) {
+					expect( error ).not.to.be.ok() ;
+					expect( userA ).to.eql( {
+						_id: connectionAId ,
+						firstName: 'John' ,
+						lastName: "Fergusson" ,
+						memberSid: "John Fergusson"
+					} ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "connection.B" , function( error , userB ) {
+					expect( error ).to.be.ok() ;
+					expect( error.type ).to.be( 'notFound' ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "unexistant" , function( error , userB ) {
+					expect( error ).to.be.ok() ;
+					expect( error.type ).to.be( 'badRequest' ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "unexistant.unexistant" , function( error , userB ) {
+					expect( error ).to.be.ok() ;
+					expect( error.type ).to.be( 'badRequest' ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "firstName" , function( error , userB ) {
+					expect( error ).to.be.ok() ;
+					expect( error.type ).to.be( 'badRequest' ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "firstName.blah" , function( error , userB ) {
+					expect( error ).to.be.ok() ;
+					expect( error.type ).to.be( 'badRequest' ) ;
+					callback() ;
+				} ) ;
+			} ,
+		] )
+		.exec( done ) ;
+	} ) ;
+	*/
+} ) ;
+
+
+
 describe( "Attachment links" , function() {
 	
 	beforeEach( clearDB ) ;
