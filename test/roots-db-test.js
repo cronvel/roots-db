@@ -1462,7 +1462,7 @@ describe( "Populate links" , function() {
 		.exec( done ) ;
 	} ) ;
 	
-	it( "batch with multiple link population (create, link, save, get with populate option)" , function( done ) {
+	it( "collect batch with multiple link population (create, link, save, get with populate option)" , function( done ) {
 		
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,

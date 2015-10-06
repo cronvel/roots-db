@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "async-kit": "^0.5.10",
-    "doormen": "^0.2.17",
+    "doormen": "^0.3.1",
     "error-status": "^1.2.0",
     "fs-kit": "^0.0.3",
     "hash-kit": "^0.2.0",
