@@ -1,6 +1,6 @@
 {
   "name": "roots-db",
-  "version": "0.4.16",
+  "version": "0.4.17",
   "description": "Even more minimalistic ODM",
   "main": "lib/rootsDb.js",
   "directories": {
@@ -13,7 +13,7 @@
     "fs-kit": "^0.0.3",
     "hash-kit": "^0.2.0",
     "mongodb": "^2.0.43",
-    "tree-kit": "^0.5.5"
+    "tree-kit": "^0.5.6"
   },
   "devDependencies": {
     "harmony-reflect": "^1.4.0",
