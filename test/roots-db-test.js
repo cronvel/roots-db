@@ -1879,6 +1879,41 @@ describe( "Attachment links" , function() {
 
 
 
+describe( "Memory model" , function() {
+	
+	beforeEach( clearDB ) ;
+	
+	it( "should get a document from a Memory Model cache" , function( done ) {
+		
+		var mem = world.createMemoryModel() ;
+		
+		var rawUser = {
+			_id: '123456789012345678901234' , 
+			firstName: 'John' ,
+			lastName: 'McGregor'
+		} ;
+		
+		mem.add( 'users' , rawUser ) ;
+		
+		async.series( [
+			function( callback ) {
+				users.get( rawUser._id , { cache: mem } , function( error , user ) {
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'User:' , user ) ; 
+					expect( error ).not.to.be.ok() ;
+					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user ).to.eql( { _id: rawUser._id , firstName: 'John' , lastName: 'McGregor' } ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+} ) ;
+
+	
+
 
 
 describe( "Hooks" , function() {
