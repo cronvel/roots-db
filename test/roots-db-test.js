@@ -769,9 +769,79 @@ describe( "Get documents by unique fingerprint" , function() {
 
 
 
-describe( "Collect & find batchs" , function() {
+describe( "MultiGet, Collect & find batchs" , function() {
 	
 	beforeEach( clearDB ) ;
+	
+	it( "should get multiple document using an array of IDs (create, save and multiGet)" , function( done ) {
+		
+		var marleys = [
+			users.createDocument( {
+				firstName: 'Bob' ,
+				lastName: 'Marley'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Julian' ,
+				lastName: 'Marley'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Thomas' ,
+				lastName: 'Jefferson'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Stephen' ,
+				lastName: 'Marley'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Mr' ,
+				lastName: 'X'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Ziggy' ,
+				lastName: 'Marley'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Rita' ,
+				lastName: 'Marley'
+			} )
+		] ;
+		
+		async.series( [
+			function( callback ) {
+				rootsDb.bulk( 'save' , marleys , callback ) ;
+			} ,
+			function( callback ) {
+				var ids = [
+					marleys[ 0 ]._id ,
+					marleys[ 1 ]._id ,
+					marleys[ 3 ]._id ,
+					marleys[ 5 ]._id ,
+					marleys[ 6 ]._id
+				] ;
+				
+				users.multiGet( ids , function( error , batch ) {
+					var i , map = {} ;
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'Batch:' , batch ) ; 
+					expect( error ).not.to.be.ok() ;
+					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
+					expect( batch ).to.have.length( 5 ) ;
+					
+					for ( i = 0 ; i < batch.length ; i ++ )
+					{
+						//expect( batch[ i ] ).to.be.an( rootsDb.DocumentWrapper ) ;
+						expect( batch[ i ].firstName ).to.be.ok() ;
+						expect( batch[ i ].lastName ).to.equal( 'Marley' ) ;
+						map[ batch[ i ].firstName ] = true ;
+					}
+					
+					expect( map ).to.only.have.keys( 'Bob' , 'Julian' , 'Stephen' , 'Ziggy' , 'Rita' ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
 	
 	it( "should collect a batch using a (non-unique) fingerprint (create, save and collect batch)" , function( done ) {
 		
