@@ -1980,6 +1980,157 @@ describe( "Memory model" , function() {
 		] )
 		.exec( done ) ;
 	} ) ;
+	
+	it( "should multiGet all documents from a Memory Model cache (complete cache hit)" , function( done ) {
+		
+		var mem = world.createMemoryModel() ;
+		
+		someUsers = [
+			{
+				_id: '000000000000000000000001' ,
+				firstName: 'John1' ,
+				lastName: 'McGregor'
+			} ,
+			{
+				_id: '000000000000000000000002' ,
+				firstName: 'John2' ,
+				lastName: 'McGregor'
+			} ,
+			{
+				_id: '000000000000000000000003' ,
+				firstName: 'John3' ,
+				lastName: 'McGregor'
+			}
+		] ;
+		
+		mem.add( 'users' , someUsers[ 0 ] ) ;
+		mem.add( 'users' , someUsers[ 1 ] ) ;
+		mem.add( 'users' , someUsers[ 2 ] ) ;
+		
+		async.series( [
+			function( callback ) {
+				var ids = [
+					'000000000000000000000001' ,
+					'000000000000000000000002' ,
+					'000000000000000000000003'
+				] ;
+				
+				users.multiGet( ids , { cache: mem } , function( error , batch ) {
+					var i , map = {} ;
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'Batch:' , batch ) ; 
+					expect( error ).not.to.be.ok() ;
+					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
+					
+					batch.sort( function( a , b ) {
+						return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
+					} ) ;
+					
+					expect( batch ).to.eql( [
+						{
+							_id: someUsers[ 0 ]._id ,
+							firstName: 'John1' ,
+							lastName: 'McGregor'
+						} ,
+						{
+							_id: someUsers[ 1 ]._id ,
+							firstName: 'John2' ,
+							lastName: 'McGregor'
+						} ,
+						{
+							_id: someUsers[ 2 ]._id ,
+							firstName: 'John3' ,
+							lastName: 'McGregor'
+						}
+					] ) ;
+					
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+	it( "should multiGet some document from a Memory Model cache (partial cache hit)" , function( done ) {
+		
+		var mem = world.createMemoryModel() ;
+		
+		var someUsers = [
+			{
+				_id: '000000000000000000000001' ,
+				firstName: 'John1' ,
+				lastName: 'McGregor'
+			} ,
+			{
+				_id: '000000000000000000000002' ,
+				firstName: 'John2' ,
+				lastName: 'McGregor'
+			} ,
+			{
+				_id: '000000000000000000000003' ,
+				firstName: 'John3' ,
+				lastName: 'McGregor'
+			}
+		] ;
+		
+		mem.add( 'users' , someUsers[ 0 ] ) ;
+		mem.add( 'users' , someUsers[ 1 ] ) ;
+		mem.add( 'users' , someUsers[ 2 ] ) ;
+		
+		var anotherOne = users.createDocument( {
+			_id: '000000000000000000000004' ,
+			firstName: 'John4' ,
+			lastName: 'McGregor'
+		} ) ;
+		
+		async.series( [
+			function( callback ) {
+				anotherOne.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				var ids = [
+					'000000000000000000000001' ,
+					'000000000000000000000002' ,
+					'000000000000000000000004'
+				] ;
+				
+				users.multiGet( ids , { cache: mem } , function( error , batch ) {
+					var i , map = {} ;
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'Batch:' , batch ) ; 
+					expect( error ).not.to.be.ok() ;
+					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
+					
+					batch.sort( function( a , b ) {
+						return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
+					} ) ;
+					
+					expect( batch ).to.eql( [
+						{
+							_id: someUsers[ 0 ]._id ,
+							firstName: 'John1' ,
+							lastName: 'McGregor'
+						} ,
+						{
+							_id: someUsers[ 1 ]._id ,
+							firstName: 'John2' ,
+							lastName: 'McGregor'
+						} ,
+						{
+							_id: anotherOne._id ,
+							firstName: 'John4' ,
+							lastName: 'McGregor' ,
+							memberSid: 'John4 McGregor'
+						}
+					] ) ;
+					
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
 } ) ;
 
 	
