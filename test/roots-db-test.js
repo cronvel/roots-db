@@ -1222,7 +1222,13 @@ describe( "Links" , function() {
 				expect( user.$.getLinkDetails( "job" ) ).to.eql( {
 					type: 'link' ,
 					collection: 'jobs' ,
-					id: jobId
+					id: jobId ,
+					path: "job" ,
+					schema: {
+						collection: "jobs" ,
+						optional: true ,
+						type: "link"
+					}
 				} ) ;
 				callback() ;
 			}
@@ -1594,9 +1600,9 @@ describe( "Populate links" , function() {
 							firstName: 'DA',
 							lastName: 'GODFATHER',
 							_id: batch[ 0 ]._id,
-							memberSid: 'DA GODFATHER',
-							job: null,
-							godfather: null
+							memberSid: 'DA GODFATHER'
+							//, job: null, godfather: null
+							, job: undefined, godfather: undefined
 						},
 						{
 							firstName: 'Harry',
@@ -1608,8 +1614,9 @@ describe( "Populate links" , function() {
 								lastName: 'GODFATHER',
 								_id: batch[ 0 ]._id,
 								memberSid: 'DA GODFATHER'
-							},
-							job: null
+							}
+							//, job: null
+							, job: undefined
 						},
 						{
 							firstName: 'Jilbert',
@@ -1632,9 +1639,9 @@ describe( "Populate links" , function() {
 							firstName: 'Thomas',
 							lastName: 'Campbell',
 							_id: batch[ 3 ]._id,
-							memberSid: 'Thomas Campbell',
-							job: null,
-							godfather: null
+							memberSid: 'Thomas Campbell'
+							//, job: null, godfather: null
+							, job: undefined, godfather: undefined
 						},
 					] ) ;
 					
@@ -1927,6 +1934,11 @@ describe( "Attachment links" , function() {
 				var details = user.$.getLinkDetails( "file" ) ;
 				expect( details ).to.eql( {
 					type: 'attachment' ,
+					path: 'file' ,
+					schema: {
+						optional: true ,
+						type: 'attachment'
+					} ,
 					attachment: {
 						id: user.file.id ,
 						filename: 'joke.txt' ,

@@ -6,6 +6,9 @@
 	"node" : true,
 	"browser" : false,
 	"jquery" : false,
+	"globals": {
+		"Set": true
+	},
 	
 	
 	// Security
