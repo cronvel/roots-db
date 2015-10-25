@@ -1538,6 +1538,61 @@ describe( "Populate links" , function() {
 		.exec( done ) ;
 	} ) ;
 	
+	it( "multiple link population having same and circular target" , function( done ) {
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var id = user._id ;
+		
+		var connection = users.createDocument( {
+			firstName: 'John' ,
+			lastName: 'Fergusson'
+		} ) ;
+		
+		// Link the documents!
+		user.$.setLink( 'connection.A' , connection ) ;
+		user.$.setLink( 'connection.B' , connection ) ;
+		user.$.setLink( 'connection.C' , user ) ;
+		
+		expect( user.connection.A ).to.eql( connection.$.id ) ;
+		expect( user.connection.B ).to.eql( connection.$.id ) ;
+		expect( user.connection.C ).to.eql( user.$.id ) ;
+		
+		async.series( [
+			function( callback ) {
+				connection.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.get( id , { populate: [ 'connection.A' , 'connection.B' , 'connection.C' ] } , function( error , user ) {
+					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user.connection.A ).to.be( user.connection.B ) ;
+					expect( user ).to.eql( {
+						_id: user._id,
+						firstName: 'Jilbert',
+						lastName: 'Polson' ,
+						connection: {
+							A: connection ,
+							B: connection ,
+							C: user
+						} ,
+						memberSid: 'Jilbert Polson'
+					} ) ;
+					
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
 	it( "collect batch with multiple link population (create, link, save, get with populate option)" , function( done ) {
 		
 		var user1 = users.createDocument( {
@@ -1602,7 +1657,7 @@ describe( "Populate links" , function() {
 							_id: batch[ 0 ]._id,
 							memberSid: 'DA GODFATHER'
 							//, job: null, godfather: null
-							, job: undefined, godfather: undefined
+							//, job: undefined, godfather: undefined
 						},
 						{
 							firstName: 'Harry',
@@ -1616,7 +1671,7 @@ describe( "Populate links" , function() {
 								memberSid: 'DA GODFATHER'
 							}
 							//, job: null
-							, job: undefined
+							//, job: undefined
 						},
 						{
 							firstName: 'Jilbert',
@@ -1641,7 +1696,7 @@ describe( "Populate links" , function() {
 							_id: batch[ 3 ]._id,
 							memberSid: 'Thomas Campbell'
 							//, job: null, godfather: null
-							, job: undefined, godfather: undefined
+							//, job: undefined, godfather: undefined
 						},
 					] ) ;
 					
