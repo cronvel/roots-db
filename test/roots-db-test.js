@@ -2461,3 +2461,23 @@ describe( "Hooks" , function() {
 
 
 
+
+describe( "Historical bugs" , function() {
+	
+	beforeEach( clearDB ) ;
+	
+	it( "collect on empty collection with populate (was throwing uncaught error)" , function( done ) {
+		
+		async.series( [
+			function( callback ) {
+				users.collect( {} , { populate: [ 'job' , 'godfather' ] } , function( error , batch ) {
+					expect( error ).not.to.be.ok() ;
+					expect( batch ).to.eql( [] ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+} ) ;
