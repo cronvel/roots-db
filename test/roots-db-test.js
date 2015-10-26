@@ -1828,7 +1828,7 @@ describe( "Populate links" , function() {
 		.exec( done ) ;
 	} ) ;
 	
-	it( "collect batch with multiple link population and circular references: using noCacheReference" , function( done ) {
+	it( "collect batch with multiple link population and circular references: using noReference" , function( done ) {
 		
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -1878,7 +1878,7 @@ describe( "Populate links" , function() {
 				user3.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.collect( {} , { populate: [ 'job' , 'godfather' ] , noCacheReference: true } , function( error , batch ) {
+				users.collect( {} , { populate: [ 'job' , 'godfather' ] , noReference: true } , function( error , batch ) {
 					expect( error ).not.to.be.ok() ;
 					
 					// Sort that first...
