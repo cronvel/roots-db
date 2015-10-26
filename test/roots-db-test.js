@@ -1816,8 +1816,137 @@ describe( "Populate links" , function() {
 						},
 					] ) ;
 					
-					console.log( batch ) ;
-					//console.log( JSON.stringify( batch ) ) ;
+					//console.log( batch ) ;
+					
+					// JSON.stringify() should throw
+					expect( function() { JSON.stringify( batch ) ; } ).to.throwException() ;
+					
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+	it( "collect batch with multiple link population and circular references: using noCacheReference" , function( done ) {
+		
+		var user1 = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var user2 = users.createDocument( {
+			firstName: 'Thomas' ,
+			lastName: 'Campbell'
+		} ) ;
+		
+		var user3 = users.createDocument( {
+			firstName: 'Harry' ,
+			lastName: 'Campbell'
+		} ) ;
+		
+		var godfather = users.createDocument( {
+			firstName: 'DA' ,
+			lastName: 'GODFATHER'
+		} ) ;
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		// Link the documents!
+		user1.$.setLink( 'job' , job ) ;
+		user1.$.setLink( 'godfather' , godfather ) ;
+		user3.$.setLink( 'godfather' , godfather ) ;
+		godfather.$.setLink( 'godfather' , godfather ) ;
+		
+		async.series( [
+			function( callback ) {
+				job.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				godfather.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user1.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user3.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.collect( {} , { populate: [ 'job' , 'godfather' ] , noCacheReference: true } , function( error , batch ) {
+					expect( error ).not.to.be.ok() ;
+					
+					// Sort that first...
+					batch.sort( function( a , b ) {
+						return a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ;
+					} ) ;
+					
+					expect( batch ).to.eql( [
+						{
+							firstName: 'DA',
+							lastName: 'GODFATHER',
+							_id: batch[ 0 ]._id,
+							memberSid: 'DA GODFATHER',
+							godfather: {
+								firstName: 'DA',
+								lastName: 'GODFATHER',
+								_id: batch[ 0 ]._id,
+								memberSid: 'DA GODFATHER',
+								godfather: batch[ 0 ]._id
+							}
+						},
+						{
+							firstName: 'Harry',
+							lastName: 'Campbell',
+							_id: batch[ 1 ]._id,
+							memberSid: 'Harry Campbell',
+							godfather: {
+								firstName: 'DA',
+								lastName: 'GODFATHER',
+								_id: batch[ 0 ]._id,
+								memberSid: 'DA GODFATHER',
+								godfather: batch[ 0 ]._id
+							}
+							//, job: null
+							//, job: undefined
+						},
+						{
+							firstName: 'Jilbert',
+							lastName: 'Polson',
+							_id: batch[ 2 ]._id,
+							memberSid: 'Jilbert Polson',
+							job: {
+								title: 'developer',
+								salary: 60000,
+								_id: job._id
+							},
+							godfather: {
+								firstName: 'DA',
+								lastName: 'GODFATHER',
+								_id: batch[ 0 ]._id,
+								memberSid: 'DA GODFATHER',
+								godfather: batch[ 0 ]._id
+							}
+						},
+						{
+							firstName: 'Thomas',
+							lastName: 'Campbell',
+							_id: batch[ 3 ]._id,
+							memberSid: 'Thomas Campbell'
+							//, job: null, godfather: null
+							//, job: undefined, godfather: undefined
+						},
+					] ) ;
+					
+					//console.log( batch ) ;
+					
+					// JSON.stringify() should not throw
+					expect( function() { JSON.stringify( batch ) ; } ).not.to.throwException() ;
 					
 					callback() ;
 				} ) ;
