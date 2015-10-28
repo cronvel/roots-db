@@ -1,6 +1,6 @@
 {
   "name": "roots-db",
-  "version": "0.5.10",
+  "version": "0.5.11",
   "engines": {
     "node": ">=4.0.0"
   },
@@ -15,7 +15,7 @@
     "error-status": "^1.2.0",
     "fs-kit": "^0.0.3",
     "hash-kit": "^0.2.0",
-    "logger-kit": "^0.1.10",
+    "logger-kit": "^0.1.12",
     "mongodb": "^2.0.43",
     "tree-kit": "^0.5.6"
   },
