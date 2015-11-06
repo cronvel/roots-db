@@ -15,7 +15,7 @@
     "error-status": "^1.4.0",
     "fs-kit": "^0.0.3",
     "hash-kit": "^0.2.0",
-    "logfella": "^0.1.29",
+    "logfella": "^0.3.8",
     "mongodb": "^2.0.43",
     "tree-kit": "^0.5.6"
   },
@@ -23,7 +23,7 @@
     "expect.js": "^0.3.1",
     "jshint": "^2.5.6",
     "mocha": "^1.21.4",
-    "string-kit": "^0.2.9"
+    "string-kit": "^0.2.10"
   },
   "scripts": {
     "test": "mocha"
