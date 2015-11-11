@@ -10,12 +10,12 @@
     "test": "test"
   },
   "dependencies": {
-    "async-kit": "^0.6.5",
+    "async-kit": "^0.6.6",
     "doormen": "^0.4.0",
     "error-status": "^1.5.0",
     "fs-kit": "^0.0.3",
     "hash-kit": "^0.2.0",
-    "logfella": "^0.3.8",
+    "logfella": "^0.3.9",
     "mongodb": "^2.0.43",
     "tree-kit": "^0.5.6"
   },
