@@ -55,7 +55,7 @@ var log = logfella.global.use( 'mocha' ) ;
 var world = rootsDb.World() ;
 
 // Collections...
-var users , jobs , towns ;
+var users , jobs , towns , lockables ;
 
 var usersDescriptor = {
 	url: 'mongodb://localhost:27017/test/users' ,
@@ -141,6 +141,16 @@ var townsDescriptor = {
 	]
 } ;
 
+var lockablesDescriptor = {
+	url: 'mongodb://localhost:27017/test/lockables' ,
+	canLock: true ,
+	properties: {
+		data: { type: 'string' }
+	} ,
+	meta: {} ,
+	indexes: []
+} ;
+
 
 
 
@@ -173,7 +183,8 @@ function clearDB( callback )
 	async.parallel( [
 		[ clearCollection , users ] ,
 		[ clearCollection , jobs ] ,
-		[ clearCollection , towns ]
+		[ clearCollection , towns ] ,
+		[ clearCollection , lockables ]
 	] )
 	.exec( callback ) ;
 }
@@ -186,7 +197,8 @@ function clearDBIndexes( callback )
 	async.parallel( [
 		[ clearCollectionIndexes , users ] ,
 		[ clearCollectionIndexes , jobs ] ,
-		[ clearCollectionIndexes , towns ]
+		[ clearCollectionIndexes , towns ] ,
+		[ clearCollectionIndexes , lockables ]
 	] )
 	.exec( callback ) ;
 }
@@ -230,6 +242,9 @@ before( function( done ) {
 	
 	towns = world.createCollection( 'towns' , townsDescriptor ) ;
 	expect( towns ).to.be.a( rootsDb.Collection ) ;
+	
+	lockables = world.createCollection( 'lockables' , lockablesDescriptor ) ;
+	expect( lockables ).to.be.a( rootsDb.Collection ) ;
 	
 	done() ;
 } ) ;
@@ -2429,6 +2444,64 @@ describe( "Memory model" , function() {
 } ) ;
 
 	
+
+describe( "Locks" , function() {
+	
+	beforeEach( clearDB ) ;
+	
+	it( "should get a document (create, save and retrieve)" , function( done ) {
+		
+		var lockable = lockables.createDocument( {
+			data: 'something' ,
+		} ) ;
+		
+		var id = lockable._id ;
+		
+		async.series( [
+			function( callback ) {
+				lockable.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				lockables.get( id , function( error , lockable ) {
+					expect( error ).not.to.be.ok() ;
+					expect( lockable ).to.eql( { _id: lockable._id , data: 'something' , _lockedBy: null , _lockedAt: null } ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				lockable.$.lock( function( error ) {
+					expect( error ).not.to.be.ok() ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				lockables.get( id , function( error , lockable ) {
+					expect( error ).not.to.be.ok() ;
+					log.warning( 'lockable: %J' , lockable ) ;
+					expect( lockable._lockedBy ).to.eql( rootsDb.appId ) ;
+					expect( lockable._lockedAt ).to.be.ok() ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				lockable.$.lock( function( error ) {
+					expect( error ).to.be.ok() ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				lockables.get( id , function( error , lockable ) {
+					expect( error ).not.to.be.ok() ;
+					log.warning( 'lockable: %J' , lockable ) ;
+					expect( lockable._lockedBy ).to.eql( rootsDb.appId ) ;
+					expect( lockable._lockedAt ).to.be.ok() ;
+					callback() ;
+				} ) ;
+			} ,
+		] )
+		.exec( done ) ;
+	} ) ;
+} ) ;
 
 
 
