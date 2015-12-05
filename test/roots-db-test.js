@@ -2449,7 +2449,7 @@ describe( "Locks" , function() {
 	
 	beforeEach( clearDB ) ;
 	
-	it( "should get a document (create, save and retrieve)" , function( done ) {
+	it( "should lock a document (create, save, lock, retrieve, lock, retrieve)" , function( done ) {
 		
 		var lockable = lockables.createDocument( {
 			data: 'something' ,
@@ -2506,6 +2506,67 @@ describe( "Locks" , function() {
 		] )
 		.exec( done ) ;
 	} ) ;
+	
+	it( "should perform a 'lockAndRetrieve'" ) ;
+	/*
+	it( "should perform a 'lockAndRetrieve'" , function( done ) {
+		
+		var lockable = lockables.createDocument( {
+			data: 'something' ,
+		} ) ;
+		
+		var id = lockable._id ;
+		var lockId ;
+		
+		async.series( [
+			function( callback ) {
+				lockable.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				lockables.get( id , function( error , lockable ) {
+					expect( error ).not.to.be.ok() ;
+					expect( lockable ).to.eql( { _id: lockable._id , data: 'something' , _lockedBy: null , _lockedAt: null } ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				lockable.$.lock( function( error , locked , lockId_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( locked ).to.be.ok() ;
+					expect( lockId_ ).to.be.an( mongodb.ObjectID ) ;
+					lockId = lockId_ ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				lockables.get( id , function( error , lockable ) {
+					expect( error ).not.to.be.ok() ;
+					log.warning( 'lockable: %J' , lockable ) ;
+					expect( lockable._lockedBy ).to.eql( lockId ) ;
+					expect( lockable._lockedAt ).to.be.ok() ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				lockable.$.lock( function( error , locked , lockId_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( locked ).not.to.be.ok() ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				lockables.get( id , function( error , lockable ) {
+					expect( error ).not.to.be.ok() ;
+					log.warning( 'lockable: %J' , lockable ) ;
+					expect( lockable._lockedBy ).to.eql( lockId ) ;
+					expect( lockable._lockedAt ).to.be.ok() ;
+					callback() ;
+				} ) ;
+			} ,
+		] )
+		.exec( done ) ;
+	} ) ;
+	//*/
 } ) ;
 
 
