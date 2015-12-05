@@ -144,6 +144,7 @@ var townsDescriptor = {
 var lockablesDescriptor = {
 	url: 'mongodb://localhost:27017/test/lockables' ,
 	canLock: true ,
+	lockTimeout: 20 ,
 	properties: {
 		data: { type: 'string' }
 	} ,
@@ -2507,66 +2508,55 @@ describe( "Locks" , function() {
 		.exec( done ) ;
 	} ) ;
 	
-	it( "should perform a 'lockAndRetrieve'" ) ;
-	/*
-	it( "should perform a 'lockAndRetrieve'" , function( done ) {
+	it( "zzz should perform a 'lockAndRetrieve'" , function( done ) {
 		
-		var lockable = lockables.createDocument( {
-			data: 'something' ,
-		} ) ;
-		
-		var id = lockable._id ;
 		var lockId ;
+		
+		var docs = [
+			lockables.createDocument( { data: 'one' } ) ,
+			lockables.createDocument( { data: 'two' } ) ,
+			lockables.createDocument( { data: 'three' } ) ,
+			lockables.createDocument( { data: 'four' } ) ,
+			lockables.createDocument( { data: 'five' } ) ,
+			lockables.createDocument( { data: 'six' } )
+		] ;
 		
 		async.series( [
 			function( callback ) {
-				lockable.$.save( callback ) ;
+				rootsDb.bulk( 'save' , docs , callback ) ;
 			} ,
 			function( callback ) {
-				lockables.get( id , function( error , lockable ) {
+				lockables.lockAndRetrieve( { data: { $in: [ 'one' , 'two' ] } } , function( error , batch ) {
 					expect( error ).not.to.be.ok() ;
-					expect( lockable ).to.eql( { _id: lockable._id , data: 'something' , _lockedBy: null , _lockedAt: null } ) ;
+					console.log( batch ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				lockable.$.lock( function( error , locked , lockId_ ) {
+				lockables.lockAndRetrieve( { data: { $in: [ 'one' , 'two' , 'three' ] } } , function( error , batch ) {
 					expect( error ).not.to.be.ok() ;
-					expect( locked ).to.be.ok() ;
-					expect( lockId_ ).to.be.an( mongodb.ObjectID ) ;
-					lockId = lockId_ ;
+					console.log( batch ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				lockables.get( id , function( error , lockable ) {
+				lockables.lockAndRetrieve( { data: { $in: [ 'one' , 'two' , 'three' ] } } , function( error , batch ) {
 					expect( error ).not.to.be.ok() ;
-					log.warning( 'lockable: %J' , lockable ) ;
-					expect( lockable._lockedBy ).to.eql( lockId ) ;
-					expect( lockable._lockedAt ).to.be.ok() ;
-					callback() ;
+					console.log( batch ) ;
+					setTimeout( callback , 100 ) ;
 				} ) ;
 			} ,
 			function( callback ) {
-				lockable.$.lock( function( error , locked , lockId_ ) {
+				lockables.lockAndRetrieve( { data: { $in: [ 'one' , 'two' , 'three' ] } } , function( error , batch ) {
 					expect( error ).not.to.be.ok() ;
-					expect( locked ).not.to.be.ok() ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.get( id , function( error , lockable ) {
-					expect( error ).not.to.be.ok() ;
-					log.warning( 'lockable: %J' , lockable ) ;
-					expect( lockable._lockedBy ).to.eql( lockId ) ;
-					expect( lockable._lockedAt ).to.be.ok() ;
+					console.log( batch ) ;
+					expect( batch.length ).to.be( 3 ) ;
 					callback() ;
 				} ) ;
 			} ,
 		] )
 		.exec( done ) ;
 	} ) ;
-	//*/
 } ) ;
 
 
