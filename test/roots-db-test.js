@@ -2456,6 +2456,7 @@ describe( "Locks" , function() {
 		} ) ;
 		
 		var id = lockable._id ;
+		var lockId ;
 		
 		async.series( [
 			function( callback ) {
@@ -2469,8 +2470,11 @@ describe( "Locks" , function() {
 				} ) ;
 			} ,
 			function( callback ) {
-				lockable.$.lock( function( error ) {
+				lockable.$.lock( function( error , locked , lockId_ ) {
 					expect( error ).not.to.be.ok() ;
+					expect( locked ).to.be.ok() ;
+					expect( lockId_ ).to.be.an( mongodb.ObjectID ) ;
+					lockId = lockId_ ;
 					callback() ;
 				} ) ;
 			} ,
@@ -2478,14 +2482,15 @@ describe( "Locks" , function() {
 				lockables.get( id , function( error , lockable ) {
 					expect( error ).not.to.be.ok() ;
 					log.warning( 'lockable: %J' , lockable ) ;
-					expect( lockable._lockedBy ).to.eql( rootsDb.appId ) ;
+					expect( lockable._lockedBy ).to.eql( lockId ) ;
 					expect( lockable._lockedAt ).to.be.ok() ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				lockable.$.lock( function( error ) {
-					expect( error ).to.be.ok() ;
+				lockable.$.lock( function( error , locked , lockId_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( locked ).not.to.be.ok() ;
 					callback() ;
 				} ) ;
 			} ,
@@ -2493,7 +2498,7 @@ describe( "Locks" , function() {
 				lockables.get( id , function( error , lockable ) {
 					expect( error ).not.to.be.ok() ;
 					log.warning( 'lockable: %J' , lockable ) ;
-					expect( lockable._lockedBy ).to.eql( rootsDb.appId ) ;
+					expect( lockable._lockedBy ).to.eql( lockId ) ;
 					expect( lockable._lockedAt ).to.be.ok() ;
 					callback() ;
 				} ) ;
