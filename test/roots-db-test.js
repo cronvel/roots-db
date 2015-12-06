@@ -2521,6 +2521,10 @@ describe( "Locks" , function() {
 			lockables.createDocument( { data: 'six' } )
 		] ;
 		
+		var mapper = function( element ) {
+			return element.data ;
+		} ;
+		
 		async.series( [
 			function( callback ) {
 				rootsDb.bulk( 'save' , docs , callback ) ;
@@ -2530,8 +2534,9 @@ describe( "Locks" , function() {
 					expect( error ).not.to.be.ok() ;
 					//console.log( batch ) ;
 					expect( batch ).to.have.length( 2 ) ;
-					expect( batch[ 0 ].data ).to.be( 'one' ) ;
-					expect( batch[ 1 ].data ).to.be( 'two' ) ;
+					var keys = batch.map( mapper ) ;
+					expect( keys ).to.contain( 'one' ) ;
+					expect( keys ).to.contain( 'two' ) ;
 					callback() ;
 				} ) ;
 			} ,
@@ -2557,9 +2562,10 @@ describe( "Locks" , function() {
 					expect( error ).not.to.be.ok() ;
 					//console.log( batch ) ;
 					expect( batch ).to.have.length( 3 ) ;
-					expect( batch[ 0 ].data ).to.be( 'one' ) ;
-					expect( batch[ 1 ].data ).to.be( 'two' ) ;
-					expect( batch[ 2 ].data ).to.be( 'three' ) ;
+					var keys = batch.map( mapper ) ;
+					expect( keys ).to.contain( 'one' ) ;
+					expect( keys ).to.contain( 'two' ) ;
+					expect( keys ).to.contain( 'three' ) ;
 					releaseFn( callback ) ;
 				} ) ;
 			} ,
@@ -2568,9 +2574,10 @@ describe( "Locks" , function() {
 					expect( error ).not.to.be.ok() ;
 					//console.log( batch ) ;
 					expect( batch.length ).to.be( 3 ) ;
-					expect( batch[ 0 ].data ).to.be( 'one' ) ;
-					expect( batch[ 1 ].data ).to.be( 'two' ) ;
-					expect( batch[ 2 ].data ).to.be( 'three' ) ;
+					var keys = batch.map( mapper ) ;
+					expect( keys ).to.contain( 'one' ) ;
+					expect( keys ).to.contain( 'two' ) ;
+					expect( keys ).to.contain( 'three' ) ;
 					callback() ;
 				} ) ;
 			} ,
