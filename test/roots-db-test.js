@@ -58,7 +58,7 @@ var world = rootsDb.World() ;
 var users , jobs , towns , lockables ;
 
 var usersDescriptor = {
-	url: 'mongodb://localhost:27017/test/users' ,
+	url: 'mongodb://localhost:27017/rootsDb/users' ,
 	attachmentUrl: __dirname + '/tmp/' ,
 	properties: {
 		firstName: {
@@ -107,7 +107,7 @@ var usersDescriptor = {
 var expectedDefaultUser = { firstName: 'Joe', lastName: 'Doe' , memberSid: 'Joe Doe' } ;
 
 var jobsDescriptor = {
-	url: 'mongodb://localhost:27017/test/jobs' ,
+	url: 'mongodb://localhost:27017/rootsDb/jobs' ,
 	properties: {
 		title: {
 			type: 'string' ,
@@ -126,7 +126,7 @@ var jobsDescriptor = {
 } ;
 
 var townsDescriptor = {
-	url: 'mongodb://localhost:27017/test/towns' ,
+	url: 'mongodb://localhost:27017/rootsDb/towns' ,
 	properties: {
 		name: { type: 'string' } ,
 		meta: {
@@ -142,7 +142,7 @@ var townsDescriptor = {
 } ;
 
 var lockablesDescriptor = {
-	url: 'mongodb://localhost:27017/test/lockables' ,
+	url: 'mongodb://localhost:27017/rootsDb/lockables' ,
 	canLock: true ,
 	lockTimeout: 40 ,
 	properties: {
