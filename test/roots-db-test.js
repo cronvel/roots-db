@@ -55,7 +55,7 @@ var log = logfella.global.use( 'mocha' ) ;
 var world = rootsDb.World() ;
 
 // Collections...
-var users , jobs , towns , lockables ;
+var users , jobs , towns , lockables , extendables ;
 
 var usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
@@ -154,6 +154,63 @@ var lockablesDescriptor = {
 
 
 
+function Extended() { throw new Error( 'Use Extended.create() instead' ) ; }
+Extended.prototype = Object.create( rootsDb.DocumentWrapper.prototype ) ;
+Extended.prototype.constructor = Extended ;
+
+Extended.create = function extendedCreate( collection , rawDoc , options )
+{
+	var o = Object.create( Extended.prototype ) ;
+	o.create( collection , rawDoc , options ) ;
+	return o ;
+} ;
+
+Extended.prototype.create = function create( collection , rawDoc , options )
+{
+	rootsDb.DocumentWrapper.prototype.create.call( this , collection , rawDoc , options ) ;
+} ;
+
+Extended.prototype.getNormalized = function getNormalized()
+{
+	return this.document.data.toLowerCase() ;
+} ;
+
+function ExtendedBatch() { throw new Error( 'Use ExtendedBatch.create() instead' ) ; }
+ExtendedBatch.prototype = Object.create( rootsDb.BatchWrapper.prototype ) ;
+ExtendedBatch.prototype.constructor = ExtendedBatch ;
+
+ExtendedBatch.create = function extendedCreate( collection , rawDoc , options )
+{
+	var o = Object.create( ExtendedBatch.prototype ) ;
+	o.create( collection , rawDoc , options ) ;
+	return o ;
+} ;
+
+ExtendedBatch.prototype.create = function create( collection , rawDoc , options )
+{
+	rootsDb.BatchWrapper.prototype.create.call( this , collection , rawDoc , options ) ;
+} ;
+
+ExtendedBatch.prototype.concat = function concat()
+{
+	var i , iMax , str = '' ;
+	for ( i = 0 , iMax = this.batch.length ; i < iMax ; i ++ ) { str += this.batch[ i ].data ; }
+	return str ;
+} ;
+
+var extendablesDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/extendables' ,
+	DocumentWrapper: Extended ,
+	BatchWrapper: ExtendedBatch ,
+	properties: {
+		data: { type: 'string' }
+	} ,
+	meta: {} ,
+	indexes: []
+} ;
+
+
+
 
 
 			/* Utils */
@@ -185,7 +242,8 @@ function clearDB( callback )
 		[ clearCollection , users ] ,
 		[ clearCollection , jobs ] ,
 		[ clearCollection , towns ] ,
-		[ clearCollection , lockables ]
+		[ clearCollection , lockables ] ,
+		[ clearCollection , extendables ]
 	] )
 	.exec( callback ) ;
 }
@@ -199,7 +257,8 @@ function clearDBIndexes( callback )
 		[ clearCollectionIndexes , users ] ,
 		[ clearCollectionIndexes , jobs ] ,
 		[ clearCollectionIndexes , towns ] ,
-		[ clearCollectionIndexes , lockables ]
+		[ clearCollectionIndexes , lockables ] ,
+		[ clearCollectionIndexes , extendables ]
 	] )
 	.exec( callback ) ;
 }
@@ -220,7 +279,9 @@ function clearCollectionIndexes( collection , callback )
 {
 	collection.driver.rawInit( function( error ) {
 		if ( error ) { callback( error ) ; return ; }
-		collection.driver.raw.dropIndexes( callback ) ;
+		collection.driver.raw.dropIndexes( function() {
+			callback() ;
+		} ) ;
 	} ) ;
 }
 
@@ -246,6 +307,9 @@ before( function( done ) {
 	
 	lockables = world.createCollection( 'lockables' , lockablesDescriptor ) ;
 	expect( lockables ).to.be.a( rootsDb.Collection ) ;
+	
+	extendables = world.createCollection( 'extendables' , extendablesDescriptor ) ;
+	expect( extendables ).to.be.a( rootsDb.Collection ) ;
 	
 	done() ;
 } ) ;
@@ -2588,13 +2652,78 @@ describe( "Locks" , function() {
 
 
 
+describe( "Extended DocumentWrapper" , function() {
+	
+	beforeEach( clearDB ) ;
+	
+	it( "should call a method of the extended Document wrapper at creation and after retrieving it from DB" , function( done ) {
+		
+		var ext = extendables.createDocument( {
+			data: 'sOmeDaTa'
+		} ) ;
+		
+		expect( ext.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+		expect( ext.$ ).to.be.an( Extended ) ;
+		
+		expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
+		
+		var id = ext._id ;
+		
+		async.series( [
+			function( callback ) {
+				ext.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				extendables.get( id , function( error , ext ) {
+					expect( error ).not.to.be.ok() ;
+					expect( ext.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( ext.$ ).to.be.an( Extended ) ;
+					expect( ext ).to.eql( { _id: ext._id , data: 'sOmeDaTa' } ) ;
+					expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
+					ext.data = 'mOreVespEnEGaS' ;
+					expect( ext.$.getNormalized() ).to.be( 'morevespenegas' ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+	it( "should call a method of the extended Batch wrapper at creation and after retrieving it from DB" , function( done ) {
+		
+		var ext1 = extendables.createDocument( { data: 'oNe' } ) ;
+		var ext2 = extendables.createDocument( { data: 'twO' } ) ;
+		var ext3 = extendables.createDocument( { data: 'THRee' } ) ;
+		
+		var id1 = ext1._id ;
+		var id2 = ext2._id ;
+		var id3 = ext3._id ;
+		
+		async.series( [
+			function( callback ) { ext1.$.save( callback ) ; } ,
+			function( callback ) { ext2.$.save( callback ) ; } ,
+			function( callback ) { ext3.$.save( callback ) ; } ,
+			function( callback ) {
+				extendables.collect( {} , function( error , exts ) {
+					expect( error ).not.to.be.ok() ;
+					expect( exts.$ ).to.be.an( rootsDb.BatchWrapper ) ;
+					expect( exts.$ ).to.be.an( ExtendedBatch ) ;
+					expect( exts.$.concat() ).to.be( 'oNetwOTHRee' ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+} ) ;
+
+
+
 describe( "Hooks" , function() {
 	
 	it( "'beforeCreateDocument'" ) ;
 	it( "'afterCreateDocument'" ) ;
 } ) ;
-
-
 
 
 
