@@ -52,7 +52,7 @@ var log = logfella.global.use( 'mocha' ) ;
 
 
 // Create the world...
-var world = rootsDb.World() ;
+var world = rootsDb.World.create() ;
 
 // Collections...
 var users , jobs , towns , lockables , extendables ;
