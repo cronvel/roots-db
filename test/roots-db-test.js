@@ -1328,11 +1328,12 @@ describe( "Links" , function() {
 					type: 'link' ,
 					collection: 'jobs' ,
 					id: jobId ,
-					path: "job" ,
+					path: 'job' ,
 					schema: {
-						collection: "jobs" ,
+						collection: 'jobs' ,
 						optional: true ,
-						type: "link"
+						type: 'link' ,
+						sanitize: [ 'toLink' ] ,
 					}
 				} ) ;
 				callback() ;
