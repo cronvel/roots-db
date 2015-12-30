@@ -118,7 +118,7 @@ var jobsDescriptor = {
 			type: 'integer' ,
 			default: 0
 		} ,
-		users: { type: 'backlink' , collection: 'users' , path: 'job' } ,
+		users: { type: 'backlink' , collection: 'users' , backpath: 'job' } ,
 	} ,
 	/*
 	meta: {
@@ -1552,6 +1552,13 @@ describe( "Backlinks" , function() {
 		
 		var id = user._id ;
 		
+		var user2 = users.createDocument( {
+			firstName: 'Tony' ,
+			lastName: 'P.'
+		} ) ;
+		
+		var id2 = user2._id ;
+		
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
@@ -1562,8 +1569,7 @@ describe( "Backlinks" , function() {
 		
 		// Link the documents!
 		user.$.setLink( 'job' , job ) ;
-		
-		expect( user.job ).to.eql( jobId ) ;
+		//user2.$.setLink( 'job' , job ) ;
 		
 		async.series( [
 			function( callback ) {
@@ -1602,7 +1608,6 @@ describe( "Backlinks" , function() {
 			function( callback ) {
 				job.$.getLink( "users" , function( error , users ) {
 					expect( error ).not.to.be.ok() ;
-					console.error( users ) ;
 					// Temp
 					expect( users ).to.eql( [
 						{
@@ -1621,15 +1626,43 @@ describe( "Backlinks" , function() {
 					type: 'backlink' ,
 					collection: 'users' ,
 					path: 'users' ,
+					backpath: 'job' ,
 					schema: {
 						collection: 'users' ,
 						//optional: true ,
 						type: 'backlink' ,
 						sanitize: [ 'toBacklink' ] ,
+						backpath: 'job' ,
 					}
 				} ) ;
 				callback() ;
-			}
+			} ,
+			function( callback ) {
+				user2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				job.$.getLink( "users" , function( error , users ) {
+					expect( error ).not.to.be.ok() ;
+					// Temp
+					expect( users ).to.eql( [
+						{
+							_id: users[ 0 ]._id,
+							firstName: 'Jilbert',
+							lastName: 'Polson',
+							memberSid: 'Jilbert Polson',
+							job: job._id
+						} ,
+						{
+							_id: users[ 1 ]._id,
+							firstName: 'Tony',
+							lastName: 'P.',
+							memberSid: 'Tony P.',
+							job: job._id
+						}
+					] ) ;
+					callback() ;
+				} ) ;
+			} ,
 		] )
 		.exec( done ) ;
 	} ) ;
