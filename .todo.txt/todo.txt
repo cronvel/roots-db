@@ -1,6 +1,9 @@
 
 
-(C) should we substitute 'Suspect' by 'Hollow'? @idea
+
 (B) should filter out properties containing a dot '.' @code
 (A) validate data before saving @code
 (A) validate the schema by a schema, at collection creation @code
+(B) simplify things, force ._id as a special id field for all driver, do not use .$.id anymore @refacto
+(A) DocumentWrapper#addLink() and DocumentWrapper#unlink() should work with standard 'link' too @code
+(B) DocumentWrapper#setLink(), DocumentWrapper#addLink() and DocumentWrapper#unlink() should work with standard 'backlink' too @code

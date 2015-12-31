@@ -55,7 +55,7 @@ var log = logfella.global.use( 'mocha' ) ;
 var world = rootsDb.World.create() ;
 
 // Collections...
-var users , jobs , towns , lockables , extendables ;
+var users , jobs , schools , towns , lockables , extendables ;
 
 var usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
@@ -85,11 +85,6 @@ var usersDescriptor = {
 			maxLength: 30
 		}
 	} ,
-	/*
-	meta: {
-		godfather: { type: 'link' , collection: 'users' , property: 'godfatherId' } ,
-		job: { type: 'link' , collection: 'jobs' , property: 'job' }
-	} ,*/
 	indexes: [
 		{ properties: { job: 1 } } ,
 		{ properties: { job: 1 , memberSid: 1 } , unique: true }
@@ -120,10 +115,20 @@ var jobsDescriptor = {
 		} ,
 		users: { type: 'backLink' , collection: 'users' , path: 'job' } ,
 	} ,
-	/*
-	meta: {
-		members: { type: 'backLink' , collection: 'users' , property: 'job' }
-	}*/
+} ;
+
+var schoolsDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/schools' ,
+	properties: {
+		title: {
+			type: 'string' ,
+			maxLength: 50
+		} ,
+		jobs: {
+			type: 'multiLink' ,
+			collection: 'jobs'
+		} ,
+	} ,
 } ;
 
 var townsDescriptor = {
@@ -134,8 +139,6 @@ var townsDescriptor = {
 			type: 'strictObject',
 			default: {}
 		}
-	} ,
-	meta: {
 	} ,
 	indexes: [
 		{ properties: { name: 1 , "meta.country": 1 } , unique: true }
@@ -149,7 +152,6 @@ var lockablesDescriptor = {
 	properties: {
 		data: { type: 'string' }
 	} ,
-	meta: {} ,
 	indexes: []
 } ;
 
@@ -242,6 +244,7 @@ function clearDB( callback )
 	async.parallel( [
 		[ clearCollection , users ] ,
 		[ clearCollection , jobs ] ,
+		[ clearCollection , schools ] ,
 		[ clearCollection , towns ] ,
 		[ clearCollection , lockables ] ,
 		[ clearCollection , extendables ]
@@ -257,6 +260,7 @@ function clearDBIndexes( callback )
 	async.parallel( [
 		[ clearCollectionIndexes , users ] ,
 		[ clearCollectionIndexes , jobs ] ,
+		[ clearCollectionIndexes , schools ] ,
 		[ clearCollectionIndexes , towns ] ,
 		[ clearCollectionIndexes , lockables ] ,
 		[ clearCollectionIndexes , extendables ]
@@ -297,11 +301,14 @@ function clearCollectionIndexes( collection , callback )
 // Force creating the collection
 before( function( done ) {
 	
+	users = world.createCollection( 'users' , usersDescriptor ) ;
+	expect( users ).to.be.a( rootsDb.Collection ) ;
+	
 	jobs = world.createCollection( 'jobs' , jobsDescriptor ) ;
 	expect( jobs ).to.be.a( rootsDb.Collection ) ;
 	
-	users = world.createCollection( 'users' , usersDescriptor ) ;
-	expect( users ).to.be.a( rootsDb.Collection ) ;
+	schools = world.createCollection( 'schools' , schoolsDescriptor ) ;
+	expect( schools ).to.be.a( rootsDb.Collection ) ;
 	
 	towns = world.createCollection( 'towns' , townsDescriptor ) ;
 	expect( towns ).to.be.a( rootsDb.Collection ) ;
@@ -1682,6 +1689,167 @@ describe( "Back-links" , function() {
 
 
 
+describe( "Multi-links" , function() {
+	
+	beforeEach( clearDB ) ;
+	
+	it( "basic multi-link (create, link, save, retrieve one, retrieve multi-links, add link, check, unlink, check)" , function( done ) {
+		
+		var school = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+		
+		var id = school._id ;
+		
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		var job1Id = job1.$.id ;
+		
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+		
+		var job2Id = job2.$.id ;
+		
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+		
+		var job3Id = job3.$.id ;
+		
+		// Link the documents!
+		school.$.setLink( 'jobs' , [ job1 , job2 ] ) ;
+		
+		async.series( [
+			function( callback ) {
+				job1.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				job2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				job3.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				school.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				schools.get( id , function( error , school_ ) {
+					school = school_ ;
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'Job:' , job ) ;
+					expect( error ).not.to.be.ok() ;
+					expect( school.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( school._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( school._id ).to.eql( id ) ;
+					expect( school ).to.eql( { _id: school._id , title: 'Computer Science' , jobs: [ job1._id , job2._id ] } ) ;
+					
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				school.$.getLink( "jobs" , function( error , jobs_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( jobs_ ).to.have.length( 2 ) ;
+					
+					//console.error( jobs_ ) ;
+					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
+					
+					expect( jobs_ ).to.eql( [
+						{
+							_id: jobs_[ 0 ]._id,
+							title: 'developer',
+							salary: 60000,
+							users: []
+						} ,
+						{
+							_id: jobs_[ 1 ]._id,
+							title: 'sysadmin',
+							salary: 55000,
+							users: []
+						}
+					] ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				school.$.addLink( 'jobs' , job3 ) ;
+				school.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				school.$.getLink( "jobs" , function( error , jobs_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( jobs_ ).to.have.length( 3 ) ;
+					
+					//console.error( jobs_ ) ;
+					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
+					
+					expect( jobs_ ).to.eql( [
+						{
+							_id: jobs_[ 0 ]._id,
+							title: 'developer',
+							salary: 60000,
+							users: []
+						} ,
+						{
+							_id: jobs_[ 1 ]._id,
+							title: 'sysadmin',
+							salary: 55000,
+							users: []
+						} ,
+						{
+							_id: jobs_[ 2 ]._id,
+							title: 'front-end developer',
+							salary: 54000,
+							users: []
+						} ,
+					] ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				school.$.unlink( 'jobs' , job2 ) ;
+				school.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				school.$.getLink( "jobs" , function( error , jobs_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( jobs_ ).to.have.length( 2 ) ;
+					
+					//console.error( jobs_ ) ;
+					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
+					
+					expect( jobs_ ).to.eql( [
+						{
+							_id: jobs_[ 0 ]._id,
+							title: 'developer',
+							salary: 60000,
+							users: []
+						} ,
+						{
+							_id: jobs_[ 1 ]._id,
+							title: 'front-end developer',
+							salary: 54000,
+							users: []
+						} ,
+					] ) ;
+					callback() ;
+				} ) ;
+			} ,
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+	it( "basic nested multi-links" ) ;
+} ) ;
+
+
+
 describe( "Populate links" , function() {
 	
 	beforeEach( clearDB ) ;
@@ -2356,13 +2524,9 @@ describe( "Populate links" , function() {
 		.exec( done ) ;
 	} ) ;
 	*/
-} ) ;
-
-
-
-describe( "Populate back-links" , function() {
 	
 	it( "Populate back-links" ) ;
+	it( "Populate multi-links" ) ;
 } ) ;
 
 
