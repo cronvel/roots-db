@@ -118,11 +118,11 @@ var jobsDescriptor = {
 			type: 'integer' ,
 			default: 0
 		} ,
-		users: { type: 'backlink' , collection: 'users' , backpath: 'job' } ,
+		users: { type: 'backLink' , collection: 'users' , backPath: 'job' } ,
 	} ,
 	/*
 	meta: {
-		members: { type: 'backlink' , collection: 'users' , property: 'job' }
+		members: { type: 'backLink' , collection: 'users' , property: 'job' }
 	}*/
 } ;
 
@@ -1542,8 +1542,7 @@ describe( "Backlinks" , function() {
 	
 	beforeEach( clearDB ) ;
 	
-	//*
-	it( "zzz basic link (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
+	it( "basic link (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
 		
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -1569,7 +1568,6 @@ describe( "Backlinks" , function() {
 		
 		// Link the documents!
 		user.$.setLink( 'job' , job ) ;
-		//user2.$.setLink( 'job' , job ) ;
 		
 		async.series( [
 			function( callback ) {
@@ -1623,37 +1621,47 @@ describe( "Backlinks" , function() {
 			} ,
 			function( callback ) {
 				expect( job.$.getLinkDetails( "users" ) ).to.eql( {
-					type: 'backlink' ,
+					type: 'backLink' ,
 					collection: 'users' ,
 					path: 'users' ,
-					backpath: 'job' ,
+					backPath: 'job' ,
 					schema: {
 						collection: 'users' ,
 						//optional: true ,
-						type: 'backlink' ,
-						sanitize: [ 'toBacklink' ] ,
-						backpath: 'job' ,
+						type: 'backLink' ,
+						sanitize: [ 'toBackLink' ] ,
+						backPath: 'job' ,
 					}
 				} ) ;
 				callback() ;
 			} ,
 			function( callback ) {
+				user2.$.setLink( 'job' , job ) ;
 				user2.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				job.$.getLink( "users" , function( error , users ) {
+				job.$.getLink( "users" , function( error , users_ ) {
 					expect( error ).not.to.be.ok() ;
 					// Temp
-					expect( users ).to.eql( [
+					
+					expect( users_ ).to.have.length( 2 ) ;
+					
+					//console.error( users_ ) ;
+					if ( users_[ 0 ].firstName === 'Tony' )
+					{
+						users_ = [ users_[ 1 ] , users_[ 0 ] ] ;
+					}
+					
+					expect( users_ ).to.eql( [
 						{
-							_id: users[ 0 ]._id,
+							_id: users_[ 0 ]._id,
 							firstName: 'Jilbert',
 							lastName: 'Polson',
 							memberSid: 'Jilbert Polson',
 							job: job._id
 						} ,
 						{
-							_id: users[ 1 ]._id,
+							_id: users_[ 1 ]._id,
 							firstName: 'Tony',
 							lastName: 'P.',
 							memberSid: 'Tony P.',
