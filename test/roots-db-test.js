@@ -118,7 +118,7 @@ var jobsDescriptor = {
 			type: 'integer' ,
 			default: 0
 		} ,
-		users: { type: 'backLink' , collection: 'users' , backPath: 'job' } ,
+		users: { type: 'backLink' , collection: 'users' , path: 'job' } ,
 	} ,
 	/*
 	meta: {
@@ -1327,9 +1327,9 @@ describe( "Links" , function() {
 			function( callback ) {
 				expect( user.$.getLinkDetails( "job" ) ).to.eql( {
 					type: 'link' ,
-					collection: 'jobs' ,
-					id: jobId ,
-					path: 'job' ,
+					foreignCollection: 'jobs' ,
+					foreignId: jobId ,
+					hostPath: 'job' ,
 					schema: {
 						collection: 'jobs' ,
 						optional: true ,
@@ -1538,11 +1538,11 @@ describe( "Links" , function() {
 
 
 
-describe( "Backlinks" , function() {
+describe( "Back-links" , function() {
 	
 	beforeEach( clearDB ) ;
 	
-	it( "basic link (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
+	it( "basic back-link (create, link, save, retrieve one, retrieve back-links)" , function( done ) {
 		
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -1604,12 +1604,14 @@ describe( "Backlinks" , function() {
 				} ) ;
 			} ,
 			function( callback ) {
-				job.$.getLink( "users" , function( error , users ) {
+				job.$.getLink( "users" , function( error , users_ ) {
 					expect( error ).not.to.be.ok() ;
+					expect( users_ ).to.be.an( Array ) ;
+					expect( users_ ).to.have.length( 1 ) ;
 					// Temp
-					expect( users ).to.eql( [
+					expect( users_ ).to.eql( [
 						{
-							_id: users[ 0 ]._id,
+							_id: users_[ 0 ]._id,
 							firstName: 'Jilbert',
 							lastName: 'Polson',
 							memberSid: 'Jilbert Polson',
@@ -1622,15 +1624,15 @@ describe( "Backlinks" , function() {
 			function( callback ) {
 				expect( job.$.getLinkDetails( "users" ) ).to.eql( {
 					type: 'backLink' ,
-					collection: 'users' ,
-					path: 'users' ,
-					backPath: 'job' ,
+					foreignCollection: 'users' ,
+					hostPath: 'users' ,
+					foreignPath: 'job' ,
 					schema: {
 						collection: 'users' ,
 						//optional: true ,
 						type: 'backLink' ,
 						sanitize: [ 'toBackLink' ] ,
-						backPath: 'job' ,
+						path: 'job' ,
 					}
 				} ) ;
 				callback() ;
@@ -1675,199 +1677,7 @@ describe( "Backlinks" , function() {
 		.exec( done ) ;
 	} ) ;
 	
-	/*
-	it( "basic nested links (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-		
-		var id = user._id ;
-		
-		var connectionA = users.createDocument( {
-			firstName: 'John' ,
-			lastName: 'Fergusson'
-		} ) ;
-		
-		var connectionB = users.createDocument( {
-			firstName: 'Andy' ,
-			lastName: 'Fergusson'
-		} ) ;
-		
-		//console.log( job ) ;
-		var connectionAId = connectionA.$.id ;
-		var connectionBId = connectionB.$.id ;
-		
-		// Link the documents!
-		user.$.setLink( 'connection.A' , connectionA ) ;
-		user.$.setLink( 'connection.B' , connectionB ) ;
-		
-		expect( user.connection.A ).to.eql( connectionAId ) ;
-		expect( user.connection.B ).to.eql( connectionBId ) ;
-		
-		async.series( [
-			function( callback ) {
-				connectionA.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				connectionB.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , user ) {
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						connection: {
-							A: connectionAId ,
-							B: connectionBId
-						} ,
-						memberSid: 'Jilbert Polson'
-					} ) ;
-					
-					//user.$.toto = 'toto' ;
-					
-					user.$.getLink( "connection.A" , function( error , userA ) {
-						expect( error ).not.to.be.ok() ;
-						expect( userA ).to.eql( {
-							_id: connectionAId ,
-							firstName: 'John' ,
-							lastName: "Fergusson" ,
-							memberSid: "John Fergusson"
-						} ) ;
-						
-						user.$.getLink( "connection.B" , function( error , userB ) {
-							expect( error ).not.to.be.ok() ;
-							expect( userB ).to.eql( {
-								_id: connectionBId ,
-								firstName: 'Andy' ,
-								lastName: "Fergusson" ,
-								memberSid: "Andy Fergusson"
-							} ) ;
-							callback() ;
-						} ) ;
-					} ) ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "unexistant links, non-link properties" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-		
-		var id = user._id ;
-		
-		var connectionA = users.createDocument( {
-			firstName: 'John' ,
-			lastName: 'Fergusson'
-		} ) ;
-		
-		var connectionB = users.createDocument( {
-			firstName: 'Andy' ,
-			lastName: 'Fergusson'
-		} ) ;
-		
-		var connectionAId = connectionA.$.id ;
-		var connectionBId = connectionB.$.id ;
-		
-		user.$.setLink( 'connection.A' , connectionA ) ;
-		doormen.shouldThrow( function() { user.$.setLink( 'unexistant' , connectionB ) ; } ) ;
-		doormen.shouldThrow( function() { user.$.setLink( 'firstName' , connectionB ) ; } ) ;
-		doormen.shouldThrow( function() { user.$.setLink( 'firstName.blah' , connectionB ) ; } ) ;
-		
-		async.series( [
-			function( callback ) {
-				connectionA.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				connectionB.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , user_ ) {
-					user = user_ ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						connection: {
-							A: connectionAId
-						} ,
-						memberSid: 'Jilbert Polson'
-					} ) ;
-					
-					//user.$.toto = 'toto' ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "connection.A" , function( error , userA ) {
-					expect( error ).not.to.be.ok() ;
-					expect( userA ).to.eql( {
-						_id: connectionAId ,
-						firstName: 'John' ,
-						lastName: "Fergusson" ,
-						memberSid: "John Fergusson"
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "connection.B" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'notFound' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "unexistant" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "unexistant.unexistant" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "firstName" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "firstName.blah" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-		] )
-		.exec( done ) ;
-	} ) ;
-	*/
+	it( "basic nested back-links" ) ;
 } ) ;
 
 
@@ -2550,11 +2360,18 @@ describe( "Populate links" , function() {
 
 
 
+describe( "Populate back-links" , function() {
+	
+	it( "Populate back-links" ) ;
+} ) ;
+
+
+
 describe( "Attachment links" , function() {
 	
 	beforeEach( clearDB ) ;
 	
-	it( "basic link (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
+	it( "basic attachment (create, attach, save both, retrieve parent, navigate to child)" , function( done ) {
 		
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -2635,7 +2452,7 @@ describe( "Attachment links" , function() {
 				var details = user.$.getLinkDetails( "file" ) ;
 				expect( details ).to.eql( {
 					type: 'attachment' ,
-					path: 'file' ,
+					hostPath: 'file' ,
 					schema: {
 						optional: true ,
 						type: 'attachment'
