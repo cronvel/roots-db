@@ -3038,6 +3038,75 @@ describe( "Extended DocumentWrapper" , function() {
 
 
 
+describe( "Memory model" , function() {
+	
+	beforeEach( clearDB ) ;
+	
+	it( "zzz ..." , function( done ) {
+		
+		var mem = world.createMemoryModel() ;
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var user2 = users.createDocument( {
+			firstName: 'Pat' ,
+			lastName: 'Mulligan'
+		} ) ;
+		
+		var user3 = users.createDocument( {
+			firstName: 'Bill' ,
+			lastName: 'Baroud'
+		} ) ;
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		var job2 = jobs.createDocument( {
+			title: 'adventurer' ,
+			salary: 200000
+		} ) ;
+		
+		// Link the documents!
+		user.$.setLink( 'job' , job ) ;
+		user2.$.setLink( 'job' , job ) ;
+		user3.$.setLink( 'job' , job2 ) ;
+		
+		async.series( [
+			function( callback ) {
+				job.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				job2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user3.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.collect( {} , { cache: mem , populate: 'job' } , function( error , users_ ) {
+					console.error( "Collections: " , Object.keys( mem.collections ).toString() ) ;
+					console.error( mem.collections.users.documents ) ;
+					console.error( mem.collections.jobs.documents ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+} ) ;
+
+
+
 describe( "Hooks" , function() {
 	
 	it( "'beforeCreateDocument'" ) ;
