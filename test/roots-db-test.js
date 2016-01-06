@@ -2438,7 +2438,53 @@ describe( "Populate links" , function() {
 		.exec( done ) ;
 	} ) ;
 	
-	it( "Populate back-links" ) ;
+	it( "zzz 'back-link' population (create both, link, save both, get with populate option)" , function( done ) {
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var id = user._id ;
+		
+		var user2 = users.createDocument( {
+			firstName: 'Tony' ,
+			lastName: 'P.'
+		} ) ;
+		
+		var id2 = user2._id ;
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		//console.log( job ) ;
+		var jobId = job.$.id ;
+		
+		// Link the documents!
+		user.$.setLink( 'job' , job ) ;
+		
+		async.series( [
+			function( callback ) {
+				job.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				jobs.get( jobId , { populate: 'users' } , function( error , job_ ) {
+					console.error( job_ ) ;
+					expect( 'Not coded' ).to.be( false ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
 } ) ;
 
 
