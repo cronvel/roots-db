@@ -3009,7 +3009,6 @@ describe( "Memory model" , function() {
 					
 					var doc ;
 					
-					//console.error( "Collections: " , Object.keys( memory.collections ).toString() ) ;
 					expect( memory.collections ).to.have.keys( 'users' , 'jobs' ) ;
 					
 					expect( memory.collections.users.documents ).to.have.keys(
@@ -3086,6 +3085,182 @@ describe( "Memory model" , function() {
 					callback() ;
 				} ) ;
 			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+	it( "should also works with multi-link" , function( done ) {
+		
+		var memory = world.createMemoryModel() ;
+		
+		var school1 = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+		
+		var school1Id = school1._id ;
+		
+		var school2 = schools.createDocument( {
+			title: 'Web Academy'
+		} ) ;
+		
+		var school2Id = school2._id ;
+		
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		var job1Id = job1.$.id ;
+		
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+		
+		var job2Id = job2.$.id ;
+		
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+		
+		var job4 = jobs.createDocument( {
+			title: 'designer' ,
+			salary: 56000
+		} ) ;
+		
+		var job4Id = job4.$.id ;
+		
+		// Link the documents!
+		school1.$.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
+		school2.$.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
+		
+		async.series( [
+			function( callback ) {
+				job1.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				job2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				job3.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				job4.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				school1.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				school2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				schools.collect( {} , { populate: 'jobs' , memory: memory } , function( error , schools_ ) {
+					
+					var doc ;
+					
+					expect( error ).not.to.be.ok() ;
+					expect( memory.collections ).to.have.keys( 'schools' , 'jobs' ) ;
+					
+					expect( memory.collections.schools.documents ).to.have.keys(
+						school1._id.toString() ,
+						school2._id.toString()
+					) ;
+					
+					expect( memory.collections.jobs.documents ).to.have.keys(
+						job1._id.toString() ,
+						job2._id.toString() ,
+						job3._id.toString() ,
+						job4._id.toString()
+					) ;
+					
+					doc = memory.collections.schools.documents[ school1._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: school1._id,
+						title: 'Computer Science' ,
+						jobs: [
+							{
+								_id: job1._id,
+								title: 'developer',
+								salary: 60000,
+								users: []
+							} ,
+							{
+								_id: job2._id,
+								title: 'sysadmin',
+								salary: 55000,
+								users: []
+							} ,
+							{
+								_id: job3._id,
+								title: 'front-end developer',
+								salary: 54000,
+								users: []
+							}
+						]
+					} ) ;
+					
+					doc = memory.collections.schools.documents[ school2._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: school2._id,
+						title: 'Web Academy' ,
+						jobs: [
+							{
+								_id: job1._id,
+								title: 'developer',
+								salary: 60000,
+								users: []
+							} ,
+							{
+								_id: job3._id,
+								title: 'front-end developer',
+								salary: 54000,
+								users: []
+							} ,
+							{
+								_id: job4._id,
+								title: 'designer',
+								salary: 56000,
+								users: []
+							}
+						]
+					} ) ;
+					
+					doc = memory.collections.jobs.documents[ job1._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: job1._id,
+						title: 'developer',
+						salary: 60000,
+						users: []
+					} ) ;
+					
+					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: job2._id,
+						title: 'sysadmin',
+						salary: 55000,
+						users: []
+					} ) ;
+					
+					doc = memory.collections.jobs.documents[ job3._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: job3._id,
+						title: 'front-end developer',
+						salary: 54000,
+						users: []
+					} ) ;
+					
+					doc = memory.collections.jobs.documents[ job4._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: job4._id,
+						title: 'designer',
+						salary: 56000,
+						users: []
+					} ) ;
+					
+					callback() ;
+				} ) ;
+			} ,
 		] )
 		.exec( done ) ;
 	} ) ;
