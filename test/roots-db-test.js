@@ -2331,202 +2331,114 @@ describe( "Populate links" , function() {
 		.exec( done ) ;
 	} ) ;
 	
-	/*
-	it( "basic nested links (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
+	it( "'multi-link' population (create both, link, save both, get with populate option)" , function( done ) {
 		
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
+		var school1 = schools.createDocument( {
+			title: 'Computer Science'
 		} ) ;
 		
-		var id = user._id ;
+		var school1Id = school1._id ;
 		
-		var connectionA = users.createDocument( {
-			firstName: 'John' ,
-			lastName: 'Fergusson'
+		var school2 = schools.createDocument( {
+			title: 'Web Academy'
 		} ) ;
 		
-		var connectionB = users.createDocument( {
-			firstName: 'Andy' ,
-			lastName: 'Fergusson'
+		var school2Id = school2._id ;
+		
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
 		} ) ;
 		
-		//console.log( job ) ;
-		var connectionAId = connectionA.$.id ;
-		var connectionBId = connectionB.$.id ;
+		var job1Id = job1.$.id ;
+		
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+		
+		var job2Id = job2.$.id ;
+		
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+		
+		var job4 = jobs.createDocument( {
+			title: 'designer' ,
+			salary: 56000
+		} ) ;
+		
+		var job4Id = job4.$.id ;
 		
 		// Link the documents!
-		user.$.setLink( 'connection.A' , connectionA ) ;
-		user.$.setLink( 'connection.B' , connectionB ) ;
-		
-		expect( user.connection.A ).to.eql( connectionAId ) ;
-		expect( user.connection.B ).to.eql( connectionBId ) ;
+		school1.$.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
+		school2.$.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
 		
 		async.series( [
 			function( callback ) {
-				connectionA.$.save( callback ) ;
+				job1.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				connectionB.$.save( callback ) ;
+				job2.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				user.$.save( callback ) ;
+				job3.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.get( id , function( error , user ) {
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						connection: {
-							A: connectionAId ,
-							B: connectionBId
-						} ,
-						memberSid: 'Jilbert Polson'
-					} ) ;
-					
-					//user.$.toto = 'toto' ;
-					
-					user.$.getLink( "connection.A" , function( error , userA ) {
-						expect( error ).not.to.be.ok() ;
-						expect( userA ).to.eql( {
-							_id: connectionAId ,
-							firstName: 'John' ,
-							lastName: "Fergusson" ,
-							memberSid: "John Fergusson"
-						} ) ;
-						
-						user.$.getLink( "connection.B" , function( error , userB ) {
-							expect( error ).not.to.be.ok() ;
-							expect( userB ).to.eql( {
-								_id: connectionBId ,
-								firstName: 'Andy' ,
-								lastName: "Fergusson" ,
-								memberSid: "Andy Fergusson"
-							} ) ;
-							callback() ;
-						} ) ;
-					} ) ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "unexistant links, non-link properties" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-		
-		var id = user._id ;
-		
-		var connectionA = users.createDocument( {
-			firstName: 'John' ,
-			lastName: 'Fergusson'
-		} ) ;
-		
-		var connectionB = users.createDocument( {
-			firstName: 'Andy' ,
-			lastName: 'Fergusson'
-		} ) ;
-		
-		var connectionAId = connectionA.$.id ;
-		var connectionBId = connectionB.$.id ;
-		
-		user.$.setLink( 'connection.A' , connectionA ) ;
-		doormen.shouldThrow( function() { user.$.setLink( 'unexistant' , connectionB ) ; } ) ;
-		doormen.shouldThrow( function() { user.$.setLink( 'firstName' , connectionB ) ; } ) ;
-		doormen.shouldThrow( function() { user.$.setLink( 'firstName.blah' , connectionB ) ; } ) ;
-		
-		async.series( [
-			function( callback ) {
-				connectionA.$.save( callback ) ;
+				job4.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				connectionB.$.save( callback ) ;
+				school1.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				user.$.save( callback ) ;
+				school2.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.get( id , function( error , user_ ) {
-					user = user_ ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						connection: {
-							A: connectionAId
-						} ,
-						memberSid: 'Jilbert Polson'
-					} ) ;
-					
-					//user.$.toto = 'toto' ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "connection.A" , function( error , userA ) {
+				schools.get( school1Id , { populate: 'jobs' } , function( error , school_ ) {
+					school = school_ ;
+					//console.log( '>>>>>>>>>>>\nSchool:' , school ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( userA ).to.eql( {
-						_id: connectionAId ,
-						firstName: 'John' ,
-						lastName: "Fergusson" ,
-						memberSid: "John Fergusson"
+					expect( school.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( school._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( school._id ).to.eql( school1Id ) ;
+					expect( school ).to.eql( {
+						_id: school1._id ,
+						title: 'Computer Science' ,
+						jobs: [ job1 , job2 , job3 ]
 					} ) ;
+					
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				user.$.getLink( "connection.B" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'notFound' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "unexistant" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "unexistant.unexistant" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "firstName" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "firstName.blah" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
+				schools.collect( {} , { populate: 'jobs' } , function( error , schools_ ) {
+					
+					expect( error ).not.to.be.ok() ;
+					
+					if ( schools_[ 0 ].title !== 'Computer Science' ) { schools_ = [ schools_[ 1 ] , schools_[ 0 ] ] ; }
+					
+					expect( schools_ ).to.eql( [
+						{
+							_id: school1._id ,
+							title: 'Computer Science' ,
+							jobs: [ job1 , job2 , job3 ]
+						} ,
+						{
+							_id: school2._id ,
+							title: 'Web Academy' ,
+							jobs: [ job1 , job3 , job4 ]
+						}
+					] ) ;
+					
 					callback() ;
 				} ) ;
 			} ,
 		] )
 		.exec( done ) ;
 	} ) ;
-	*/
 	
 	it( "Populate back-links" ) ;
-	it( "Populate multi-links" ) ;
 } ) ;
 
 
