@@ -3042,9 +3042,9 @@ describe( "Memory model" , function() {
 	
 	beforeEach( clearDB ) ;
 	
-	it( "zzz ..." , function( done ) {
+	it( "should create a memoryModel, retrieve documents with 'populate' and 'memory' options and effectively save them in the memoryModel" , function( done ) {
 		
-		var mem = world.createMemoryModel() ;
+		var memory = world.createMemoryModel() ;
 		
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -3093,10 +3093,84 @@ describe( "Memory model" , function() {
 				user3.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.collect( {} , { cache: mem , populate: 'job' } , function( error , users_ ) {
-					console.error( "Collections: " , Object.keys( mem.collections ).toString() ) ;
-					console.error( mem.collections.users.documents ) ;
-					console.error( mem.collections.jobs.documents ) ;
+				users.collect( {} , { memory: memory , populate: 'job' } , function( error , users_ ) {
+					
+					var doc ;
+					
+					//console.error( "Collections: " , Object.keys( memory.collections ).toString() ) ;
+					expect( memory.collections ).to.have.keys( 'users' , 'jobs' ) ;
+					
+					expect( memory.collections.users.documents ).to.have.keys(
+						user._id.toString() ,
+						user2._id.toString() ,
+						user3._id.toString()
+					) ;
+					
+					expect( memory.collections.jobs.documents ).to.have.keys(
+						job._id.toString() ,
+						job2._id.toString()
+					) ;
+					
+					doc = memory.collections.users.documents[ user._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: user._id,
+						firstName: 'Jilbert',
+						lastName: 'Polson',
+						memberSid: 'Jilbert Polson',
+						job: {
+							_id: job._id,
+							title: 'developer',
+							salary: 60000,
+							users: []
+						}
+					} ) ;
+					
+					doc = memory.collections.users.documents[ user2._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: user2._id,
+						firstName: 'Pat',
+						lastName: 'Mulligan',
+						memberSid: 'Pat Mulligan',
+						job: {
+							_id: job._id,
+							title: 'developer',
+							salary: 60000,
+							users: []
+						}
+					} ) ;
+					
+					doc = memory.collections.users.documents[ user3._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: user3._id,
+						firstName: 'Bill',
+						lastName: 'Baroud',
+						memberSid: 'Bill Baroud',
+						job: {
+							_id: job2._id,
+							title: 'adventurer',
+							salary: 200000,
+							users: []
+						}
+					} ) ;
+					
+					doc = memory.collections.jobs.documents[ job._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: job._id,
+						title: 'developer',
+						salary: 60000,
+						users: []
+					} ) ;
+					
+					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: job2._id,
+						title: 'adventurer',
+						salary: 200000,
+						users: []
+					} ) ;
+					
+					//console.error( memory.collections.users.documents ) ;
+					//console.error( memory.collections.jobs.documents ) ;
 					callback() ;
 				} ) ;
 			}
