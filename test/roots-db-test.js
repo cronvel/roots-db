@@ -2438,47 +2438,114 @@ describe( "Populate links" , function() {
 		.exec( done ) ;
 	} ) ;
 	
-	it( "zzz 'back-link' population (create both, link, save both, get with populate option)" , function( done ) {
+	it( "'back-link' population (create both, link, save both, get with populate option)" , function( done ) {
 		
-		var user = users.createDocument( {
+		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
-		var id = user._id ;
 		
 		var user2 = users.createDocument( {
 			firstName: 'Tony' ,
 			lastName: 'P.'
 		} ) ;
 		
-		var id2 = user2._id ;
+		var user3 = users.createDocument( {
+			firstName: 'John' ,
+			lastName: 'C.'
+		} ) ;
 		
-		var job = jobs.createDocument( {
+		var user4 = users.createDocument( {
+			firstName: 'Richard' ,
+			lastName: 'S.'
+		} ) ;
+		
+		var job1 = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
 		
-		//console.log( job ) ;
-		var jobId = job.$.id ;
+		var job2 = jobs.createDocument( {
+			title: 'star developer' ,
+			salary: 200000
+		} ) ;
+		
+		//console.log( job1 ) ;
+		var job1Id = job1.$.id ;
 		
 		// Link the documents!
-		user.$.setLink( 'job' , job ) ;
+		user1.$.setLink( 'job' , job1 ) ;
+		user2.$.setLink( 'job' , job1 ) ;
+		user3.$.setLink( 'job' , job2 ) ;
+		user4.$.setLink( 'job' , job2 ) ;
 		
 		async.series( [
 			function( callback ) {
-				job.$.save( callback ) ;
+				job1.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				user.$.save( callback ) ;
+				job2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user1.$.save( callback ) ;
 			} ,
 			function( callback ) {
 				user2.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				jobs.get( jobId , { populate: 'users' } , function( error , job_ ) {
-					console.error( job_ ) ;
-					expect( 'Not coded' ).to.be( false ) ;
+				user3.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user4.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				jobs.get( job1Id , { populate: 'users' } , function( error , job_ ) {
+					//console.error( job_.users ) ;
+					expect( error ).not.to.be.ok() ;
+					expect( job_.users ).to.have.length( 2 ) ;
+					
+					if ( job_.users[ 0 ].firstName === 'Tony' ) { job_.users = [ job_.users[ 1 ] , job_.users[ 0 ] ] ; }
+					
+					expect( job_ ).to.eql( {
+						_id: job1._id ,
+						title: 'developer' ,
+						salary: 60000 ,
+						users: [ user1 , user2 ]
+					} ) ;
+					
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				jobs.collect( {} , { populate: 'users' } , function( error , jobs_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( jobs_ ).to.have.length( 2 ) ;
+					
+					//console.error( "\n\n\n\njobs:" , jobs_ ) ;
+					if ( jobs_[ 0 ].title === 'star developer' ) { jobs_ = [ jobs_[ 1 ] , jobs_[ 0 ] ] ; }
+					
+					expect( jobs_[ 0 ].users ).to.have.length( 2 ) ;
+					
+					if ( jobs_[ 0 ].users[ 0 ].firstName === 'Tony' ) { jobs_[ 0 ].users = [ jobs_[ 0 ].users[ 1 ] , jobs_[ 0 ].users[ 0 ] ] ; }
+					
+					expect( jobs_[ 0 ] ).to.eql( {
+						_id: job1._id ,
+						title: 'developer' ,
+						salary: 60000 ,
+						users: [ user1 , user2 ]
+					} ) ;
+					
+					expect( jobs_[ 1 ].users ).to.have.length( 2 ) ;
+					
+					if ( jobs_[ 1 ].users[ 0 ].firstName === 'Richard' ) { jobs_[ 1 ].users = [ jobs_[ 1 ].users[ 1 ] , jobs_[ 1 ].users[ 0 ] ] ; }
+					
+					expect( jobs_[ 1 ] ).to.eql( {
+						_id: job2._id ,
+						title: 'star developer' ,
+						salary: 200000 ,
+						users: [ user3 , user4 ]
+					} ) ;
+					
 					callback() ;
 				} ) ;
 			}
@@ -2601,7 +2668,7 @@ describe( "Attachment links" , function() {
 
 
 
-describe( "Memory model" , function() {
+describe( "Caching with the memory model" , function() {
 	
 	beforeEach( clearDB ) ;
 	
@@ -3000,7 +3067,7 @@ describe( "Memory model" , function() {
 	
 	beforeEach( clearDB ) ;
 	
-	it( "should create a memoryModel, retrieve documents with 'populate' and 'memory' options and effectively save them in the memoryModel" , function( done ) {
+	it( "should create a memoryModel, retrieve documents with 'populate' on 'link' and 'back-link', with the 'memory' options and effectively save them in the memoryModel" , function( done ) {
 		
 		var memory = world.createMemoryModel() ;
 		
@@ -3124,6 +3191,96 @@ describe( "Memory model" , function() {
 						title: 'adventurer',
 						salary: 200000,
 						users: []
+					} ) ;
+					
+					//console.error( memory.collections.users.documents ) ;
+					//console.error( memory.collections.jobs.documents ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				jobs.collect( {} , { memory: memory , populate: 'users' } , function( error , jobs_ ) {
+					
+					var doc ;
+					
+					expect( memory.collections ).to.have.keys( 'users' , 'jobs' ) ;
+					
+					expect( memory.collections.users.documents ).to.have.keys(
+						user._id.toString() ,
+						user2._id.toString() ,
+						user3._id.toString()
+					) ;
+					
+					expect( memory.collections.jobs.documents ).to.have.keys(
+						job._id.toString() ,
+						job2._id.toString()
+					) ;
+					
+					doc = memory.collections.users.documents[ user._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: user._id,
+						firstName: 'Jilbert',
+						lastName: 'Polson',
+						memberSid: 'Jilbert Polson',
+						job: job._id
+					} ) ;
+					
+					doc = memory.collections.users.documents[ user2._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: user2._id,
+						firstName: 'Pat',
+						lastName: 'Mulligan',
+						memberSid: 'Pat Mulligan',
+						job: job._id
+					} ) ;
+					
+					doc = memory.collections.users.documents[ user3._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: user3._id,
+						firstName: 'Bill',
+						lastName: 'Baroud',
+						memberSid: 'Bill Baroud',
+						job: job2._id
+					} ) ;
+					
+					doc = memory.collections.jobs.documents[ job._id.toString() ] ;
+					if ( doc.users[ 0 ].firstName === 'Pat' ) { doc.users = [ doc.users[ 1 ] , doc.users[ 0 ] ] ; }
+					expect( doc ).to.eql( {
+						_id: job._id,
+						title: 'developer',
+						salary: 60000,
+						users: [
+							{
+								_id: user._id,
+								firstName: 'Jilbert',
+								lastName: 'Polson',
+								memberSid: 'Jilbert Polson',
+								job: job._id
+							} ,
+							{
+								_id: user2._id,
+								firstName: 'Pat',
+								lastName: 'Mulligan',
+								memberSid: 'Pat Mulligan',
+								job: job._id
+							}
+						]
+					} ) ;
+					
+					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
+					expect( doc ).to.eql( {
+						_id: job2._id,
+						title: 'adventurer',
+						salary: 200000,
+						users: [
+							{
+								_id: user3._id,
+								firstName: 'Bill',
+								lastName: 'Baroud',
+								memberSid: 'Bill Baroud',
+								job: job2._id
+							}
+						]
 					} ) ;
 					
 					//console.error( memory.collections.users.documents ) ;
@@ -3310,6 +3467,8 @@ describe( "Memory model" , function() {
 		] )
 		.exec( done ) ;
 	} ) ;
+	
+	it( "should also works with back-multi-link" ) ;
 } ) ;
 
 
