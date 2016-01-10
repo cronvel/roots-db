@@ -3067,7 +3067,7 @@ describe( "Memory model" , function() {
 	
 	beforeEach( clearDB ) ;
 	
-	it( "should create a memoryModel, retrieve documents with 'populate' on 'link' and 'back-link', with the 'memory' options and effectively save them in the memoryModel" , function( done ) {
+	it( "zzz should create a memoryModel, retrieve documents with 'populate' on 'link' and 'back-link', with the 'memory' options and effectively save them in the memoryModel" , function( done ) {
 		
 		var memory = world.createMemoryModel() ;
 		
@@ -3199,6 +3199,8 @@ describe( "Memory model" , function() {
 				} ) ;
 			} ,
 			function( callback ) {
+				//var memory = world.createMemoryModel() ;
+				
 				jobs.collect( {} , { memory: memory , populate: 'users' } , function( error , jobs_ ) {
 					
 					var doc ;
@@ -3222,7 +3224,7 @@ describe( "Memory model" , function() {
 						firstName: 'Jilbert',
 						lastName: 'Polson',
 						memberSid: 'Jilbert Polson',
-						job: job._id
+						job: memory.collections.jobs.documents[ job._id.toString() ]
 					} ) ;
 					
 					doc = memory.collections.users.documents[ user2._id.toString() ] ;
@@ -3231,7 +3233,7 @@ describe( "Memory model" , function() {
 						firstName: 'Pat',
 						lastName: 'Mulligan',
 						memberSid: 'Pat Mulligan',
-						job: job._id
+						job: memory.collections.jobs.documents[ job._id.toString() ]
 					} ) ;
 					
 					doc = memory.collections.users.documents[ user3._id.toString() ] ;
@@ -3240,10 +3242,11 @@ describe( "Memory model" , function() {
 						firstName: 'Bill',
 						lastName: 'Baroud',
 						memberSid: 'Bill Baroud',
-						job: job2._id
+						job: memory.collections.jobs.documents[ job2._id.toString() ]
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job._id.toString() ] ;
+					console.log( doc ) ;
 					if ( doc.users[ 0 ].firstName === 'Pat' ) { doc.users = [ doc.users[ 1 ] , doc.users[ 0 ] ] ; }
 					expect( doc ).to.eql( {
 						_id: job._id,
