@@ -3552,6 +3552,137 @@ describe( "Memory model" , function() {
 		.exec( done ) ;
 	} ) ;
 	
+	it( "zzz incremental population should work as expected" , function( done ) {
+		
+		var memory = world.createMemoryModel() ;
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var user2 = users.createDocument( {
+			firstName: 'Robert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		var deepPopulate = {
+			users: 'job' ,
+			jobs: 'users'
+		} ;
+		
+		// Link the documents!
+		user.$.setLink( 'job' , job ) ;
+		user2.$.setLink( 'job' , job ) ;
+		
+		async.series( [
+			function( callback ) {
+				job.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.get( user._id , { memory: memory } , function( error , user_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( user_ ).to.eql( {
+						_id: user._id,
+						firstName: 'Jilbert',
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson',
+						job: job._id 
+					} ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				users.get( user._id , { memory: memory , populate: 'job' } , function( error , user_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( user_ ).to.eql( {
+						_id: user._id,
+						firstName: 'Jilbert',
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson',
+						job: {
+							_id: job._id ,
+							title: 'developer' ,
+							salary: 60000,
+							users: []
+						}
+					} ) ;
+					expect( user_.job.$.populated.users ).not.to.be.ok() ;
+					expect( memory.collections.jobs.documents[ job._id.toString() ] ).to.eql( {
+						_id: job._id ,
+						title: 'developer' ,
+						salary: 60000,
+						users: []
+					} ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				users.get( user._id , { memory: memory , deepPopulate: deepPopulate } , function( error , user_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( user_.$.populated.job ).to.be( true ) ;
+					
+					expect( user_.job.users ).to.have.length( 2 ) ;
+					
+					if ( user_.job.users[ 0 ].firstName === 'Robert' )
+					{
+						user_.job.users = [ user_.job.users[ 1 ] , user_.job.users[ 0 ] ] ;
+					}
+					
+					expect( user_.job.users[ 0 ].job ).to.be( user_.job ) ;
+					expect( user_.job.users[ 1 ].job ).to.be( user_.job ) ;
+					
+					expect( user_ ).to.eql( {
+						_id: user._id,
+						firstName: 'Jilbert',
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson',
+						job: {
+							_id: job._id ,
+							title: 'developer' ,
+							salary: 60000,
+							users: [
+								user_ ,
+								// We cannot use 'user2', expect.js is too confused with Circular references
+								// We have to perform a second check for that
+								user_.job.users[ 1 ]
+							]
+						}
+					} ) ;
+					
+					expect( user_.job.users[ 1 ] ).to.eql( {
+						_id: user2._id,
+						firstName: 'Robert',
+						lastName: 'Polson' ,
+						memberSid: 'Robert Polson',
+						job: {
+							_id: job._id ,
+							title: 'developer' ,
+							salary: 60000,
+							users: [
+								user_ ,
+								user_.job.users[ 1 ]
+							]
+						}
+					} ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
 	it( "should also works with back-multi-link" ) ;
 } ) ;
 
