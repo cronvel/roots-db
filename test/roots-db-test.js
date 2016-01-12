@@ -2770,7 +2770,7 @@ describe( "Caching with the memory model" , function() {
 		.exec( done ) ;
 	} ) ;
 	
-	it( "should multiGet some document from a Memory Model cache (partial cache hit)" , function( done ) {
+	it( "zzz should multiGet some document from a Memory Model cache (partial cache hit)" , function( done ) {
 		
 		var mem = world.createMemoryModel() ;
 		
@@ -3067,7 +3067,7 @@ describe( "Memory model" , function() {
 	
 	beforeEach( clearDB ) ;
 	
-	it( "zzz should create a memoryModel, retrieve documents with 'populate' on 'link' and 'back-link', with the 'memory' options and effectively save them in the memoryModel" , function( done ) {
+	it( "should create a memoryModel, retrieve documents with 'populate' on 'link' and 'back-link', with the 'memory' options and effectively save them in the memoryModel" , function( done ) {
 		
 		var memory = world.createMemoryModel() ;
 		
@@ -3246,27 +3246,14 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job._id.toString() ] ;
-					console.log( doc ) ;
 					if ( doc.users[ 0 ].firstName === 'Pat' ) { doc.users = [ doc.users[ 1 ] , doc.users[ 0 ] ] ; }
 					expect( doc ).to.eql( {
 						_id: job._id,
 						title: 'developer',
 						salary: 60000,
 						users: [
-							{
-								_id: user._id,
-								firstName: 'Jilbert',
-								lastName: 'Polson',
-								memberSid: 'Jilbert Polson',
-								job: job._id
-							} ,
-							{
-								_id: user2._id,
-								firstName: 'Pat',
-								lastName: 'Mulligan',
-								memberSid: 'Pat Mulligan',
-								job: job._id
-							}
+							memory.collections.users.documents[ user._id.toString() ] ,
+							memory.collections.users.documents[ user2._id.toString() ]
 						]
 					} ) ;
 					
@@ -3276,13 +3263,7 @@ describe( "Memory model" , function() {
 						title: 'adventurer',
 						salary: 200000,
 						users: [
-							{
-								_id: user3._id,
-								firstName: 'Bill',
-								lastName: 'Baroud',
-								memberSid: 'Bill Baroud',
-								job: job2._id
-							}
+							memory.collections.users.documents[ user3._id.toString() ]
 						]
 					} ) ;
 					
