@@ -2556,6 +2556,67 @@ describe( "Populate links" , function() {
 
 
 
+describe( "Deep populate links" , function() {
+	
+	beforeEach( clearDB ) ;
+	
+	it( "zzz deep population (links)" , function( done ) {
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var user2 = users.createDocument( {
+			firstName: 'Robert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		var deepPopulate = {
+			users: 'job' ,
+			jobs: 'users'
+		} ;
+		
+		// Link the documents!
+		user.$.setLink( 'job' , job ) ;
+		user2.$.setLink( 'job' , job ) ;
+		
+		async.series( [
+			function( callback ) {
+				job.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.get( user._id , { deepPopulate: deepPopulate } , function( error , user_ ) {
+					expect( error ).not.to.be.ok() ;
+					console.log( user_ ) ;
+					expect( user_ ).to.eql( {
+						_id: user._id,
+						job: job,
+						firstName: 'Jilbert',
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson'
+					} ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+} ) ;
+	
+
+
 describe( "Attachment links" , function() {
 	
 	beforeEach( clearDB ) ;
@@ -2770,7 +2831,7 @@ describe( "Caching with the memory model" , function() {
 		.exec( done ) ;
 	} ) ;
 	
-	it( "zzz should multiGet some document from a Memory Model cache (partial cache hit)" , function( done ) {
+	it( "should multiGet some document from a Memory Model cache (partial cache hit)" , function( done ) {
 		
 		var mem = world.createMemoryModel() ;
 		
