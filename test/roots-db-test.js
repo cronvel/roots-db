@@ -2560,7 +2560,7 @@ describe( "Deep populate links" , function() {
 	
 	beforeEach( clearDB ) ;
 	
-	it( "zzz deep population (links)" , function( done ) {
+	it( "deep population (links then back-link)" , function( done ) {
 		
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -2599,13 +2599,50 @@ describe( "Deep populate links" , function() {
 			function( callback ) {
 				users.get( user._id , { deepPopulate: deepPopulate } , function( error , user_ ) {
 					expect( error ).not.to.be.ok() ;
-					console.log( user_ ) ;
+					expect( user_.$.populated.job ).to.be( true ) ;
+					
+					expect( user_.job.users ).to.have.length( 2 ) ;
+					
+					if ( user_.job.users[ 0 ].firstName === 'Robert' )
+					{
+						user_.job.users = [ user_.job.users[ 1 ] , user_.job.users[ 0 ] ] ;
+					}
+					
+					expect( user_.job.users[ 0 ].job ).to.be( user_.job ) ;
+					expect( user_.job.users[ 1 ].job ).to.be( user_.job ) ;
+					
 					expect( user_ ).to.eql( {
 						_id: user._id,
-						job: job,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson'
+						memberSid: 'Jilbert Polson',
+						job: {
+							_id: job._id ,
+							title: 'developer' ,
+							salary: 60000,
+							users: [
+								user_ ,
+								// We cannot use 'user2', expect.js is too confused with Circular references
+								// We have to perform a second check for that
+								user_.job.users[ 1 ]
+							]
+						}
+					} ) ;
+					
+					expect( user_.job.users[ 1 ] ).to.eql( {
+						_id: user2._id,
+						firstName: 'Robert',
+						lastName: 'Polson' ,
+						memberSid: 'Robert Polson',
+						job: {
+							_id: job._id ,
+							title: 'developer' ,
+							salary: 60000,
+							users: [
+								user_ ,
+								user_.job.users[ 1 ]
+							]
+						}
 					} ) ;
 					callback() ;
 				} ) ;
@@ -2613,6 +2650,8 @@ describe( "Deep populate links" , function() {
 		] )
 		.exec( done ) ;
 	} ) ;
+	
+	it( "more deep population tests" ) ;
 } ) ;
 	
 
