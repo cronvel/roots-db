@@ -1856,6 +1856,8 @@ describe( "Populate links" , function() {
 	
 	it( "link population (create both, link, save both, get with populate option)" , function( done ) {
 		
+		var options ;
+		
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -1884,7 +1886,8 @@ describe( "Populate links" , function() {
 				user.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.get( id , { populate: 'job' } , function( error , user_ ) {
+				options = { populate: 'job' } ;
+				users.get( id , options , function( error , user_ ) {
 					user = user_ ;
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user ) ;
@@ -1893,6 +1896,10 @@ describe( "Populate links" , function() {
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( user._id ).to.eql( id ) ;
 					expect( user ).to.eql( { _id: user._id, job: job, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
+					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
 					callback() ;
 				} ) ;
 			}
@@ -1901,6 +1908,8 @@ describe( "Populate links" , function() {
 	} ) ;
 	
 	it( "multiple link population (create, link, save, get with populate option)" , function( done ) {
+		
+		var options ;
 		
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -1934,7 +1943,8 @@ describe( "Populate links" , function() {
 				user.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.get( id , { populate: [ 'job' , 'godfather' ] } , function( error , user_ ) {
+				options = { populate: [ 'job' , 'godfather' ] } ;
+				users.get( id , options , function( error , user_ ) {
 					user = user_ ;
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user ) ;
@@ -1950,6 +1960,10 @@ describe( "Populate links" , function() {
 						lastName: 'Polson' ,
 						memberSid: 'Jilbert Polson'
 					} ) ;
+					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 2 ) ;
+					
 					callback() ;
 				} ) ;
 			}
@@ -1958,6 +1972,8 @@ describe( "Populate links" , function() {
 	} ) ;
 	
 	it( "multiple link population having same and circular target" , function( done ) {
+		
+		var options ;
 		
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -1988,7 +2004,8 @@ describe( "Populate links" , function() {
 				user.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.get( id , { populate: [ 'connection.A' , 'connection.B' , 'connection.C' ] } , function( error , user ) {
+				options = { populate: [ 'connection.A' , 'connection.B' , 'connection.C' ] } ;
+				users.get( id , options , function( error , user ) {
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( user._id ).to.eql( id ) ;
@@ -2005,6 +2022,9 @@ describe( "Populate links" , function() {
 						memberSid: 'Jilbert Polson'
 					} ) ;
 					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
 					callback() ;
 				} ) ;
 			}
@@ -2013,6 +2033,8 @@ describe( "Populate links" , function() {
 	} ) ;
 	
 	it( "collect batch with multiple link population (create, link, save, collect with populate option)" , function( done ) {
+		
+		var options ;
 		
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -2061,7 +2083,8 @@ describe( "Populate links" , function() {
 				user3.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.collect( {} , { populate: [ 'job' , 'godfather' ] } , function( error , batch ) {
+				options = { populate: [ 'job' , 'godfather' ] } ;
+				users.collect( {} , options , function( error , batch ) {
 					expect( error ).not.to.be.ok() ;
 					
 					// Sort that first...
@@ -2120,6 +2143,10 @@ describe( "Populate links" , function() {
 						},
 					] ) ;
 					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					// Only one DB query, since the godfather is a user and all users have been collected before the populate pass
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
 					callback() ;
 				} ) ;
 			}
@@ -2128,6 +2155,8 @@ describe( "Populate links" , function() {
 	} ) ;
 	
 	it( "collect batch with multiple link population and circular references" , function( done ) {
+		
+		var options ;
 		
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -2177,7 +2206,8 @@ describe( "Populate links" , function() {
 				user3.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.collect( {} , { populate: [ 'job' , 'godfather' ] } , function( error , batch ) {
+				options = { populate: [ 'job' , 'godfather' ] } ;
+				users.collect( {} , options , function( error , batch ) {
 					expect( error ).not.to.be.ok() ;
 					
 					// Sort that first...
@@ -2185,9 +2215,9 @@ describe( "Populate links" , function() {
 						return a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ;
 					} ) ;
 					
-					// References are hard to test...
-					
-					log.warning( 'incomplete test for populate + reference' ) ;
+					// References are painful to test...
+					// More tests covering references are done in the memory model section
+					//log.warning( 'incomplete test for populate + reference' ) ;
 					
 					expect( batch[ 0 ].godfather ).to.be( batch[ 0 ] ) ;
 					//expect( batch[ 1 ].godfather ).to.be( batch[ 0 ] ) ;
@@ -2195,6 +2225,10 @@ describe( "Populate links" , function() {
 					
 					// JSON.stringify() should throw
 					expect( function() { JSON.stringify( batch ) ; } ).to.throwException() ;
+					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					// Only one DB query, since the godfather is a user and all users have been collected before the populate pass
+					expect( options.populateDbQueries ).to.be( 1 ) ;
 					
 					callback() ;
 				} ) ;
@@ -2205,6 +2239,8 @@ describe( "Populate links" , function() {
 	
 	it( "collect batch with multiple link population and circular references: using noReference" , function( done ) {
 		
+		var options ;
+		
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -2253,7 +2289,8 @@ describe( "Populate links" , function() {
 				user3.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.collect( {} , { populate: [ 'job' , 'godfather' ] , noReference: true } , function( error , batch ) {
+				options = { populate: [ 'job' , 'godfather' ] , noReference: true } ;
+				users.collect( {} , options , function( error , batch ) {
 					expect( error ).not.to.be.ok() ;
 					
 					// Sort that first...
@@ -2324,6 +2361,10 @@ describe( "Populate links" , function() {
 					// JSON.stringify() should not throw
 					expect( function() { JSON.stringify( batch ) ; } ).not.to.throwException() ;
 					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					// Only one DB query, since the godfather is a user and all users have been collected before the populate pass
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
 					callback() ;
 				} ) ;
 			}
@@ -2332,6 +2373,8 @@ describe( "Populate links" , function() {
 	} ) ;
 	
 	it( "'multi-link' population (create both, link, save both, get with populate option)" , function( done ) {
+		
+		var options ;
 		
 		var school1 = schools.createDocument( {
 			title: 'Computer Science'
@@ -2395,7 +2438,8 @@ describe( "Populate links" , function() {
 				school2.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				schools.get( school1Id , { populate: 'jobs' } , function( error , school_ ) {
+				options = { populate: 'jobs' } ;
+				schools.get( school1Id , options , function( error , school_ ) {
 					school = school_ ;
 					//console.log( '>>>>>>>>>>>\nSchool:' , school ) ;
 					expect( error ).not.to.be.ok() ;
@@ -2408,11 +2452,15 @@ describe( "Populate links" , function() {
 						jobs: [ job1 , job2 , job3 ]
 					} ) ;
 					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				schools.collect( {} , { populate: 'jobs' } , function( error , schools_ ) {
+				options = { populate: 'jobs' } ;
+				schools.collect( {} , options , function( error , schools_ ) {
 					
 					expect( error ).not.to.be.ok() ;
 					
@@ -2431,6 +2479,9 @@ describe( "Populate links" , function() {
 						}
 					] ) ;
 					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
 					callback() ;
 				} ) ;
 			} ,
@@ -2439,6 +2490,8 @@ describe( "Populate links" , function() {
 	} ) ;
 	
 	it( "'back-link' population (create both, link, save both, get with populate option)" , function( done ) {
+		
+		var options ;
 		
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -2499,7 +2552,8 @@ describe( "Populate links" , function() {
 				user4.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				jobs.get( job1Id , { populate: 'users' } , function( error , job_ ) {
+				options = { populate: 'users' } ;
+				jobs.get( job1Id , options , function( error , job_ ) {
 					//console.error( job_.users ) ;
 					expect( error ).not.to.be.ok() ;
 					expect( job_.users ).to.have.length( 2 ) ;
@@ -2513,11 +2567,15 @@ describe( "Populate links" , function() {
 						users: [ user1 , user2 ]
 					} ) ;
 					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				jobs.collect( {} , { populate: 'users' } , function( error , jobs_ ) {
+				options = { populate: 'users' } ; 
+				jobs.collect( {} , options , function( error , jobs_ ) {
 					expect( error ).not.to.be.ok() ;
 					expect( jobs_ ).to.have.length( 2 ) ;
 					
@@ -2546,6 +2604,9 @@ describe( "Populate links" , function() {
 						users: [ user3 , user4 ]
 					} ) ;
 					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
 					callback() ;
 				} ) ;
 			}
@@ -2561,6 +2622,8 @@ describe( "Deep populate links" , function() {
 	beforeEach( clearDB ) ;
 	
 	it( "deep population (links then back-link)" , function( done ) {
+		
+		var options ;
 		
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -2597,7 +2660,8 @@ describe( "Deep populate links" , function() {
 				user2.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.get( user._id , { deepPopulate: deepPopulate } , function( error , user_ ) {
+				options = { deepPopulate: deepPopulate } ;
+				users.get( user._id , options , function( error , user_ ) {
 					expect( error ).not.to.be.ok() ;
 					expect( user_.$.populated.job ).to.be( true ) ;
 					
@@ -2644,6 +2708,10 @@ describe( "Deep populate links" , function() {
 							]
 						}
 					} ) ;
+					
+					expect( options.populateDepth ).to.be( 2 ) ;
+					expect( options.populateDbQueries ).to.be( 2 ) ;
+					
 					callback() ;
 				} ) ;
 			}
@@ -3169,6 +3237,8 @@ describe( "Memory model" , function() {
 	
 	it( "should create a memoryModel, retrieve documents with 'populate' on 'link' and 'back-link', with the 'memory' options and effectively save them in the memoryModel" , function( done ) {
 		
+		var options ;
+		
 		var memory = world.createMemoryModel() ;
 		
 		var user = users.createDocument( {
@@ -3218,7 +3288,9 @@ describe( "Memory model" , function() {
 				user3.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.collect( {} , { memory: memory , populate: 'job' } , function( error , users_ ) {
+				options = { memory: memory , populate: 'job' } ;
+				
+				users.collect( {} , options , function( error , users_ ) {
 					
 					var doc ;
 					
@@ -3295,13 +3367,16 @@ describe( "Memory model" , function() {
 					
 					//console.error( memory.collections.users.documents ) ;
 					//console.error( memory.collections.jobs.documents ) ;
+					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				//var memory = world.createMemoryModel() ;
-				
-				jobs.collect( {} , { memory: memory , populate: 'users' } , function( error , jobs_ ) {
+				options = { memory: memory , populate: 'users' } ;
+				jobs.collect( {} , options , function( error , jobs_ ) {
 					
 					var doc ;
 					
@@ -3369,14 +3444,33 @@ describe( "Memory model" , function() {
 					
 					//console.error( memory.collections.users.documents ) ;
 					//console.error( memory.collections.jobs.documents ) ;
+					
+					// This is a back-link, so a DB query is mandatory here
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
 					callback() ;
 				} ) ;
-			}
+			} ,
+			function( callback ) {
+				options = { memory: memory , populate: 'job' } ;
+				
+				users.collect( {} , options , function( error , users_ ) {
+					// This is the same query already performed on user.
+					// We just check populate Depth and Queries here: a total cache hit should happen!
+					expect( options.populateDepth ).not.to.be.ok() ;
+					expect( options.populateDbQueries ).not.to.be.ok() ;
+					
+					callback() ;
+				} ) ;
+			} ,
 		] )
 		.exec( done ) ;
 	} ) ;
 	
 	it( "should also works with multi-link" , function( done ) {
+		
+		var options ;
 		
 		var memory = world.createMemoryModel() ;
 		
@@ -3442,7 +3536,9 @@ describe( "Memory model" , function() {
 				school2.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				schools.collect( {} , { populate: 'jobs' , memory: memory } , function( error , schools_ ) {
+				options = { populate: 'jobs' , memory: memory } ;
+				
+				schools.collect( {} , options , function( error , schools_ ) {
 					
 					var doc ;
 					
@@ -3545,6 +3641,22 @@ describe( "Memory model" , function() {
 						users: []
 					} ) ;
 					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				options = { populate: 'jobs' , memory: memory } ;
+				
+				schools.collect( {} , options , function( error , schools_ ) {
+					
+					// This is the same query already performed.
+					// We just check populate Depth and Queries here: a total cache hit should happen!
+					expect( options.populateDepth ).not.to.be.ok() ;
+					expect( options.populateDbQueries ).not.to.be.ok() ;
+					
 					callback() ;
 				} ) ;
 			} ,
@@ -3552,7 +3664,7 @@ describe( "Memory model" , function() {
 		.exec( done ) ;
 	} ) ;
 	
-	it( "zzz incremental population should work as expected" , function( done ) {
+	it( "incremental population should work as expected" , function( done ) {
 		
 		var options ;
 		
