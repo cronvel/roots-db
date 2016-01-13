@@ -3554,6 +3554,8 @@ describe( "Memory model" , function() {
 	
 	it( "zzz incremental population should work as expected" , function( done ) {
 		
+		var options ;
+		
 		var memory = world.createMemoryModel() ;
 		
 		var user = users.createDocument( {
@@ -3591,7 +3593,8 @@ describe( "Memory model" , function() {
 				user2.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.get( user._id , { memory: memory } , function( error , user_ ) {
+				options = { memory: memory } ;
+				users.get( user._id , options , function( error , user_ ) {
 					expect( error ).not.to.be.ok() ;
 					expect( user_ ).to.eql( {
 						_id: user._id,
@@ -3600,11 +3603,14 @@ describe( "Memory model" , function() {
 						memberSid: 'Jilbert Polson',
 						job: job._id 
 					} ) ;
+					expect( options.populateDepth ).not.to.be.ok() ;
+					expect( options.populateDbQueries ).not.to.be.ok() ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				users.get( user._id , { memory: memory , populate: 'job' } , function( error , user_ ) {
+				options = { memory: memory , populate: 'job' } ;
+				users.get( user._id , options , function( error , user_ ) {
 					expect( error ).not.to.be.ok() ;
 					expect( user_ ).to.eql( {
 						_id: user._id,
@@ -3625,11 +3631,18 @@ describe( "Memory model" , function() {
 						salary: 60000,
 						users: []
 					} ) ;
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				users.get( user._id , { memory: memory , deepPopulate: deepPopulate } , function( error , user_ ) {
+				//console.error( '\n\n>>>>>>> Increment now!!!\n\n' ) ;
+				//log.warning( 'memory users: %I' , memory.collections.users ) ;
+				//log.warning( 'memory jobs: %I' , memory.collections.jobs ) ;
+				
+				options = { memory: memory , deepPopulate: deepPopulate } ;
+				users.get( user._id , options , function( error , user_ ) {
 					expect( error ).not.to.be.ok() ;
 					expect( user_.$.populated.job ).to.be( true ) ;
 					
@@ -3676,6 +3689,10 @@ describe( "Memory model" , function() {
 							]
 						}
 					} ) ;
+					
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
 					callback() ;
 				} ) ;
 			}
