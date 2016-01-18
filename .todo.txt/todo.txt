@@ -5,3 +5,5 @@
 (B) DocumentWrapper#setLink(), DocumentWrapper#addLink() and DocumentWrapper#unlink() should work with standard 'backlink' too @code
 (A) DocumentWrapper#unpopulate() @code
 (B) deepPopulate optimization: should not populate the link of the back-linked document, since its the original document @code
+(A) sanitize toLink should transform a string into an ObjectID @code
+(A) Attachment#save(): should rewrite how ensurePath is done, see comment @code
