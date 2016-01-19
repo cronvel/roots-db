@@ -3843,4 +3843,53 @@ describe( "Historical bugs" , function() {
 		.exec( done ) ;
 	} ) ;
 	
+	it( "setting garbage to an attachment property should abort with an error" , function( done ) {
+		
+		var user , id ;
+		
+		// First try: at object creation
+		expect( function() {
+			user = users.createDocument( {
+				firstName: 'Jilbert' ,
+				lastName: 'Polson' ,
+				file: 'garbage'
+			} ) ;
+		} ).to.throwError() ;
+		
+		user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		id = user._id ;
+		
+		// Second try: using setLink
+		expect( function() { user.$.setLink( 'file' , 'garbage' ) ; } ).to.throwError() ;
+		expect( user.file ).to.be( undefined ) ;
+		
+		// third try: by setting the property directly
+		user.file = 'garbage' ;
+		expect( function() { user.$.validate() ; } ).to.throwError() ;
+		
+		// By default, a collection has the 'patchDrivenValidation' option, so we have to stage the change
+		// to trigger validation on .save()
+		user.$.stage( 'file' ) ;
+		
+		async.series( [
+			function( callback ) {
+				user.$.save( function( error ) {
+					expect( error ).to.be.ok() ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				users.get( id , function( error , user_ ) {
+					user = user_ ;
+					expect( error ).to.be.ok() ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
 } ) ;
