@@ -1,5 +1,9 @@
 (B) should filter out properties containing a dot '.' @code
-(A) validate the schema by a schema, at collection creation @code
+(C) validate the schema by a schema, at collection creation @code
 (B) simplify things, force ._id as a special id field for all driver, do not use .$.id anymore @refacto
 (A) DocumentWrapper#addLink() and DocumentWrapper#unlink() should work with standard 'link' too @code
 (B) DocumentWrapper#setLink(), DocumentWrapper#addLink() and DocumentWrapper#unlink() should work with standard 'backlink' too @code
+(A) DocumentWrapper#unpopulate() @code
+(B) deepPopulate optimization: should not populate the link of the back-linked document, since its the original document @code
+(A) sanitize toLink should transform a string into an ObjectID @code
+x 2016-01-20 Attachment#save(): should rewrite how ensurePath is done, see comment @code
