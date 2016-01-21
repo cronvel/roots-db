@@ -2872,7 +2872,8 @@ describe( "Populate links" , function() {
 				} ) ;
 			} ,
 			function( callback ) {
-				jobs.get( job4Id , function( error , job ) {
+				options = { populate: 'schools' } ;
+				jobs.get( job4Id , options , function( error , job ) {
 					expect( error ).not.to.be.ok() ;
 					expect( job._id ).to.eql( job4Id ) ;
 					
