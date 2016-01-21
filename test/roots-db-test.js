@@ -115,6 +115,7 @@ var jobsDescriptor = {
 			default: 0
 		} ,
 		users: { type: 'backLink' , collection: 'users' , path: 'job' } ,
+		schools: { type: 'backLink' , collection: 'schools' , path: 'jobs' }
 	} ,
 } ;
 
@@ -1307,7 +1308,7 @@ describe( "Links" , function() {
 					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( job._id ).to.eql( jobId ) ;
-					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 , users: [] } ) ;
+					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
 					
 					callback() ;
 				} ) ;
@@ -1328,7 +1329,7 @@ describe( "Links" , function() {
 			function( callback ) {
 				user.$.getLink( "job" , function( error , job ) {
 					expect( error ).not.to.be.ok() ;
-					expect( job ).to.eql( { _id: jobId , title: 'developer' , salary: 60000 , users: [] } ) ;
+					expect( job ).to.eql( { _id: jobId , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
 					callback() ;
 				} ) ;
 			} ,
@@ -1546,6 +1547,174 @@ describe( "Links" , function() {
 
 
 
+describe( "Multi-links" , function() {
+	
+	beforeEach( clearDB ) ;
+	
+	it( "basic multi-link (create, link, save, retrieve one, retrieve multi-links, add link, check, unlink, check)" , function( done ) {
+		
+		var school = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+		
+		var id = school._id ;
+		
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		var job1Id = job1.$.id ;
+		
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+		
+		var job2Id = job2.$.id ;
+		
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+		
+		var job3Id = job3.$.id ;
+		
+		// Link the documents!
+		school.$.setLink( 'jobs' , [ job1 , job2 ] ) ;
+		
+		async.series( [
+			function( callback ) {
+				job1.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				job2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				job3.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				school.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				schools.get( id , function( error , school_ ) {
+					school = school_ ;
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'Job:' , job ) ;
+					expect( error ).not.to.be.ok() ;
+					expect( school.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( school._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( school._id ).to.eql( id ) ;
+					expect( school ).to.eql( { _id: school._id , title: 'Computer Science' , jobs: [ job1._id , job2._id ] } ) ;
+					
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				school.$.getLink( "jobs" , function( error , jobs_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( jobs_ ).to.have.length( 2 ) ;
+					
+					//console.error( jobs_ ) ;
+					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
+					
+					expect( jobs_ ).to.eql( [
+						{
+							_id: jobs_[ 0 ]._id,
+							title: 'developer',
+							salary: 60000,
+							users: [] ,
+							schools: []
+						} ,
+						{
+							_id: jobs_[ 1 ]._id,
+							title: 'sysadmin',
+							salary: 55000,
+							users: [] ,
+							schools: []
+						}
+					] ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				school.$.addLink( 'jobs' , job3 ) ;
+				school.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				school.$.getLink( "jobs" , function( error , jobs_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( jobs_ ).to.have.length( 3 ) ;
+					
+					//console.error( jobs_ ) ;
+					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
+					
+					expect( jobs_ ).to.eql( [
+						{
+							_id: jobs_[ 0 ]._id,
+							title: 'developer',
+							salary: 60000,
+							users: [] ,
+							schools: []
+						} ,
+						{
+							_id: jobs_[ 1 ]._id,
+							title: 'sysadmin',
+							salary: 55000,
+							users: [] ,
+							schools: []
+						} ,
+						{
+							_id: jobs_[ 2 ]._id,
+							title: 'front-end developer',
+							salary: 54000,
+							users: [] ,
+							schools: []
+						} ,
+					] ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				school.$.unlink( 'jobs' , job2 ) ;
+				school.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				school.$.getLink( "jobs" , function( error , jobs_ ) {
+					expect( error ).not.to.be.ok() ;
+					expect( jobs_ ).to.have.length( 2 ) ;
+					
+					//console.error( jobs_ ) ;
+					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
+					
+					expect( jobs_ ).to.eql( [
+						{
+							_id: jobs_[ 0 ]._id,
+							title: 'developer',
+							salary: 60000,
+							users: [] ,
+							schools: []
+						} ,
+						{
+							_id: jobs_[ 1 ]._id,
+							title: 'front-end developer',
+							salary: 54000,
+							users: [] ,
+							schools: []
+						} ,
+					] ) ;
+					callback() ;
+				} ) ;
+			} ,
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+	it( "basic nested multi-links" ) ;
+} ) ;
+
+
+
 describe( "Back-links" , function() {
 	
 	beforeEach( clearDB ) ;
@@ -1593,7 +1762,7 @@ describe( "Back-links" , function() {
 					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( job._id ).to.eql( jobId ) ;
-					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 , users: [] } ) ;
+					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
 					
 					callback() ;
 				} ) ;
@@ -1685,22 +1854,19 @@ describe( "Back-links" , function() {
 		.exec( done ) ;
 	} ) ;
 	
-	it( "basic nested back-links" ) ;
-} ) ;
-
-
-
-describe( "Multi-links" , function() {
-	
-	beforeEach( clearDB ) ;
-	
-	it( "basic multi-link (create, link, save, retrieve one, retrieve multi-links, add link, check, unlink, check)" , function( done ) {
+	it( "back-link of multi-link" , function( done ) {
 		
-		var school = schools.createDocument( {
+		var school1 = schools.createDocument( {
 			title: 'Computer Science'
 		} ) ;
 		
-		var id = school._id ;
+		var school1Id = school1._id ;
+		
+		var school2 = schools.createDocument( {
+			title: 'Web Academy'
+		} ) ;
+		
+		var school2Id = school2._id ;
 		
 		var job1 = jobs.createDocument( {
 			title: 'developer' ,
@@ -1723,8 +1889,16 @@ describe( "Multi-links" , function() {
 		
 		var job3Id = job3.$.id ;
 		
+		var job4 = jobs.createDocument( {
+			title: 'designer' ,
+			salary: 56000
+		} ) ;
+		
+		var job4Id = job4.$.id ;
+		
 		// Link the documents!
-		school.$.setLink( 'jobs' , [ job1 , job2 ] ) ;
+		school1.$.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
+		school2.$.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
 		
 		async.series( [
 			function( callback ) {
@@ -1737,116 +1911,89 @@ describe( "Multi-links" , function() {
 				job3.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				school.$.save( callback ) ;
+				job4.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				schools.get( id , function( error , school_ ) {
-					school = school_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Job:' , job ) ;
+				school1.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				school2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				jobs.get( job1Id , function( error , job ) {
 					expect( error ).not.to.be.ok() ;
-					expect( school.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( school._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( school._id ).to.eql( id ) ;
-					expect( school ).to.eql( { _id: school._id , title: 'Computer Science' , jobs: [ job1._id , job2._id ] } ) ;
+					expect( job._id ).to.eql( job1Id ) ;
+					expect( job ).to.eql( {
+						_id: job1._id,
+						title: 'developer',
+						salary: 60000,
+						users: [],
+						schools: []
+					} ) ;
 					
-					callback() ;
+					job.$.getLink( 'schools' , function( error , schools_ ) {
+						expect( error ).not.to.be.ok() ;
+						expect( schools_ ).to.have.length( 2 ) ;
+						
+						schools_.sort( function( a , b ) { return b.title - a.title ; } ) ;
+						
+						// Order by id
+						schools_[ 0 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
+						schools_[ 1 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
+						
+						expect( schools_ ).to.eql( [
+							{
+								_id: school1._id,
+								title: 'Computer Science',
+								jobs: [ job1Id , job2Id , job3Id ]
+							},
+							{
+								_id: school2._id,
+								title: 'Web Academy',
+								jobs: [ job1Id , job3Id , job4Id ]
+							}
+						] ) ;
+						
+						callback() ;
+					} ) ;
 				} ) ;
 			} ,
 			function( callback ) {
-				school.$.getLink( "jobs" , function( error , jobs_ ) {
+				jobs.get( job4Id , function( error , job ) {
 					expect( error ).not.to.be.ok() ;
-					expect( jobs_ ).to.have.length( 2 ) ;
+					expect( job._id ).to.eql( job4Id ) ;
+					expect( job ).to.eql( {
+						_id: job4._id,
+						title: 'designer',
+						salary: 56000,
+						users: [],
+						schools: []
+					} ) ;
 					
-					//console.error( jobs_ ) ;
-					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
-					
-					expect( jobs_ ).to.eql( [
-						{
-							_id: jobs_[ 0 ]._id,
-							title: 'developer',
-							salary: 60000,
-							users: []
-						} ,
-						{
-							_id: jobs_[ 1 ]._id,
-							title: 'sysadmin',
-							salary: 55000,
-							users: []
-						}
-					] ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				school.$.addLink( 'jobs' , job3 ) ;
-				school.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school.$.getLink( "jobs" , function( error , jobs_ ) {
-					expect( error ).not.to.be.ok() ;
-					expect( jobs_ ).to.have.length( 3 ) ;
-					
-					//console.error( jobs_ ) ;
-					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
-					
-					expect( jobs_ ).to.eql( [
-						{
-							_id: jobs_[ 0 ]._id,
-							title: 'developer',
-							salary: 60000,
-							users: []
-						} ,
-						{
-							_id: jobs_[ 1 ]._id,
-							title: 'sysadmin',
-							salary: 55000,
-							users: []
-						} ,
-						{
-							_id: jobs_[ 2 ]._id,
-							title: 'front-end developer',
-							salary: 54000,
-							users: []
-						} ,
-					] ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				school.$.unlink( 'jobs' , job2 ) ;
-				school.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school.$.getLink( "jobs" , function( error , jobs_ ) {
-					expect( error ).not.to.be.ok() ;
-					expect( jobs_ ).to.have.length( 2 ) ;
-					
-					//console.error( jobs_ ) ;
-					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
-					
-					expect( jobs_ ).to.eql( [
-						{
-							_id: jobs_[ 0 ]._id,
-							title: 'developer',
-							salary: 60000,
-							users: []
-						} ,
-						{
-							_id: jobs_[ 1 ]._id,
-							title: 'front-end developer',
-							salary: 54000,
-							users: []
-						} ,
-					] ) ;
-					callback() ;
+					job.$.getLink( 'schools' , function( error , schools_ ) {
+						expect( error ).not.to.be.ok() ;
+						expect( schools_ ).to.have.length( 1 ) ;
+						
+						// Order by id
+						schools_[ 0 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
+						
+						expect( schools_ ).to.eql( [
+							{
+								_id: school2._id,
+								title: 'Web Academy',
+								jobs: [ job1Id , job3Id , job4Id ]
+							}
+						] ) ;
+						
+						callback() ;
+					} ) ;
 				} ) ;
 			} ,
 		] )
 		.exec( done ) ;
 	} ) ;
 	
-	it( "basic nested multi-links" ) ;
+	it( "basic nested back-links" ) ;
 } ) ;
 
 
@@ -2125,6 +2272,7 @@ describe( "Populate links" , function() {
 								title: 'developer',
 								salary: 60000,
 								users: [],
+								schools: [],
 								_id: job._id
 							},
 							godfather: {
@@ -2337,6 +2485,7 @@ describe( "Populate links" , function() {
 								title: 'developer',
 								salary: 60000,
 								users: [],
+								schools: [],
 								_id: job._id
 							},
 							godfather: {
@@ -2565,7 +2714,8 @@ describe( "Populate links" , function() {
 						_id: job1._id ,
 						title: 'developer' ,
 						salary: 60000 ,
-						users: [ user1 , user2 ]
+						users: [ user1 , user2 ],
+						schools: []
 					} ) ;
 					
 					expect( options.populateDepth ).to.be( 1 ) ;
@@ -2591,7 +2741,8 @@ describe( "Populate links" , function() {
 						_id: job1._id ,
 						title: 'developer' ,
 						salary: 60000 ,
-						users: [ user1 , user2 ]
+						users: [ user1 , user2 ],
+						schools: []
 					} ) ;
 					
 					expect( jobs_[ 1 ].users ).to.have.length( 2 ) ;
@@ -2602,7 +2753,8 @@ describe( "Populate links" , function() {
 						_id: job2._id ,
 						title: 'star developer' ,
 						salary: 200000 ,
-						users: [ user3 , user4 ]
+						users: [ user3 , user4 ],
+						schools: []
 					} ) ;
 					
 					expect( options.populateDepth ).to.be( 1 ) ;
@@ -2614,6 +2766,145 @@ describe( "Populate links" , function() {
 		] )
 		.exec( done ) ;
 	} ) ;
+	
+	it( "zzz 'back-link' of multi-link population" , function( done ) {
+		
+		var school1 = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+		
+		var school1Id = school1._id ;
+		
+		var school2 = schools.createDocument( {
+			title: 'Web Academy'
+		} ) ;
+		
+		var school2Id = school2._id ;
+		
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+		
+		var job1Id = job1.$.id ;
+		
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+		
+		var job2Id = job2.$.id ;
+		
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+		
+		var job3Id = job3.$.id ;
+		
+		var job4 = jobs.createDocument( {
+			title: 'designer' ,
+			salary: 56000
+		} ) ;
+		
+		var job4Id = job4.$.id ;
+		
+		// Link the documents!
+		school1.$.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
+		school2.$.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
+		
+		async.series( [
+			function( callback ) {
+				job1.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				job2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				job3.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				job4.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				school1.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				school2.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				options = { populate: 'schools' } ;
+				jobs.get( job1Id , options , function( error , job ) {
+					expect( error ).not.to.be.ok() ;
+					expect( job._id ).to.eql( job1Id ) ;
+					
+					expect( job.schools ).to.have.length( 2 ) ;
+					
+					job.schools.sort( function( a , b ) { return b.title - a.title ; } ) ;
+					
+					// Order by id
+					job.schools[ 0 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
+					job.schools[ 1 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
+					
+					expect( job ).to.eql( {
+						_id: job1._id,
+						title: 'developer',
+						salary: 60000,
+						users: [],
+						schools: [
+							{
+								_id: school1._id,
+								title: 'Computer Science',
+								jobs: [ job1Id , job2Id , job3Id ]
+							},
+							{
+								_id: school2._id,
+								title: 'Web Academy',
+								jobs: [ job1Id , job3Id , job4Id ]
+							}
+						]
+					} ) ;
+						
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				jobs.get( job4Id , function( error , job ) {
+					expect( error ).not.to.be.ok() ;
+					expect( job._id ).to.eql( job4Id ) ;
+					
+					expect( job.schools ).to.have.length( 1 ) ;
+					
+					// Order by id
+					job.schools[ 0 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
+					
+					expect( job ).to.eql( {
+						_id: job4._id,
+						title: 'designer',
+						salary: 56000,
+						users: [],
+						schools: [
+							{
+								_id: school2._id,
+								title: 'Web Academy',
+								jobs: [ job1Id , job3Id , job4Id ]
+							}
+						]
+					} ) ;
+						
+					expect( options.populateDepth ).to.be( 1 ) ;
+					expect( options.populateDbQueries ).to.be( 1 ) ;
+					
+					callback() ;
+				} ) ;
+			} ,
+		] )
+		.exec( done ) ;
+	} ) ;
+	
 } ) ;
 
 
@@ -2685,6 +2976,7 @@ describe( "Deep populate links" , function() {
 							_id: job._id ,
 							title: 'developer' ,
 							salary: 60000,
+							schools: [],
 							users: [
 								user_ ,
 								// We cannot use 'user2', expect.js is too confused with Circular references
@@ -2703,6 +2995,7 @@ describe( "Deep populate links" , function() {
 							_id: job._id ,
 							title: 'developer' ,
 							salary: 60000,
+							schools: [],
 							users: [
 								user_ ,
 								user_.job.users[ 1 ]
@@ -3752,7 +4045,8 @@ describe( "Memory model" , function() {
 							_id: job._id,
 							title: 'developer',
 							salary: 60000,
-							users: []
+							users: [],
+							schools: []
 						}
 					} ) ;
 					
@@ -3766,7 +4060,8 @@ describe( "Memory model" , function() {
 							_id: job._id,
 							title: 'developer',
 							salary: 60000,
-							users: []
+							users: [],
+							schools: []
 						}
 					} ) ;
 					
@@ -3780,7 +4075,8 @@ describe( "Memory model" , function() {
 							_id: job2._id,
 							title: 'adventurer',
 							salary: 200000,
-							users: []
+							users: [],
+							schools: []
 						}
 					} ) ;
 					
@@ -3789,7 +4085,8 @@ describe( "Memory model" , function() {
 						_id: job._id,
 						title: 'developer',
 						salary: 60000,
-						users: []
+						users: [],
+						schools: []
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
@@ -3797,7 +4094,8 @@ describe( "Memory model" , function() {
 						_id: job2._id,
 						title: 'adventurer',
 						salary: 200000,
-						users: []
+						users: [],
+						schools: []
 					} ) ;
 					
 					//console.error( memory.collections.users.documents ) ;
@@ -3861,6 +4159,7 @@ describe( "Memory model" , function() {
 						_id: job._id,
 						title: 'developer',
 						salary: 60000,
+						schools: [],
 						users: [
 							memory.collections.users.documents[ user._id.toString() ] ,
 							memory.collections.users.documents[ user2._id.toString() ]
@@ -3872,6 +4171,7 @@ describe( "Memory model" , function() {
 						_id: job2._id,
 						title: 'adventurer',
 						salary: 200000,
+						schools: [],
 						users: [
 							memory.collections.users.documents[ user3._id.toString() ]
 						]
@@ -4001,19 +4301,22 @@ describe( "Memory model" , function() {
 								_id: job1._id,
 								title: 'developer',
 								salary: 60000,
-								users: []
+								users: [],
+								schools: []
 							} ,
 							{
 								_id: job2._id,
 								title: 'sysadmin',
 								salary: 55000,
-								users: []
+								users: [],
+								schools: []
 							} ,
 							{
 								_id: job3._id,
 								title: 'front-end developer',
 								salary: 54000,
-								users: []
+								users: [],
+								schools: []
 							}
 						]
 					} ) ;
@@ -4027,19 +4330,22 @@ describe( "Memory model" , function() {
 								_id: job1._id,
 								title: 'developer',
 								salary: 60000,
-								users: []
+								users: [],
+								schools: []
 							} ,
 							{
 								_id: job3._id,
 								title: 'front-end developer',
 								salary: 54000,
-								users: []
+								users: [],
+								schools: []
 							} ,
 							{
 								_id: job4._id,
 								title: 'designer',
 								salary: 56000,
-								users: []
+								users: [],
+								schools: []
 							}
 						]
 					} ) ;
@@ -4049,7 +4355,8 @@ describe( "Memory model" , function() {
 						_id: job1._id,
 						title: 'developer',
 						salary: 60000,
-						users: []
+						users: [],
+						schools: []
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
@@ -4057,7 +4364,8 @@ describe( "Memory model" , function() {
 						_id: job2._id,
 						title: 'sysadmin',
 						salary: 55000,
-						users: []
+						users: [],
+						schools: []
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job3._id.toString() ] ;
@@ -4065,7 +4373,8 @@ describe( "Memory model" , function() {
 						_id: job3._id,
 						title: 'front-end developer',
 						salary: 54000,
-						users: []
+						users: [],
+						schools: []
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job4._id.toString() ] ;
@@ -4073,7 +4382,8 @@ describe( "Memory model" , function() {
 						_id: job4._id,
 						title: 'designer',
 						salary: 56000,
-						users: []
+						users: [],
+						schools: []
 					} ) ;
 					
 					expect( options.populateDepth ).to.be( 1 ) ;
@@ -4168,7 +4478,8 @@ describe( "Memory model" , function() {
 							_id: job._id ,
 							title: 'developer' ,
 							salary: 60000,
-							users: []
+							users: [],
+							schools: []
 						}
 					} ) ;
 					expect( user_.job.$.populated.users ).not.to.be.ok() ;
@@ -4176,7 +4487,8 @@ describe( "Memory model" , function() {
 						_id: job._id ,
 						title: 'developer' ,
 						salary: 60000,
-						users: []
+						users: [],
+						schools: []
 					} ) ;
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
@@ -4212,6 +4524,7 @@ describe( "Memory model" , function() {
 							_id: job._id ,
 							title: 'developer' ,
 							salary: 60000,
+							schools: [],
 							users: [
 								user_ ,
 								// We cannot use 'user2', expect.js is too confused with Circular references
@@ -4230,6 +4543,7 @@ describe( "Memory model" , function() {
 							_id: job._id ,
 							title: 'developer' ,
 							salary: 60000,
+							schools: [],
 							users: [
 								user_ ,
 								user_.job.users[ 1 ]
