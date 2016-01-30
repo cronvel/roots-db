@@ -2767,7 +2767,7 @@ describe( "Populate links" , function() {
 		.exec( done ) ;
 	} ) ;
 	
-	it( "zzz 'back-link' of multi-link population" , function( done ) {
+	it( "'back-link' of multi-link population" , function( done ) {
 		
 		var school1 = schools.createDocument( {
 			title: 'Computer Science'
