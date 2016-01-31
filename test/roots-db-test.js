@@ -112,6 +112,7 @@ var jobsDescriptor = {
 		} ,
 		salary: {
 			type: 'integer' ,
+			sanitize: 'toInteger' ,
 			default: 0
 		} ,
 		users: { type: 'backLink' , collection: 'users' , path: 'job' } ,
@@ -139,7 +140,14 @@ var townsDescriptor = {
 		name: { type: 'string' } ,
 		meta: {
 			type: 'strictObject',
-			default: {}
+			default: {} ,
+			extraProperties: true ,
+			properties: {
+				rank: {
+					optional: true ,
+					sanitize: 'toInteger'
+				}
+			}
 		}
 	} ,
 	indexes: [
@@ -4586,6 +4594,95 @@ describe( "Historical bugs" , function() {
 				users.collect( {} , { populate: [ 'job' , 'godfather' ] } , function( error , batch ) {
 					expect( error ).not.to.be.ok() ;
 					expect( batch ).to.eql( [] ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
+	it( "validation featuring sanitizers should update both locally and remotely after a document's commit()" , function( done ) {
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: "60000"
+		} ) ;
+		
+		var jobId = job.$.id ;
+		
+		var town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				rank: "7" ,
+				population: '2200K' ,
+				country: 'France'
+			}
+		} ) ;
+		
+		var townId = town.$.id ;
+		
+		expect( job.salary ).to.be( 60000 ) ;	// toInteger at document's creation
+		expect( town.meta.rank ).to.be( 7 ) ;	// toInteger at document's creation
+		
+		async.series( [
+			function( callback ) {
+				job.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				town.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				jobs.get( jobId , function( error , job_ ) {
+					job = job_ ;
+					expect( error ).not.to.be.ok() ;
+					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
+					expect( job.salary ).to.be( 60000 ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				job.$.patch( { salary: "65000" } ) ;
+				job.$.commit( function( error ) {
+					expect( error ).not.to.be.ok() ;
+					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: [] } ) ;
+					expect( job.salary ).to.be( 65000 ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: [] } ) ;
+				jobs.get( jobId , function( error , job_ ) {
+					job = job_ ;
+					expect( error ).not.to.be.ok() ;
+					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: [] } ) ;
+					expect( job.salary ).to.be( 65000 ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				towns.get( town._id , function( error , town_ ) {
+					town = town_ ;
+					expect( error ).not.to.be.ok() ;
+					expect( town ).to.eql( { _id: town._id , name: 'Paris' , meta: { rank: 7 , population: '2200K' , country: 'France' } } ) ;
+					expect( town.meta.rank ).to.be( 7 ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				town.$.patch( { "meta.rank": "8" } ) ;
+				town.$.commit( function( error ) {
+					expect( error ).not.to.be.ok() ;
+					expect( town ).to.eql( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
+					expect( town.meta.rank ).to.be( 8 ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				towns.get( town._id , function( error , town_ ) {
+					town = town_ ;
+					expect( error ).not.to.be.ok() ;
+					expect( town ).to.eql( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
+					expect( town.meta.rank ).to.be( 8 ) ;
 					callback() ;
 				} ) ;
 			}
