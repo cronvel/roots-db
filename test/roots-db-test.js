@@ -27,6 +27,8 @@
 /* jshint unused:false */
 /* global describe, it, before, after, beforeEach */
 
+"use strict" ;
+
 
 
 var rootsDb = require( '../lib/rootsDb.js' ) ;
@@ -2534,6 +2536,8 @@ describe( "Populate links" , function() {
 		
 		var options ;
 		
+		var school ;
+		
 		var school1 = schools.createDocument( {
 			title: 'Computer Science'
 		} ) ;
@@ -2776,6 +2780,8 @@ describe( "Populate links" , function() {
 	} ) ;
 	
 	it( "'back-link' of multi-link population" , function( done ) {
+		
+		var options ;
 		
 		var school1 = schools.createDocument( {
 			title: 'Computer Science'
@@ -3609,7 +3615,7 @@ describe( "Caching with the memory model" , function() {
 		
 		var mem = world.createMemoryModel() ;
 		
-		someUsers = [
+		var someUsers = [
 			{
 				_id: '000000000000000000000001' ,
 				firstName: 'John1' ,
