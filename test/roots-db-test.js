@@ -67,25 +67,43 @@ var usersDescriptor = {
 		firstName: {
 			type: 'string' ,
 			maxLength: 30 ,
-			default: 'Joe'
+			default: 'Joe' ,
+			tier: 2
 		} ,
 		lastName: {
 			type: 'string' ,
 			maxLength: 30 ,
-			default: 'Doe'
+			default: 'Doe' ,
+			tier: 2
 		} ,
-		godfather: { type: 'link' , optional: true , collection: 'users' } ,
-		file: { type: 'attachment' , optional: true } ,
+		godfather: {
+			type: 'link' ,
+			optional: true ,
+			collection: 'users' ,
+			tier: 3
+		} ,
+		file: {
+			type: 'attachment' ,
+			optional: true ,
+			tier: 3
+		} ,
 		connection: {
 			type: 'strictObject' ,
 			optional: true ,
-			of: { type: 'link' , collection: 'users' }
+			of: { type: 'link' , collection: 'users' } ,
+			tier: 3
 		} ,
-		job: { type: 'link' , optional: true , collection: 'jobs' } ,
+		job: {
+			type: 'link' ,
+			optional: true ,
+			collection: 'jobs' ,
+			tier: 3
+		} ,
 		memberSid: {
 			optional: true ,
 			type: 'string' ,
-			maxLength: 30
+			maxLength: 30 ,
+			tier: 2
 		}
 	} ,
 	indexes: [
@@ -332,6 +350,22 @@ before( function( done ) {
 	expect( extendables ).to.be.a( rootsDb.Collection ) ;
 	
 	done() ;
+} ) ;
+
+
+
+describe( "Collection" , function() {
+	
+	it( "Tier masks" , function() {
+		expect( users.tierMasks ).to.eql( [
+			{},
+			{ _id: true },
+			{ firstName: true, lastName: true, memberSid: true, _id: true },
+			{ firstName: true, lastName: true, godfather: true, file: true, connection: true, job: true, memberSid: true, _id: true },
+			{ firstName: true, lastName: true, godfather: true, file: true, connection: true, job: true, memberSid: true, _id: true },
+			{ firstName: true, lastName: true, godfather: true, file: true, connection: true, job: true, memberSid: true, _id: true }
+		] ) ;
+	} ) ;
 } ) ;
 
 
@@ -1354,6 +1388,7 @@ describe( "Links" , function() {
 						optional: true ,
 						type: 'link' ,
 						sanitize: [ 'toLink' ] ,
+						tier: 3
 					}
 				} ) ;
 				callback() ;
@@ -1820,6 +1855,7 @@ describe( "Back-links" , function() {
 						type: 'backLink' ,
 						sanitize: [ 'toBackLink' ] ,
 						path: 'job' ,
+						tier: 3
 					}
 				} ) ;
 				callback() ;
@@ -3114,7 +3150,8 @@ describe( "Attachment links" , function() {
 					hostPath: 'file' ,
 					schema: {
 						optional: true ,
-						type: 'attachment'
+						type: 'attachment' ,
+						tier: 3
 					} ,
 					attachment: {
 						id: user.file.id ,
@@ -3240,7 +3277,8 @@ describe( "Attachment links" , function() {
 					hostPath: 'file' ,
 					schema: {
 						optional: true ,
-						type: 'attachment'
+						type: 'attachment' ,
+						tier: 3
 					} ,
 					attachment: {
 						id: user.file.id ,
@@ -3338,7 +3376,8 @@ describe( "Attachment links" , function() {
 					hostPath: 'file' ,
 					schema: {
 						optional: true ,
-						type: 'attachment'
+						type: 'attachment' ,
+						tier: 3
 					} ,
 					attachment: {
 						id: user.file.id ,
@@ -3422,7 +3461,8 @@ describe( "Attachment links" , function() {
 					hostPath: 'file' ,
 					schema: {
 						optional: true ,
-						type: 'attachment'
+						type: 'attachment' ,
+						tier: 3
 					} ,
 					attachment: {
 						id: user.file.id ,
@@ -3520,7 +3560,8 @@ describe( "Attachment links" , function() {
 					hostPath: 'file' ,
 					schema: {
 						optional: true ,
-						type: 'attachment'
+						type: 'attachment' ,
+						tier: 3
 					} ,
 					attachment: {
 						id: user.file.id ,
