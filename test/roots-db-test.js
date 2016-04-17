@@ -357,7 +357,7 @@ before( function( done ) {
 describe( "Collection" , function() {
 	
 	it( "Tier masks" , function() {
-		expect( users.tierObjectMasks ).to.eql( [
+		expect( users.tierPropertyMasks ).to.eql( [
 			{},
 			{ _id: true },
 			{ firstName: true, lastName: true, memberSid: true, _id: true },
