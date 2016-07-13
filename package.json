@@ -18,7 +18,7 @@
     "logfella": "^0.3.41",
     "mongodb": "^2.2.1",
     "string-kit": "^0.5.8",
-    "tree-kit": "^0.5.25"
+    "tree-kit": "^0.5.26"
   },
   "devDependencies": {
     "expect.js": "^0.3.1",
