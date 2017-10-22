@@ -2,7 +2,7 @@
   "name": "roots-db",
   "version": "0.13.25",
   "engines": {
-    "node": ">=4.0.0"
+    "node": ">=8.0.0"
   },
   "description": "Even more minimalistic ODM",
   "main": "lib/rootsDb.js",
@@ -17,7 +17,7 @@
     "hash-kit": "^0.3.1",
     "logfella": "^0.3.57",
     "mongodb": "^2.2.33",
-    "seventh": "^0.5.1",
+    "seventh": "^0.5.2",
     "tree-kit": "^0.5.26"
   },
   "devDependencies": {
