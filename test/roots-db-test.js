@@ -470,6 +470,45 @@ describe( "Get documents" , function() {
 	
 	beforeEach( clearDB ) ;
 	
+	it( "zzz" , function( done ) {
+		
+		var user = users.createDocument( {
+			firstName: 'John' ,
+			lastName: 'McGregor'
+		} ) ;
+		
+		var id = user._id ;
+		
+		async.series( [
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.get2( id )
+				.then( user => {
+					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
+				} )
+				.callback( callback ) ;
+			} ,
+			function( callback ) {
+				users.get( id , { raw: true } , function( error , user ) {
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'User:' , user ) ;
+					expect( error ).not.to.be.ok() ;
+					expect( user.$ ).not.to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
+	
 	it( "should get a document (create, save and retrieve)" , function( done ) {
 		
 		var user = users.createDocument( {
