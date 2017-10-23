@@ -484,8 +484,9 @@ describe( "Get documents" , function() {
 				user.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				users.get2( id )
+				users.getPromVer( id )
 				.then( user => {
+					console.log( 'user' , user ) ;
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( user._id ).to.eql( id ) ;
