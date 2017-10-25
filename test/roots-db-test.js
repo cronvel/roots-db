@@ -39,7 +39,11 @@ var fs = require( 'fs' ) ;
 var hash = require( 'hash-kit' ) ;
 var string = require( 'string-kit' ) ;
 var tree = require( 'tree-kit' ) ;
+
 var async = require( 'async-kit' ) ;
+var seventh = require( 'seventh' ) ;
+var Promise = seventh.Promise ;
+
 var ErrorStatus = require( 'error-status' ) ;
 var doormen = require( 'doormen' ) ;
 
@@ -302,22 +306,32 @@ function clearDBIndexes( callback )
 
 function clearCollection( collection , callback )
 {
+	collection.driver.rawInit().then( () => { collection.driver.raw.remove( callback ) ; } )
+	.catch( error => { callback( error ) ; } ) ;
+	
+	/*
 	collection.driver.rawInit( function( error ) {
 		if ( error ) { callback( error ) ; return ; }
 		collection.driver.raw.remove( callback ) ;
 	} ) ;
+	*/
 }
 
 
 
 function clearCollectionIndexes( collection , callback )
 {
+	collection.driver.rawInit().then( () => { collection.driver.raw.dropIndexes( () => callback() ) ; } )
+	.catch( error => { callback( error ) ; } ) ;
+	
+	/*
 	collection.driver.rawInit( function( error ) {
 		if ( error ) { callback( error ) ; return ; }
 		collection.driver.raw.dropIndexes( function() {
 			callback() ;
 		} ) ;
 	} ) ;
+	*/
 }
 
 
