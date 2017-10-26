@@ -1024,6 +1024,7 @@ describe( "MultiGet, Collect & find batchs" , function() {
 				rootsDb.bulk( 'save' , marleys , callback ) ;
 			} ,
 			function( callback ) {
+				console.log( 'yay? 1' ) ;
 				var ids = [
 					marleys[ 0 ]._id ,
 					marleys[ 1 ]._id ,
@@ -1031,8 +1032,9 @@ describe( "MultiGet, Collect & find batchs" , function() {
 					marleys[ 5 ]._id ,
 					marleys[ 6 ]._id
 				] ;
-				
+				Error.stackTraceLimit = Infinity;
 				users.multiGet( ids , function( error , batch ) {
+					console.log( 'yay? 2' ) ;
 					var i , map = {} ;
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'Batch:' , batch ) ; 
@@ -1049,6 +1051,7 @@ describe( "MultiGet, Collect & find batchs" , function() {
 					}
 					
 					expect( map ).to.only.have.keys( 'Bob' , 'Julian' , 'Stephen' , 'Ziggy' , 'Rita' ) ;
+					console.log( 'yay? 3' ) ;
 					callback() ;
 				} ) ;
 			}

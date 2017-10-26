@@ -16,7 +16,7 @@
     "hash-kit": "^0.3.1",
     "logfella": "^0.3.57",
     "mongodb": "^2.2.33",
-    "seventh": "^0.5.8",
+    "seventh": "^0.6.1",
     "tree-kit": "^0.5.26"
   },
   "devDependencies": {
