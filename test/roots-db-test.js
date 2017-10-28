@@ -3885,9 +3885,8 @@ describe( "Locks" , function() {
 				} ) ;
 			} ,
 			function( callback ) {
-				lockable.$.lock( function( error , locked , lockId_ ) {
+				lockable.$.lock( function( error , lockId_ ) {
 					expect( error ).not.to.be.ok() ;
-					expect( locked ).to.be.ok() ;
 					expect( lockId_ ).to.be.an( mongodb.ObjectID ) ;
 					lockId = lockId_ ;
 					callback() ;
@@ -3903,9 +3902,9 @@ describe( "Locks" , function() {
 				} ) ;
 			} ,
 			function( callback ) {
-				lockable.$.lock( function( error , locked , lockId_ ) {
+				lockable.$.lock( function( error , lockId_ ) {
 					expect( error ).not.to.be.ok() ;
-					expect( locked ).not.to.be.ok() ;
+					expect( lockId_ ).not.to.be.ok() ;
 					callback() ;
 				} ) ;
 			} ,
