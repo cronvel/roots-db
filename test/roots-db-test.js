@@ -308,13 +308,6 @@ function clearCollection( collection , callback )
 {
 	collection.driver.rawInit().then( () => { collection.driver.raw.remove( callback ) ; } )
 	.catch( error => { callback( error ) ; } ) ;
-	
-	/*
-	collection.driver.rawInit( function( error ) {
-		if ( error ) { callback( error ) ; return ; }
-		collection.driver.raw.remove( callback ) ;
-	} ) ;
-	*/
 }
 
 
@@ -323,15 +316,6 @@ function clearCollectionIndexes( collection , callback )
 {
 	collection.driver.rawInit().then( () => { collection.driver.raw.dropIndexes( () => callback() ) ; } )
 	.catch( error => { callback( error ) ; } ) ;
-	
-	/*
-	collection.driver.rawInit( function( error ) {
-		if ( error ) { callback( error ) ; return ; }
-		collection.driver.raw.dropIndexes( function() {
-			callback() ;
-		} ) ;
-	} ) ;
-	*/
 }
 
 
@@ -399,10 +383,9 @@ describe( "Build collections' indexes" , function() {
 				
 				expect( error ).not.to.be.ok() ;
 				
-				collection.driver.getIndexes( function( error , indexes ) {
+				collection.driver.getIndexes().then( indexes => {
 					expect( indexes ).to.be.eql( collection.indexes ) ;
-					foreachCallback() ;
-				} ) ;
+				} ).callback( foreachCallback ) ;
 			} ) ;
 		} )
 		.exec( done ) ;
@@ -3979,7 +3962,7 @@ describe( "Locks" , function() {
 					expect( keys ).to.contain( 'one' ) ;
 					expect( keys ).to.contain( 'two' ) ;
 					expect( keys ).to.contain( 'three' ) ;
-					releaseFn( callback ) ;
+					releaseFn().callback( callback ) ;
 				} ) ;
 			} ,
 			function( callback ) {
