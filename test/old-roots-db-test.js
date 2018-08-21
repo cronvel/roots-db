@@ -24,13 +24,14 @@
 	SOFTWARE.
 */
 
+/* jshint unused:false */
 /* global describe, it, before, after, beforeEach */
 
 "use strict" ;
 
 
 
-var rootsDb = require( '..' ) ;
+var rootsDb = require( '../lib/rootsDb.js' ) ;
 var util = require( 'util' ) ;
 var mongodb = require( 'mongodb' ) ;
 var fs = require( 'fs' ) ;
@@ -39,19 +40,26 @@ var hash = require( 'hash-kit' ) ;
 var string = require( 'string-kit' ) ;
 var tree = require( 'tree-kit' ) ;
 
-var Promise = require( 'seventh' ) ;
+var async = require( 'async-kit' ) ;
+var seventh = require( 'seventh' ) ;
+var Promise = seventh.Promise ;
 
 var ErrorStatus = require( 'error-status' ) ;
 var doormen = require( 'doormen' ) ;
 
+var expect = require( 'expect.js' ) ;
+
+var cliOptions = getCliOptions() ;
+if ( ! cliOptions.log ) { cliOptions.log = { minLevel: 4 } ; }
+
 var logfella = require( 'logfella' ) ;
-logfella.global.setGlobalConfig( { minLevel: process.argv.includes( '--debug' ) ? 'debug' : 'warning' } ) ;
-var log = logfella.global.use( 'unit-test' ) ;
+logfella.global.setGlobalConfig( cliOptions.log ) ;
+var log = logfella.global.use( 'mocha' ) ;
 
 
 
 // Create the world...
-var world = new rootsDb.World() ;
+var world = rootsDb.World.create() ;
 
 // Collections...
 var users , jobs , schools , towns , lockables , extendables ;
@@ -183,31 +191,49 @@ var lockablesDescriptor = {
 
 
 
-function Extended( collection , rawDoc , options ) {
-	rootsDb.DocumentWrapper.call( this , collection , rawDoc , options ) ;
-}
-
+function Extended() { throw new Error( 'Use Extended.create() instead' ) ; }
 Extended.prototype = Object.create( rootsDb.DocumentWrapper.prototype ) ;
 Extended.prototype.constructor = Extended ;
 
-Extended.prototype.getNormalized = function() {
+Extended.create = function extendedCreate( collection , rawDoc , options )
+{
+	var o = Object.create( Extended.prototype ) ;
+	o.create( collection , rawDoc , options ) ;
+	return o ;
+} ;
+
+Extended.prototype.create = function create( collection , rawDoc , options )
+{
+	rootsDb.DocumentWrapper.prototype.create.call( this , collection , rawDoc , options ) ;
+} ;
+
+Extended.prototype.getNormalized = function getNormalized()
+{
 	return this.document.data.toLowerCase() ;
 } ;
 
-function ExtendedBatch( collection , rawDoc , options ) {
-	rootsDb.BatchWrapper.call( this , collection , rawDoc , options ) ;
-}
-
+function ExtendedBatch() { throw new Error( 'Use ExtendedBatch.create() instead' ) ; }
 ExtendedBatch.prototype = Object.create( rootsDb.BatchWrapper.prototype ) ;
 ExtendedBatch.prototype.constructor = ExtendedBatch ;
 
-ExtendedBatch.prototype.concat = function() {
+ExtendedBatch.create = function extendedCreate( collection , rawDoc , options )
+{
+	var o = Object.create( ExtendedBatch.prototype ) ;
+	o.create( collection , rawDoc , options ) ;
+	return o ;
+} ;
+
+ExtendedBatch.prototype.create = function create( collection , rawDoc , options )
+{
+	rootsDb.BatchWrapper.prototype.create.call( this , collection , rawDoc , options ) ;
+} ;
+
+ExtendedBatch.prototype.concat = function concat()
+{
 	var i , iMax , str = '' ;
 	for ( i = 0 , iMax = this.batch.length ; i < iMax ; i ++ ) { str += this.batch[ i ].data ; }
 	return str ;
 } ;
-
-
 
 var extendablesDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/extendables' ,
@@ -228,44 +254,68 @@ var extendablesDescriptor = {
 
 
 
-// clear DB: remove every item, so we can safely test
-function clearDB() {
-	return Promise.all( [
-		clearCollection( users ) ,
-		clearCollection( jobs ) ,
-		clearCollection( schools ) ,
-		clearCollection( towns ) ,
-		clearCollection( lockables ) ,
-		clearCollection( extendables )
-	] ) ;
+// Return options while trying to avoid mocha's parameters
+function getCliOptions()
+{
+	var i , max = 0 ;
+	
+	for ( i = 2 ; i < process.argv.length ; i ++ )
+	{
+		if ( process.argv[ i ].match( /\*|.+\.js/ ) )
+		{
+			max = i ;
+		}
+	}
+	
+	return require( 'minimist' )( process.argv.slice( max + 1 ) ) ;
 }
 
 
 
 // clear DB: remove every item, so we can safely test
-function clearDBIndexes() {
-	return Promise.all( [
-		clearCollectionIndexes( users ) ,
-		clearCollectionIndexes( jobs ) ,
-		clearCollectionIndexes( schools ) ,
-		clearCollectionIndexes( towns ) ,
-		clearCollectionIndexes( lockables ) ,
-		clearCollectionIndexes( extendables )
-	] ) ;
+function clearDB( callback )
+{
+	async.parallel( [
+		[ clearCollection , users ] ,
+		[ clearCollection , jobs ] ,
+		[ clearCollection , schools ] ,
+		[ clearCollection , towns ] ,
+		[ clearCollection , lockables ] ,
+		[ clearCollection , extendables ]
+	] )
+	.exec( callback ) ;
 }
 
 
 
-function clearCollection( collection ) {
-	return collection.driver.rawInit()
-		.then( () => collection.driver.raw.remove() ) ;
+// clear DB: remove every item, so we can safely test
+function clearDBIndexes( callback )
+{
+	async.parallel( [
+		[ clearCollectionIndexes , users ] ,
+		[ clearCollectionIndexes , jobs ] ,
+		[ clearCollectionIndexes , schools ] ,
+		[ clearCollectionIndexes , towns ] ,
+		[ clearCollectionIndexes , lockables ] ,
+		[ clearCollectionIndexes , extendables ]
+	] )
+	.exec( callback ) ;
 }
 
 
 
-function clearCollectionIndexes( collection ) {
-	return collection.driver.rawInit()
-		.then( () => collection.driver.raw.dropIndexes() ) ;
+function clearCollection( collection , callback )
+{
+	collection.driver.rawInit().then( () => { collection.driver.raw.remove( callback ) ; } )
+	.catch( error => { callback( error ) ; } ) ;
+}
+
+
+
+function clearCollectionIndexes( collection , callback )
+{
+	collection.driver.rawInit().then( () => { collection.driver.raw.dropIndexes( () => callback() ) ; } )
+	.catch( error => { callback( error ) ; } ) ;
 }
 
 
@@ -277,7 +327,8 @@ function clearCollectionIndexes( collection ) {
 
 
 // Force creating the collection
-before( () => {
+before( function( done ) {
+	
 	users = world.createCollection( 'users' , usersDescriptor ) ;
 	expect( users ).to.be.a( rootsDb.Collection ) ;
 	
@@ -295,14 +346,16 @@ before( () => {
 	
 	extendables = world.createCollection( 'extendables' , extendablesDescriptor ) ;
 	expect( extendables ).to.be.a( rootsDb.Collection ) ;
+	
+	done() ;
 } ) ;
 
 
 
-describe( "Collection" , () => {
+describe( "Collection" , function() {
 	
-	it( "Tier masks" , () => {
-		expect( users.tierPropertyMasks ).to.equal( [
+	it( "Tier masks" , function() {
+		expect( users.tierPropertyMasks ).to.eql( [
 			{},
 			{ _id: true },
 			{ firstName: true, lastName: true, memberSid: true, _id: true },
@@ -315,23 +368,23 @@ describe( "Collection" , () => {
 
 
 
-describe( "Build collections' indexes" , () => {
+describe( "Build collections' indexes" , function() {
 	
 	beforeEach( clearDBIndexes ) ;
 	
-	it( "should build indexes" , async () => {
+	it( "should build indexes" , function( done ) {
 		
-		expect( users.uniques ).to.equal( [ [ '_id' ], [ 'job', 'memberSid' ] ] ) ;
-		expect( jobs.uniques ).to.equal( [ [ '_id' ] ] ) ;
+		expect( users.uniques ).to.be.eql( [ [ '_id' ], [ 'job', 'memberSid' ] ] ) ;
+		expect( jobs.uniques ).to.be.eql( [ [ '_id' ] ] ) ;
 		
-		Promise.forEach( Object.keys( world.collections ) , name => {
-			var collection = world.collections[ name ] ;
+		async.foreach( world.collections , function( collection , name , foreachCallback )
+		{
 			collection.buildIndexes( function( error ) {
 				
 				expect( error ).not.to.be.ok() ;
 				
 				collection.driver.getIndexes().then( indexes => {
-					expect( indexes ).to.equal( collection.indexes ) ;
+					expect( indexes ).to.be.eql( collection.indexes ) ;
 				} ).callback( foreachCallback ) ;
 			} ) ;
 		} )
@@ -339,7 +392,7 @@ describe( "Build collections' indexes" , () => {
 	} ) ;
 } ) ;
 
-return ;
+
 
 describe( "ID" , function() {
 	
@@ -367,7 +420,7 @@ describe( "Document creation" , function() {
 		
 		expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 		expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( user ).to.equal( tree.extend( null , { _id: user._id } , expectedDefaultUser ) ) ;
+		expect( user ).to.eql( tree.extend( null , { _id: user._id } , expectedDefaultUser ) ) ;
 	} ) ;
 	
 	it( "should create a document using the given correct values" , function() {
@@ -379,7 +432,7 @@ describe( "Document creation" , function() {
 		
 		expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 		expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( user ).to.equal( {
+		expect( user ).to.eql( {
 			_id: user._id ,
 			firstName: 'Bobby' ,
 			lastName: 'Fischer' ,
@@ -433,8 +486,8 @@ describe( "Get documents" , function() {
 					console.log( 'user' , user ) ;
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
 				} )
 				.callback( callback ) ;
 			} ,
@@ -445,8 +498,8 @@ describe( "Get documents" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( user.$ ).not.to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
 					callback() ;
 				} ) ;
 			}
@@ -474,8 +527,8 @@ describe( "Get documents" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
 					callback() ;
 				} ) ;
 			} ,
@@ -486,8 +539,8 @@ describe( "Get documents" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( user.$ ).not.to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
 					callback() ;
 				} ) ;
 			}
@@ -549,7 +602,7 @@ describe( "Save documents" , function() {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user ) ; 
 					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( { _id: user._id , firstName: 'Jack' , lastName: 'Doe' , memberSid: 'Jack Doe' } ) ;
+					expect( user ).to.eql( { _id: user._id , firstName: 'Jack' , lastName: 'Doe' , memberSid: 'Jack Doe' } ) ;
 					callback() ;
 				} ) ;
 			}
@@ -578,8 +631,8 @@ describe( "Save documents" , function() {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user2 ) ; 
 					expect( error ).not.to.be.ok() ;
-					expect( user2._id ).to.equal( id ) ;
-					expect( user2 ).to.equal( { _id: user2._id , firstName: 'Johnny B.' , lastName: 'Starks' , memberSid: 'Johnny B. Starks' } ) ;
+					expect( user2._id ).to.eql( id ) ;
+					expect( user2 ).to.eql( { _id: user2._id , firstName: 'Johnny B.' , lastName: 'Starks' , memberSid: 'Johnny B. Starks' } ) ;
 					callback() ;
 				} ) ;
 			} ,
@@ -598,8 +651,8 @@ describe( "Save documents" , function() {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user ) ; 
 					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.equal( id ) ;
-					expect( u ).to.equal( { _id: u._id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny B. Starks' } ) ;
+					expect( u._id ).to.eql( id ) ;
+					expect( u ).to.eql( { _id: u._id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny B. Starks' } ) ;
 					callback() ;
 				} ) ;
 			}
@@ -636,8 +689,8 @@ describe( "Patch, stage and commit documents" , function() {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user2 ) ; 
 					expect( error ).not.to.be.ok() ;
-					expect( user2._id ).to.equal( id ) ;
-					expect( user2 ).to.equal( { _id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks' } ) ;
+					expect( user2._id ).to.eql( id ) ;
+					expect( user2 ).to.eql( { _id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks' } ) ;
 					callback() ;
 				} ) ;
 			} ,
@@ -645,14 +698,14 @@ describe( "Patch, stage and commit documents" , function() {
 				user2.firstName = 'Joey' ;
 				user2.lastName = 'Smith' ;
 				user2.$.stage( 'lastName' ) ;
-				expect( user2 ).to.equal( { _id: user2._id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
+				expect( user2 ).to.eql( { _id: user2._id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
 				user2.$.commit( callback ) ;
 			} ,
 			function( callback ) {
 				users.get( id , function( error , u ) {
 					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.equal( id ) ;
-					expect( u ).to.equal( { _id: u._id , firstName: 'Johnny' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
+					expect( u._id ).to.eql( id ) ;
+					expect( u ).to.eql( { _id: u._id , firstName: 'Johnny' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
 					callback() ;
 				} ) ;
 			}
@@ -682,22 +735,22 @@ describe( "Patch, stage and commit documents" , function() {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user2 ) ; 
 					expect( error ).not.to.be.ok() ;
-					expect( user2._id ).to.equal( id ) ;
-					expect( user2 ).to.equal( { _id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks' } ) ;
+					expect( user2._id ).to.eql( id ) ;
+					expect( user2 ).to.eql( { _id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks' } ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
 				user2.firstName = 'Joey' ;
 				user2.$.patch( { lastName: 'Smith' } ) ;
-				expect( user2 ).to.equal( { _id: user2._id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
+				expect( user2 ).to.eql( { _id: user2._id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
 				user2.$.commit( callback ) ;
 			} ,
 			function( callback ) {
 				users.get( id , function( error , u ) {
 					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.equal( id ) ;
-					expect( u ).to.equal( { _id: u._id , firstName: 'Johnny' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
+					expect( u._id ).to.eql( id ) ;
+					expect( u ).to.eql( { _id: u._id , firstName: 'Johnny' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
 					callback() ;
 				} ) ;
 			}
@@ -727,8 +780,8 @@ describe( "Patch, stage and commit documents" , function() {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user2 ) ; 
 					expect( error ).not.to.be.ok() ;
-					expect( user2._id ).to.equal( id ) ;
-					expect( user2 ).to.equal( { _id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks' } ) ;
+					expect( user2._id ).to.eql( id ) ;
+					expect( user2 ).to.eql( { _id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks' } ) ;
 					callback() ;
 				} ) ;
 			} ,
@@ -747,8 +800,8 @@ describe( "Patch, stage and commit documents" , function() {
 			function( callback ) {
 				users.get( id , function( error , u ) {
 					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.equal( id ) ;
-					expect( u ).to.equal( { _id: u._id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
+					expect( u._id ).to.eql( id ) ;
+					expect( u ).to.eql( { _id: u._id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
 					callback() ;
 				} ) ;
 			}
@@ -784,8 +837,8 @@ describe( "Delete documents" , function() {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user ) ; 
 					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.equal( id ) ;
-					expect( u ).to.equal( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: "John McGregor" } ) ;
+					expect( u._id ).to.eql( id ) ;
+					expect( u ).to.eql( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: "John McGregor" } ) ;
 					callback() ;
 				} ) ;
 			} ,
@@ -819,7 +872,7 @@ describe( "Fingerprint" , function() {
 		var f = users.createFingerprint( { firstName: 'Terry' } ) ;
 		
 		expect( f.$ ).to.be.an( rootsDb.FingerprintWrapper ) ;
-		expect( f ).to.equal( { firstName: 'Terry' } ) ;
+		expect( f ).to.eql( { firstName: 'Terry' } ) ;
 	} ) ;
 	
 	it( "should detect uniqueness correctly" , function() {
@@ -867,8 +920,8 @@ describe( "Get documents by unique fingerprint" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( u.$ ).to.be.a( rootsDb.DocumentWrapper ) ;
 					expect( u._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( u._id ).to.equal( id ) ;
-					expect( u ).to.equal( tree.extend( null , { _id: user._id , job: job._id , firstName: 'Bill' , lastName: "Cut'throat" , memberSid: "Bill Cut'throat" } ) ) ;
+					expect( u._id ).to.eql( id ) ;
+					expect( u ).to.eql( tree.extend( null , { _id: user._id , job: job._id , firstName: 'Bill' , lastName: "Cut'throat" , memberSid: "Bill Cut'throat" } ) ) ;
 					callback() ;
 				} ) ;
 			}
@@ -1138,7 +1191,7 @@ describe( "Embedded documents" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( t.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( t._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( t ).to.equal( { _id: town._id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
+					expect( t ).to.eql( { _id: town._id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
 					callback() ;
 				} ) ;
 			}
@@ -1165,7 +1218,7 @@ describe( "Embedded documents" , function() {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'Town:' , town ) ; 
 					expect( error ).not.to.be.ok() ;
-					expect( t ).to.equal( { _id: town._id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
+					expect( t ).to.eql( { _id: town._id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
 					expect( t.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					
 					t.$.patch( { "meta.population": "2300K" } ) ;
@@ -1179,7 +1232,7 @@ describe( "Embedded documents" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( t.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( t._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( t ).to.equal( { _id: town._id , name: 'Paris' , meta: { population: '2300K' , country: 'France' } } ) ;
+					expect( t ).to.eql( { _id: town._id , name: 'Paris' , meta: { population: '2300K' , country: 'France' } } ) ;
 					callback() ;
 				} ) ;
 			}
@@ -1277,7 +1330,7 @@ describe( "Embedded documents" , function() {
 					//console.log( 'Town:' , town ) ; 
 					expect( error ).not.to.be.ok() ;
 					expect( town.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( town ).to.equal( {
+					expect( town ).to.eql( {
 						_id: town._id ,
 						name: 'Tokyo' ,
 						meta: {
@@ -1319,7 +1372,7 @@ describe( "Links" , function() {
 		// Link the documents!
 		user.$.setLink( 'job' , job ) ;
 		
-		expect( user.job ).to.equal( jobId ) ;
+		expect( user.job ).to.eql( jobId ) ;
 		
 		async.series( [
 			function( callback ) {
@@ -1335,8 +1388,8 @@ describe( "Links" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( job._id ).to.equal( jobId ) ;
-					expect( job ).to.equal( { _id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
+					expect( job._id ).to.eql( jobId ) ;
+					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
 					
 					callback() ;
 				} ) ;
@@ -1349,20 +1402,20 @@ describe( "Links" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( { _id: user._id, job: jobId, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( { _id: user._id, job: jobId, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
 				user.$.getLink( "job" , function( error , job ) {
 					expect( error ).not.to.be.ok() ;
-					expect( job ).to.equal( { _id: jobId , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
+					expect( job ).to.eql( { _id: jobId , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				expect( user.$.getLinkDetails( "job" ) ).to.equal( {
+				expect( user.$.getLinkDetails( "job" ) ).to.eql( {
 					type: 'link' ,
 					foreignCollection: 'jobs' ,
 					foreignId: jobId ,
@@ -1408,8 +1461,8 @@ describe( "Links" , function() {
 		user.$.setLink( 'connection.A' , connectionA ) ;
 		user.$.setLink( 'connection.B' , connectionB ) ;
 		
-		expect( user.connection.A ).to.equal( connectionAId ) ;
-		expect( user.connection.B ).to.equal( connectionBId ) ;
+		expect( user.connection.A ).to.eql( connectionAId ) ;
+		expect( user.connection.B ).to.eql( connectionBId ) ;
 		
 		async.series( [
 			function( callback ) {
@@ -1425,8 +1478,8 @@ describe( "Links" , function() {
 				users.get( id , function( error , user ) {
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( {
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -1441,7 +1494,7 @@ describe( "Links" , function() {
 					
 					user.$.getLink( "connection.A" , function( error , userA ) {
 						expect( error ).not.to.be.ok() ;
-						expect( userA ).to.equal( {
+						expect( userA ).to.eql( {
 							_id: connectionAId ,
 							firstName: 'John' ,
 							lastName: "Fergusson" ,
@@ -1450,7 +1503,7 @@ describe( "Links" , function() {
 						
 						user.$.getLink( "connection.B" , function( error , userB ) {
 							expect( error ).not.to.be.ok() ;
-							expect( userB ).to.equal( {
+							expect( userB ).to.eql( {
 								_id: connectionBId ,
 								firstName: 'Andy' ,
 								lastName: "Fergusson" ,
@@ -1507,8 +1560,8 @@ describe( "Links" , function() {
 					user = user_ ;
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( {
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -1525,7 +1578,7 @@ describe( "Links" , function() {
 			function( callback ) {
 				user.$.getLink( "connection.A" , function( error , userA ) {
 					expect( error ).not.to.be.ok() ;
-					expect( userA ).to.equal( {
+					expect( userA ).to.eql( {
 						_id: connectionAId ,
 						firstName: 'John' ,
 						lastName: "Fergusson" ,
@@ -1633,8 +1686,8 @@ describe( "Multi-links" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( school.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( school._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( school._id ).to.equal( id ) ;
-					expect( school ).to.equal( { _id: school._id , title: 'Computer Science' , jobs: [ job1._id , job2._id ] } ) ;
+					expect( school._id ).to.eql( id ) ;
+					expect( school ).to.eql( { _id: school._id , title: 'Computer Science' , jobs: [ job1._id , job2._id ] } ) ;
 					
 					callback() ;
 				} ) ;
@@ -1647,7 +1700,7 @@ describe( "Multi-links" , function() {
 					//console.error( jobs_ ) ;
 					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
 					
-					expect( jobs_ ).to.equal( [
+					expect( jobs_ ).to.eql( [
 						{
 							_id: jobs_[ 0 ]._id,
 							title: 'developer',
@@ -1678,7 +1731,7 @@ describe( "Multi-links" , function() {
 					//console.error( jobs_ ) ;
 					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
 					
-					expect( jobs_ ).to.equal( [
+					expect( jobs_ ).to.eql( [
 						{
 							_id: jobs_[ 0 ]._id,
 							title: 'developer',
@@ -1716,7 +1769,7 @@ describe( "Multi-links" , function() {
 					//console.error( jobs_ ) ;
 					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
 					
-					expect( jobs_ ).to.equal( [
+					expect( jobs_ ).to.eql( [
 						{
 							_id: jobs_[ 0 ]._id,
 							title: 'developer',
@@ -1790,8 +1843,8 @@ describe( "Back-links" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( job._id ).to.equal( jobId ) ;
-					expect( job ).to.equal( { _id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
+					expect( job._id ).to.eql( jobId ) ;
+					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
 					
 					callback() ;
 				} ) ;
@@ -1804,8 +1857,8 @@ describe( "Back-links" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( { _id: user._id, job: jobId, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( { _id: user._id, job: jobId, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
 					callback() ;
 				} ) ;
 			} ,
@@ -1815,7 +1868,7 @@ describe( "Back-links" , function() {
 					expect( users_ ).to.be.an( Array ) ;
 					expect( users_ ).to.have.length( 1 ) ;
 					// Temp
-					expect( users_ ).to.equal( [
+					expect( users_ ).to.eql( [
 						{
 							_id: users_[ 0 ]._id,
 							firstName: 'Jilbert',
@@ -1828,7 +1881,7 @@ describe( "Back-links" , function() {
 				} ) ;
 			} ,
 			function( callback ) {
-				expect( job.$.getLinkDetails( "users" ) ).to.equal( {
+				expect( job.$.getLinkDetails( "users" ) ).to.eql( {
 					type: 'backLink' ,
 					foreignCollection: 'users' ,
 					hostPath: 'users' ,
@@ -1861,7 +1914,7 @@ describe( "Back-links" , function() {
 						users_ = [ users_[ 1 ] , users_[ 0 ] ] ;
 					}
 					
-					expect( users_ ).to.equal( [
+					expect( users_ ).to.eql( [
 						{
 							_id: users_[ 0 ]._id,
 							firstName: 'Jilbert',
@@ -1952,8 +2005,8 @@ describe( "Back-links" , function() {
 			function( callback ) {
 				jobs.get( job1Id , function( error , job ) {
 					expect( error ).not.to.be.ok() ;
-					expect( job._id ).to.equal( job1Id ) ;
-					expect( job ).to.equal( {
+					expect( job._id ).to.eql( job1Id ) ;
+					expect( job ).to.eql( {
 						_id: job1._id,
 						title: 'developer',
 						salary: 60000,
@@ -1971,7 +2024,7 @@ describe( "Back-links" , function() {
 						schools_[ 0 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
 						schools_[ 1 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
 						
-						expect( schools_ ).to.equal( [
+						expect( schools_ ).to.eql( [
 							{
 								_id: school1._id,
 								title: 'Computer Science',
@@ -1991,8 +2044,8 @@ describe( "Back-links" , function() {
 			function( callback ) {
 				jobs.get( job4Id , function( error , job ) {
 					expect( error ).not.to.be.ok() ;
-					expect( job._id ).to.equal( job4Id ) ;
-					expect( job ).to.equal( {
+					expect( job._id ).to.eql( job4Id ) ;
+					expect( job ).to.eql( {
 						_id: job4._id,
 						title: 'designer',
 						salary: 56000,
@@ -2007,7 +2060,7 @@ describe( "Back-links" , function() {
 						// Order by id
 						schools_[ 0 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
 						
-						expect( schools_ ).to.equal( [
+						expect( schools_ ).to.eql( [
 							{
 								_id: school2._id,
 								title: 'Web Academy',
@@ -2054,7 +2107,7 @@ describe( "Populate links" , function() {
 		// Link the documents!
 		user.$.setLink( 'job' , job ) ;
 		
-		expect( user.job ).to.equal( jobId ) ;
+		expect( user.job ).to.eql( jobId ) ;
 		
 		async.series( [
 			function( callback ) {
@@ -2072,8 +2125,8 @@ describe( "Populate links" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( { _id: user._id, job: job, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( { _id: user._id, job: job, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
 					
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
@@ -2129,8 +2182,8 @@ describe( "Populate links" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( {
+					expect( user._id ).to.eql( id ) ;
+					expect( user ).to.eql( {
 						_id: user._id ,
 						job: job ,
 						godfather: godfather ,
@@ -2170,9 +2223,9 @@ describe( "Populate links" , function() {
 		user.$.setLink( 'connection.B' , connection ) ;
 		user.$.setLink( 'connection.C' , user ) ;
 		
-		expect( user.connection.A ).to.equal( connection.$.id ) ;
-		expect( user.connection.B ).to.equal( connection.$.id ) ;
-		expect( user.connection.C ).to.equal( user.$.id ) ;
+		expect( user.connection.A ).to.eql( connection.$.id ) ;
+		expect( user.connection.B ).to.eql( connection.$.id ) ;
+		expect( user.connection.C ).to.eql( user.$.id ) ;
 		
 		async.series( [
 			function( callback ) {
@@ -2186,9 +2239,9 @@ describe( "Populate links" , function() {
 				users.get( id , options , function( error , user ) {
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
+					expect( user._id ).to.eql( id ) ;
 					expect( user.connection.A ).to.be( user.connection.B ) ;
-					expect( user ).to.equal( {
+					expect( user ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -2270,7 +2323,7 @@ describe( "Populate links" , function() {
 						return a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ;
 					} ) ;
 					
-					expect( batch ).to.equal( [
+					expect( batch ).to.eql( [
 						{
 							firstName: 'DA',
 							lastName: 'GODFATHER',
@@ -2477,7 +2530,7 @@ describe( "Populate links" , function() {
 						return a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ;
 					} ) ;
 					
-					expect( batch ).to.equal( [
+					expect( batch ).to.eql( [
 						{
 							firstName: 'DA',
 							lastName: 'GODFATHER',
@@ -2627,8 +2680,8 @@ describe( "Populate links" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( school.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( school._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( school._id ).to.equal( school1Id ) ;
-					expect( school ).to.equal( {
+					expect( school._id ).to.eql( school1Id ) ;
+					expect( school ).to.eql( {
 						_id: school1._id ,
 						title: 'Computer Science' ,
 						jobs: [ job1 , job2 , job3 ]
@@ -2648,7 +2701,7 @@ describe( "Populate links" , function() {
 					
 					if ( schools_[ 0 ].title !== 'Computer Science' ) { schools_ = [ schools_[ 1 ] , schools_[ 0 ] ] ; }
 					
-					expect( schools_ ).to.equal( [
+					expect( schools_ ).to.eql( [
 						{
 							_id: school1._id ,
 							title: 'Computer Science' ,
@@ -2742,7 +2795,7 @@ describe( "Populate links" , function() {
 					
 					if ( job_.users[ 0 ].firstName === 'Tony' ) { job_.users = [ job_.users[ 1 ] , job_.users[ 0 ] ] ; }
 					
-					expect( job_ ).to.equal( {
+					expect( job_ ).to.eql( {
 						_id: job1._id ,
 						title: 'developer' ,
 						salary: 60000 ,
@@ -2769,7 +2822,7 @@ describe( "Populate links" , function() {
 					
 					if ( jobs_[ 0 ].users[ 0 ].firstName === 'Tony' ) { jobs_[ 0 ].users = [ jobs_[ 0 ].users[ 1 ] , jobs_[ 0 ].users[ 0 ] ] ; }
 					
-					expect( jobs_[ 0 ] ).to.equal( {
+					expect( jobs_[ 0 ] ).to.eql( {
 						_id: job1._id ,
 						title: 'developer' ,
 						salary: 60000 ,
@@ -2781,7 +2834,7 @@ describe( "Populate links" , function() {
 					
 					if ( jobs_[ 1 ].users[ 0 ].firstName === 'Richard' ) { jobs_[ 1 ].users = [ jobs_[ 1 ].users[ 1 ] , jobs_[ 1 ].users[ 0 ] ] ; }
 					
-					expect( jobs_[ 1 ] ).to.equal( {
+					expect( jobs_[ 1 ] ).to.eql( {
 						_id: job2._id ,
 						title: 'star developer' ,
 						salary: 200000 ,
@@ -2870,7 +2923,7 @@ describe( "Populate links" , function() {
 				options = { populate: 'schools' } ;
 				jobs.get( job1Id , options , function( error , job ) {
 					expect( error ).not.to.be.ok() ;
-					expect( job._id ).to.equal( job1Id ) ;
+					expect( job._id ).to.eql( job1Id ) ;
 					
 					expect( job.schools ).to.have.length( 2 ) ;
 					
@@ -2880,7 +2933,7 @@ describe( "Populate links" , function() {
 					job.schools[ 0 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
 					job.schools[ 1 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
 					
-					expect( job ).to.equal( {
+					expect( job ).to.eql( {
 						_id: job1._id,
 						title: 'developer',
 						salary: 60000,
@@ -2909,14 +2962,14 @@ describe( "Populate links" , function() {
 				options = { populate: 'schools' } ;
 				jobs.get( job4Id , options , function( error , job ) {
 					expect( error ).not.to.be.ok() ;
-					expect( job._id ).to.equal( job4Id ) ;
+					expect( job._id ).to.eql( job4Id ) ;
 					
 					expect( job.schools ).to.have.length( 1 ) ;
 					
 					// Order by id
 					job.schools[ 0 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
 					
-					expect( job ).to.equal( {
+					expect( job ).to.eql( {
 						_id: job4._id,
 						title: 'designer',
 						salary: 56000,
@@ -3002,7 +3055,7 @@ describe( "Deep populate links" , function() {
 					expect( user_.job.users[ 0 ].job ).to.be( user_.job ) ;
 					expect( user_.job.users[ 1 ].job ).to.be( user_.job ) ;
 					
-					expect( user_ ).to.equal( {
+					expect( user_ ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -3021,7 +3074,7 @@ describe( "Deep populate links" , function() {
 						}
 					} ) ;
 					
-					expect( user_.job.users[ 1 ] ).to.equal( {
+					expect( user_.job.users[ 1 ] ).to.eql( {
 						_id: user2._id,
 						firstName: 'Robert',
 						lastName: 'Polson' ,
@@ -3072,7 +3125,7 @@ describe( "Attachment links" , function() {
 		user.$.setLink( 'file' , attachment ) ;
 		//console.error( user.file ) ;
 		
-		expect( user.file ).to.equal( {
+		expect( user.file ).to.eql( {
 			filename: 'joke.txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain'
@@ -3092,7 +3145,7 @@ describe( "Attachment links" , function() {
 				users.get( id , function( error , user_ ) {
 					user = user_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
+					expect( user ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -3109,7 +3162,7 @@ describe( "Attachment links" , function() {
 			function( callback ) {
 				user.$.getLink( "file" , function( error , file ) {
 					expect( error ).not.to.be.ok() ;
-					expect( file ).to.equal( {
+					expect( file ).to.eql( {
 						id: user.file.id ,
 						filename: 'joke.txt' ,
 						contentType: 'text/plain' ,
@@ -3129,7 +3182,7 @@ describe( "Attachment links" , function() {
 			} ,
 			function( callback ) {
 				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.equal( {
+				expect( details ).to.eql( {
 					type: 'attachment' ,
 					hostPath: 'file' ,
 					schema: {
@@ -3171,7 +3224,7 @@ describe( "Attachment links" , function() {
 		user.$.setLink( 'file' , attachment ) ;
 		//console.error( user.file ) ;
 		
-		expect( user.file ).to.equal( {
+		expect( user.file ).to.eql( {
 			filename: 'joke.txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain'
@@ -3191,7 +3244,7 @@ describe( "Attachment links" , function() {
 				users.get( id , function( error , user_ ) {
 					user = user_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
+					expect( user ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -3216,7 +3269,7 @@ describe( "Attachment links" , function() {
 				users.get( id , function( error , user_ ) {
 					user = user_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
+					expect( user ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -3233,7 +3286,7 @@ describe( "Attachment links" , function() {
 			function( callback ) {
 				user.$.getLink( "file" , function( error , file ) {
 					expect( error ).not.to.be.ok() ;
-					expect( file ).to.equal( {
+					expect( file ).to.eql( {
 						id: user.file.id ,
 						filename: 'lol.txt' ,
 						contentType: 'text/joke' ,
@@ -3256,7 +3309,7 @@ describe( "Attachment links" , function() {
 				expect( function() { fs.accessSync( fullUrl , fs.R_OK ) } ).not.to.throwError() ;
 				
 				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.equal( {
+				expect( details ).to.eql( {
 					type: 'attachment' ,
 					hostPath: 'file' ,
 					schema: {
@@ -3298,7 +3351,7 @@ describe( "Attachment links" , function() {
 		user.$.setLink( 'file' , attachment ) ;
 		//console.error( user.file ) ;
 		
-		expect( user.file ).to.equal( {
+		expect( user.file ).to.eql( {
 			filename: 'joke.txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain'
@@ -3318,7 +3371,7 @@ describe( "Attachment links" , function() {
 				users.get( id , function( error , user_ ) {
 					user = user_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
+					expect( user ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -3335,7 +3388,7 @@ describe( "Attachment links" , function() {
 			function( callback ) {
 				user.$.getLink( "file" , function( error , file ) {
 					expect( error ).not.to.be.ok() ;
-					expect( file ).to.equal( {
+					expect( file ).to.eql( {
 						id: user.file.id ,
 						filename: 'joke.txt' ,
 						contentType: 'text/plain' ,
@@ -3355,7 +3408,7 @@ describe( "Attachment links" , function() {
 			} ,
 			function( callback ) {
 				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.equal( {
+				expect( details ).to.eql( {
 					type: 'attachment' ,
 					hostPath: 'file' ,
 					schema: {
@@ -3397,7 +3450,7 @@ describe( "Attachment links" , function() {
 				users.get( id , function( error , user_ ) {
 					user = user_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
+					expect( user ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -3414,7 +3467,7 @@ describe( "Attachment links" , function() {
 			function( callback ) {
 				user.$.getLink( "file" , function( error , file ) {
 					expect( error ).not.to.be.ok() ;
-					expect( file ).to.equal( {
+					expect( file ).to.eql( {
 						id: user.file.id ,
 						filename: 'hello-world.html' ,
 						contentType: 'text/html' ,
@@ -3440,7 +3493,7 @@ describe( "Attachment links" , function() {
 				expect( function() { fs.accessSync( fullUrl , fs.R_OK ) } ).not.to.throwError() ;
 				
 				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.equal( {
+				expect( details ).to.eql( {
 					type: 'attachment' ,
 					hostPath: 'file' ,
 					schema: {
@@ -3482,7 +3535,7 @@ describe( "Attachment links" , function() {
 		user.$.setLink( 'file' , attachment ) ;
 		//console.error( user.file ) ;
 		
-		expect( user.file ).to.equal( {
+		expect( user.file ).to.eql( {
 			filename: 'joke.txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain'
@@ -3502,7 +3555,7 @@ describe( "Attachment links" , function() {
 				users.get( id , function( error , user_ ) {
 					user = user_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
+					expect( user ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -3519,7 +3572,7 @@ describe( "Attachment links" , function() {
 			function( callback ) {
 				user.$.getLink( "file" , function( error , file ) {
 					expect( error ).not.to.be.ok() ;
-					expect( file ).to.equal( {
+					expect( file ).to.eql( {
 						id: user.file.id ,
 						filename: 'joke.txt' ,
 						contentType: 'text/plain' ,
@@ -3539,7 +3592,7 @@ describe( "Attachment links" , function() {
 			} ,
 			function( callback ) {
 				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.equal( {
+				expect( details ).to.eql( {
 					type: 'attachment' ,
 					hostPath: 'file' ,
 					schema: {
@@ -3570,7 +3623,7 @@ describe( "Attachment links" , function() {
 				users.get( id , function( error , user_ ) {
 					user = user_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
+					expect( user ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -3588,7 +3641,7 @@ describe( "Attachment links" , function() {
 			} ,
 			function( callback ) {
 				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.equal( {
+				expect( details ).to.eql( {
 					type: 'attachment',
 					attachment: null
 				} ) ;
@@ -3628,7 +3681,7 @@ describe( "Caching with the memory model" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user ).to.equal( { _id: rawUser._id , firstName: 'John' , lastName: 'McGregor' } ) ;
+					expect( user ).to.eql( { _id: rawUser._id , firstName: 'John' , lastName: 'McGregor' } ) ;
 					callback() ;
 				} ) ;
 			}
@@ -3681,7 +3734,7 @@ describe( "Caching with the memory model" , function() {
 						return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
 					} ) ;
 					
-					expect( batch ).to.equal( [
+					expect( batch ).to.eql( [
 						{
 							_id: someUsers[ 0 ]._id ,
 							firstName: 'John1' ,
@@ -3760,7 +3813,7 @@ describe( "Caching with the memory model" , function() {
 						return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
 					} ) ;
 					
-					expect( batch ).to.equal( [
+					expect( batch ).to.eql( [
 						{
 							_id: someUsers[ 0 ]._id ,
 							firstName: 'John1' ,
@@ -3810,7 +3863,7 @@ describe( "Locks" , function() {
 			function( callback ) {
 				lockables.get( id , function( error , lockable ) {
 					expect( error ).not.to.be.ok() ;
-					expect( lockable ).to.equal( { _id: lockable._id , data: 'something' , _lockedBy: null , _lockedAt: null } ) ;
+					expect( lockable ).to.eql( { _id: lockable._id , data: 'something' , _lockedBy: null , _lockedAt: null } ) ;
 					callback() ;
 				} ) ;
 			} ,
@@ -3826,7 +3879,7 @@ describe( "Locks" , function() {
 				lockables.get( id , function( error , lockable ) {
 					expect( error ).not.to.be.ok() ;
 					//log.warning( 'lockable: %J' , lockable ) ;
-					expect( lockable._lockedBy ).to.equal( lockId ) ;
+					expect( lockable._lockedBy ).to.eql( lockId ) ;
 					expect( lockable._lockedAt ).to.be.ok() ;
 					callback() ;
 				} ) ;
@@ -3842,7 +3895,7 @@ describe( "Locks" , function() {
 				lockables.get( id , function( error , lockable ) {
 					expect( error ).not.to.be.ok() ;
 					//log.warning( 'lockable: %J' , lockable ) ;
-					expect( lockable._lockedBy ).to.equal( lockId ) ;
+					expect( lockable._lockedBy ).to.eql( lockId ) ;
 					expect( lockable._lockedAt ).to.be.ok() ;
 					callback() ;
 				} ) ;
@@ -3957,7 +4010,7 @@ describe( "Extended DocumentWrapper" , function() {
 					expect( error ).not.to.be.ok() ;
 					expect( ext.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
 					expect( ext.$ ).to.be.an( Extended ) ;
-					expect( ext ).to.equal( { _id: ext._id , data: 'sOmeDaTa' } ) ;
+					expect( ext ).to.eql( { _id: ext._id , data: 'sOmeDaTa' } ) ;
 					expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
 					ext.data = 'mOreVespEnEGaS' ;
 					expect( ext.$.getNormalized() ).to.be( 'morevespenegas' ) ;
@@ -4075,7 +4128,7 @@ describe( "Memory model" , function() {
 					) ;
 					
 					doc = memory.collections.users.documents[ user._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson',
@@ -4090,7 +4143,7 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.users.documents[ user2._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: user2._id,
 						firstName: 'Pat',
 						lastName: 'Mulligan',
@@ -4105,7 +4158,7 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.users.documents[ user3._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: user3._id,
 						firstName: 'Bill',
 						lastName: 'Baroud',
@@ -4120,7 +4173,7 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: job._id,
 						title: 'developer',
 						salary: 60000,
@@ -4129,7 +4182,7 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: job2._id,
 						title: 'adventurer',
 						salary: 200000,
@@ -4166,7 +4219,7 @@ describe( "Memory model" , function() {
 					) ;
 					
 					doc = memory.collections.users.documents[ user._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson',
@@ -4175,7 +4228,7 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.users.documents[ user2._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: user2._id,
 						firstName: 'Pat',
 						lastName: 'Mulligan',
@@ -4184,7 +4237,7 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.users.documents[ user3._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: user3._id,
 						firstName: 'Bill',
 						lastName: 'Baroud',
@@ -4194,7 +4247,7 @@ describe( "Memory model" , function() {
 					
 					doc = memory.collections.jobs.documents[ job._id.toString() ] ;
 					if ( doc.users[ 0 ].firstName === 'Pat' ) { doc.users = [ doc.users[ 1 ] , doc.users[ 0 ] ] ; }
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: job._id,
 						title: 'developer',
 						salary: 60000,
@@ -4206,7 +4259,7 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: job2._id,
 						title: 'adventurer',
 						salary: 200000,
@@ -4332,7 +4385,7 @@ describe( "Memory model" , function() {
 					) ;
 					
 					doc = memory.collections.schools.documents[ school1._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: school1._id,
 						title: 'Computer Science' ,
 						jobs: [
@@ -4361,7 +4414,7 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.schools.documents[ school2._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: school2._id,
 						title: 'Web Academy' ,
 						jobs: [
@@ -4390,7 +4443,7 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job1._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: job1._id,
 						title: 'developer',
 						salary: 60000,
@@ -4399,7 +4452,7 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: job2._id,
 						title: 'sysadmin',
 						salary: 55000,
@@ -4408,7 +4461,7 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job3._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: job3._id,
 						title: 'front-end developer',
 						salary: 54000,
@@ -4417,7 +4470,7 @@ describe( "Memory model" , function() {
 					} ) ;
 					
 					doc = memory.collections.jobs.documents[ job4._id.toString() ] ;
-					expect( doc ).to.equal( {
+					expect( doc ).to.eql( {
 						_id: job4._id,
 						title: 'designer',
 						salary: 56000,
@@ -4492,7 +4545,7 @@ describe( "Memory model" , function() {
 				options = { memory: memory } ;
 				users.get( user._id , options , function( error , user_ ) {
 					expect( error ).not.to.be.ok() ;
-					expect( user_ ).to.equal( {
+					expect( user_ ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -4508,7 +4561,7 @@ describe( "Memory model" , function() {
 				options = { memory: memory , populate: 'job' } ;
 				users.get( user._id , options , function( error , user_ ) {
 					expect( error ).not.to.be.ok() ;
-					expect( user_ ).to.equal( {
+					expect( user_ ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -4522,7 +4575,7 @@ describe( "Memory model" , function() {
 						}
 					} ) ;
 					expect( user_.job.$.populated.users ).not.to.be.ok() ;
-					expect( memory.collections.jobs.documents[ job._id.toString() ] ).to.equal( {
+					expect( memory.collections.jobs.documents[ job._id.toString() ] ).to.eql( {
 						_id: job._id ,
 						title: 'developer' ,
 						salary: 60000,
@@ -4554,7 +4607,7 @@ describe( "Memory model" , function() {
 					expect( user_.job.users[ 0 ].job ).to.be( user_.job ) ;
 					expect( user_.job.users[ 1 ].job ).to.be( user_.job ) ;
 					
-					expect( user_ ).to.equal( {
+					expect( user_ ).to.eql( {
 						_id: user._id,
 						firstName: 'Jilbert',
 						lastName: 'Polson' ,
@@ -4573,7 +4626,7 @@ describe( "Memory model" , function() {
 						}
 					} ) ;
 					
-					expect( user_.job.users[ 1 ] ).to.equal( {
+					expect( user_.job.users[ 1 ] ).to.eql( {
 						_id: user2._id,
 						firstName: 'Robert',
 						lastName: 'Polson' ,
@@ -4623,7 +4676,7 @@ describe( "Historical bugs" , function() {
 			function( callback ) {
 				users.collect( {} , { populate: [ 'job' , 'godfather' ] } , function( error , batch ) {
 					expect( error ).not.to.be.ok() ;
-					expect( batch ).to.equal( [] ) ;
+					expect( batch ).to.eql( [] ) ;
 					callback() ;
 				} ) ;
 			}
@@ -4665,7 +4718,7 @@ describe( "Historical bugs" , function() {
 				jobs.get( jobId , function( error , job_ ) {
 					job = job_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( job ).to.equal( { _id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
+					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
 					expect( job.salary ).to.be( 60000 ) ;
 					callback() ;
 				} ) ;
@@ -4674,17 +4727,17 @@ describe( "Historical bugs" , function() {
 				job.$.patch( { salary: "65000" } ) ;
 				job.$.commit( function( error ) {
 					expect( error ).not.to.be.ok() ;
-					expect( job ).to.equal( { _id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: [] } ) ;
+					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: [] } ) ;
 					expect( job.salary ).to.be( 65000 ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				expect( job ).to.equal( { _id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: [] } ) ;
+				expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: [] } ) ;
 				jobs.get( jobId , function( error , job_ ) {
 					job = job_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( job ).to.equal( { _id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: [] } ) ;
+					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: [] } ) ;
 					expect( job.salary ).to.be( 65000 ) ;
 					callback() ;
 				} ) ;
@@ -4693,7 +4746,7 @@ describe( "Historical bugs" , function() {
 				towns.get( town._id , function( error , town_ ) {
 					town = town_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 7 , population: '2200K' , country: 'France' } } ) ;
+					expect( town ).to.eql( { _id: town._id , name: 'Paris' , meta: { rank: 7 , population: '2200K' , country: 'France' } } ) ;
 					expect( town.meta.rank ).to.be( 7 ) ;
 					callback() ;
 				} ) ;
@@ -4702,7 +4755,7 @@ describe( "Historical bugs" , function() {
 				town.$.patch( { "meta.rank": "8" } ) ;
 				town.$.commit( function( error ) {
 					expect( error ).not.to.be.ok() ;
-					expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
+					expect( town ).to.eql( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
 					expect( town.meta.rank ).to.be( 8 ) ;
 					callback() ;
 				} ) ;
@@ -4711,7 +4764,7 @@ describe( "Historical bugs" , function() {
 				towns.get( town._id , function( error , town_ ) {
 					town = town_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
+					expect( town ).to.eql( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
 					expect( town.meta.rank ).to.be( 8 ) ;
 					callback() ;
 				} ) ;
