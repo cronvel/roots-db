@@ -251,7 +251,7 @@ function clearDBIndexes() {
 		clearCollectionIndexes( towns ) ,
 		clearCollectionIndexes( lockables ) ,
 		clearCollectionIndexes( extendables )
-	] ) ;
+	] ).then( () => { log.verbose( "All indexes cleared" ) ; } ) ;
 }
 
 
@@ -299,6 +299,23 @@ before( () => {
 
 
 
+describe( "Dev" , () => {
+
+	it( "Proxy" , () => {
+		var user = users.createDocumentProxy( { name: "Bob" } ) ;
+		
+		expect( user ).to.be.an( rootsDb.DocumentProxy ) ;
+		//expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+		//expect( user ).to.partially.equal( expectedDefaultUser ) ;
+		console.log( "user:" , user ) ;
+		console.log( "user name:" , user.name ) ;
+		console.log( "user _id:" , user._id ) ;
+
+	} ) ;
+} ) ;
+
+
+
 describe( "Collection" , () => {
 
 	it( "Tier masks" , () => {
@@ -334,6 +351,7 @@ describe( "Build collections' indexes" , () => {
 		return Promise.forEach( Object.keys( world.collections ) , async ( name ) => {
 			var collection = world.collections[ name ] ;
 			await collection.buildIndexes() ;
+			log.verbose( 'Index built for collection %s' , name ) ;
 			expect( await collection.driver.getIndexes() ).to.equal( collection.indexes ) ;
 		} ) ;
 	} ) ;
@@ -343,7 +361,7 @@ describe( "Build collections' indexes" , () => {
 
 describe( "ID" , () => {
 
-	it( "should create ID (like Mongo ID)" , () => {
+	it.skip( "should create ID (like Mongo ID)" , () => {
 		expect( users.createId().toString() ).to.match( /^[0-9a-f]{24}$/ ) ;
 		expect( users.createId().toString() ).to.match( /^[0-9a-f]{24}$/ ) ;
 		expect( users.createId().toString() ).to.match( /^[0-9a-f]{24}$/ ) ;
@@ -357,7 +375,6 @@ describe( "ID" , () => {
 } ) ;
 
 
-return ;
 
 describe( "Document creation" , () => {
 
@@ -408,6 +425,7 @@ describe( "Document creation" , () => {
 	} ) ;
 } ) ;
 
+return ;
 
 
 describe( "Get documents" , () => {
