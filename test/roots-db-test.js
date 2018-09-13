@@ -387,7 +387,6 @@ describe( "ID" , () => {
 describe( "Document creation" , () => {
 
 	it( "should create a document with default values" , () => {
-
 		var user = users.createDocument() ;
 
 		expect( user ).to.be.an( Object ) ;
@@ -395,28 +394,21 @@ describe( "Document creation" , () => {
 		expect( user._ ).to.be.a( rootsDb.Document ) ;
 		expect( user._id ).to.be.an( mongodb.ObjectID ) ;
 		
-		console.log( "!!!!!" , Object.keys( user ) ) ;
-		
-		//expect( user.$ ).to.partially.equal( expectedDefaultUser ) ;
-		
-		try {
-		log.error( "%Y" , user ) ;
 		expect( user ).to.partially.equal( expectedDefaultUser ) ;
-		} catch ( error ) {
-			log.error( "%Y" , error ) ;
-			throw error ;
-		}
+		expect( user.$ ).to.partially.equal( expectedDefaultUser ) ;
 	} ) ;
 
 	it( "should create a document using the given correct values" , () => {
-
 		var user = users.createDocument( {
 			firstName: 'Bobby' ,
 			lastName: 'Fischer'
 		} ) ;
 
-		expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+		expect( user ).to.be.an( Object ) ;
+		expect( user.$ ).to.be.an( Object ) ;
+		expect( user._ ).to.be.a( rootsDb.Document ) ;
 		expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+
 		expect( user ).to.equal( {
 			_id: user._id ,
 			firstName: 'Bobby' ,
@@ -446,14 +438,13 @@ describe( "Document creation" , () => {
 	} ) ;
 } ) ;
 
-return ;
 
 
 describe( "Get documents" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "zzz" , ( done ) => {
+	it( "zzz" , async () => {
 
 		var user = users.createDocument( {
 			firstName: 'John' ,
@@ -462,39 +453,26 @@ describe( "Get documents" , () => {
 
 		var id = user._id ;
 
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.getPromVer( id )
-					.then( user => {
-						console.log( 'user' , user ) ;
-						expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-						expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-						expect( user._id ).to.equal( id ) ;
-						expect( user ).to.equal( {
-							_id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor'
-						} ) ;
-					} )
-					.callback( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , { raw: true } , ( error , user ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).not.to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( {
-						_id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor'
-					} ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		await user.save() ;
+		var dbUser = await users.get( id ) ;
+		console.log( 'user>>>' , user ) ;
+		
+		expect( dbUser ).to.be.an( Object ) ;
+		expect( dbUser._ ).to.be.a( rootsDb.Document ) ;
+		expect( dbUser._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( dbUser._id ).to.equal( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: dbUser._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor'
+		} ) ;
+		
+		var rawDbUser = await users.get( id , { raw: true } ) ;
+		
+		expect( rawDbUser._ ).not.to.be.a( rootsDb.Document ) ;
+		expect( rawDbUser._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( rawDbUser._id ).to.equal( id ) ;
+		expect( rawDbUser ).to.equal( {
+			_id: rawDbUser._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor'
+		} ) ;
 	} ) ;
 
 	it( "should get a document (create, save and retrieve)" , ( done ) => {
@@ -573,7 +551,7 @@ describe( "Get documents" , () => {
 	} ) ;
 } ) ;
 
-
+return ;
 
 describe( "Save documents" , () => {
 
