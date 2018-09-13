@@ -301,16 +301,24 @@ before( () => {
 
 describe( "Dev" , () => {
 
-	it( "Proxy" , () => {
-		var user = users.createDocumentProxy( { name: "Bob" } ) ;
+	beforeEach( clearDB ) ;
+
+	it( "New Document proxy" , async () => {
+		var user = users.createDocument( { firstName: "Bobby" , lastName: "Fischer" } ) ;
 		
-		expect( user ).to.be.an( rootsDb.DocumentProxy ) ;
+		expect( user ).to.be.an( Object ) ;
+		expect( user.$ ).to.be.an( Object ) ;
+		expect( user._ ).to.be.a( rootsDb.Document ) ;
 		//expect( user._id ).to.be.an( mongodb.ObjectID ) ;
 		//expect( user ).to.partially.equal( expectedDefaultUser ) ;
 		console.log( "user:" , user ) ;
 		console.log( "user name:" , user.name ) ;
 		console.log( "user _id:" , user._id ) ;
-
+		
+		
+		await user.save() ;
+		var responseUser = await users.get( user._id ) ;
+		console.log( "responseUser" , responseUser ) ;
 	} ) ;
 } ) ;
 
@@ -344,7 +352,7 @@ describe( "Build collections' indexes" , () => {
 
 	beforeEach( clearDBIndexes ) ;
 
-	it( "should build indexes" , async () => {
+	it.skip( "should build indexes" , async () => {
 		expect( users.uniques ).to.equal( [ [ '_id' ] , [ 'job' , 'memberSid' ] ] ) ;
 		expect( jobs.uniques ).to.equal( [ [ '_id' ] ] ) ;
 
@@ -361,7 +369,7 @@ describe( "Build collections' indexes" , () => {
 
 describe( "ID" , () => {
 
-	it.skip( "should create ID (like Mongo ID)" , () => {
+	it( "should create ID (like Mongo ID)" , () => {
 		expect( users.createId().toString() ).to.match( /^[0-9a-f]{24}$/ ) ;
 		expect( users.createId().toString() ).to.match( /^[0-9a-f]{24}$/ ) ;
 		expect( users.createId().toString() ).to.match( /^[0-9a-f]{24}$/ ) ;
@@ -382,9 +390,22 @@ describe( "Document creation" , () => {
 
 		var user = users.createDocument() ;
 
-		expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+		expect( user ).to.be.an( Object ) ;
+		expect( user.$ ).to.be.an( Object ) ;
+		expect( user._ ).to.be.a( rootsDb.Document ) ;
 		expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( user ).to.equal( tree.extend( null , { _id: user._id } , expectedDefaultUser ) ) ;
+		
+		console.log( "!!!!!" , Object.keys( user ) ) ;
+		
+		//expect( user.$ ).to.partially.equal( expectedDefaultUser ) ;
+		
+		try {
+		log.error( "%Y" , user ) ;
+		expect( user ).to.partially.equal( expectedDefaultUser ) ;
+		} catch ( error ) {
+			log.error( "%Y" , error ) ;
+			throw error ;
+		}
 	} ) ;
 
 	it( "should create a document using the given correct values" , () => {
