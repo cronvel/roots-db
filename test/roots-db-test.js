@@ -782,10 +782,15 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		await town.save() ;
 		var dbTown = await towns.get( id ) ;
 		expect( dbTown ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
+		
 		dbTown.patch( { "meta.population": "2300K" } ) ;
 		await dbTown.commit() ;
-		
 		await expect( towns.get( id ) ).to.eventually.equal( { _id: id , name: 'Paris' , meta: { population: '2300K' , country: 'France' } } ) ;
+		
+		dbTown.meta.population = "2500K" ;
+		expect( dbTown._.localPatch ).to.equal( { "meta.population": "2500K" } ) ;
+		await dbTown.commit() ;
+		await expect( towns.get( id ) ).to.eventually.equal( { _id: id , name: 'Paris' , meta: { population: '2500K' , country: 'France' } } ) ;
 	} ) ;
 
 	it( "parallel and non-overlapping commit should not overwrite each others" , async () => {
@@ -819,29 +824,27 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 
 
 
-return ;
-
 describe( "Fingerprint" , () => {
 
 	it( "should create a fingerprint" , () => {
-
 		var f = users.createFingerprint( { firstName: 'Terry' } ) ;
 
-		expect( f.$ ).to.be.an( rootsDb.FingerprintWrapper ) ;
-		expect( f ).to.equal( { firstName: 'Terry' } ) ;
+		expect( f ).to.be.an( rootsDb.Fingerprint ) ;
+		expect( f.def ).to.equal( { firstName: 'Terry' } ) ;
 	} ) ;
 
 	it( "should detect uniqueness correctly" , () => {
-
-		expect( users.createFingerprint( { _id: '123456789012345678901234' } ).$.unique ).to.be( true ) ;
-		expect( users.createFingerprint( { firstName: 'Terry' } ).$.unique ).to.be( false ) ;
-		expect( users.createFingerprint( { firstName: 'Terry' , lastName: 'Bogard' } ).$.unique ).to.be( false ) ;
-		expect( users.createFingerprint( { _id: '123456789012345678901234' , firstName: 'Terry' , lastName: 'Bogard' } ).$.unique ).to.be( true ) ;
-		expect( users.createFingerprint( { job: '123456789012345678901234' } ).$.unique ).to.be( false ) ;
-		expect( users.createFingerprint( { memberSid: 'terry-bogard' } ).$.unique ).to.be( false ) ;
-		expect( users.createFingerprint( { job: '123456789012345678901234' , memberSid: 'terry-bogard' } ).$.unique ).to.be( true ) ;
+		expect( users.createFingerprint( { _id: '123456789012345678901234' } ).unique ).to.be( true ) ;
+		expect( users.createFingerprint( { firstName: 'Terry' } ).unique ).to.be( false ) ;
+		expect( users.createFingerprint( { firstName: 'Terry' , lastName: 'Bogard' } ).unique ).to.be( false ) ;
+		expect( users.createFingerprint( { _id: '123456789012345678901234' , firstName: 'Terry' , lastName: 'Bogard' } ).unique ).to.be( true ) ;
+		expect( users.createFingerprint( { job: '123456789012345678901234' } ).unique ).to.be( false ) ;
+		expect( users.createFingerprint( { memberSid: 'terry-bogard' } ).unique ).to.be( false ) ;
+		expect( users.createFingerprint( { job: '123456789012345678901234' , memberSid: 'terry-bogard' } ).unique ).to.be( true ) ;
 	} ) ;
 } ) ;
+
+return ;
 
 
 
