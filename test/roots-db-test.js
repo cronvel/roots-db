@@ -258,7 +258,7 @@ function clearDBIndexes() {
 
 function clearCollection( collection ) {
 	return collection.driver.rawInit()
-		.then( () => collection.driver.raw.remove() ) ;
+		.then( () => collection.driver.raw.deleteMany() ) ;
 }
 
 
@@ -393,6 +393,8 @@ describe( "Document creation" , () => {
 		expect( user.$ ).to.be.an( Object ) ;
 		expect( user._ ).to.be.a( rootsDb.Document ) ;
 		expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( user.getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( user._id ).to.be( user.getId() ) ;
 		
 		expect( user ).to.partially.equal( expectedDefaultUser ) ;
 		expect( user.$ ).to.partially.equal( expectedDefaultUser ) ;
@@ -408,6 +410,8 @@ describe( "Document creation" , () => {
 		expect( user.$ ).to.be.an( Object ) ;
 		expect( user._ ).to.be.a( rootsDb.Document ) ;
 		expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( user.getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( user._id ).to.be( user.getId() ) ;
 
 		expect( user ).to.equal( {
 			_id: user._id ,
@@ -417,24 +421,48 @@ describe( "Document creation" , () => {
 		} ) ;
 	} ) ;
 
-	it( "should throw when trying to create a document that does not validate the schema" , () => {
+	it( "should create a document and modify it" , () => {
+		var user = users.createDocument( {
+			firstName: 'Bobby' ,
+			lastName: 'Fischer'
+		} ) ;
 
+		var id = user.getId() ;
+
+		expect( user ).to.equal( {
+			_id: id ,
+			firstName: 'Bobby' ,
+			lastName: 'Fischer' ,
+			memberSid: 'Bobby Fischer'
+		} ) ;
+		
+		user.firstName = 'Robert' ;
+
+		expect( user ).to.equal( {
+			_id: id ,
+			firstName: 'Robert' ,
+			lastName: 'Fischer' ,
+			memberSid: 'Bobby Fischer'
+		} ) ;
+	} ) ;
+
+	it( "should throw when trying to create a document that does not validate the schema" , () => {
 		var user ;
 
-		doormen.shouldThrow( () => {
+		expect( () => {
 			user = users.createDocument( {
 				firstName: true ,
 				lastName: 3
 			} ) ;
-		} ) ;
+		} ).to.throw.a( doormen.ValidatorError ) ;
 
-		doormen.shouldThrow( () => {
+		expect( () => {
 			user = users.createDocument( {
 				firstName: 'Bobby' ,
 				lastName: 'Fischer' ,
 				extra: 'property'
 			} ) ;
-		} ) ;
+		} ).to.throw.a( doormen.ValidatorError ) ;
 	} ) ;
 } ) ;
 
@@ -444,18 +472,16 @@ describe( "Get documents" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "zzz" , async () => {
-
+	it( "should get an existing document" , async () => {
 		var user = users.createDocument( {
 			firstName: 'John' ,
 			lastName: 'McGregor'
 		} ) ;
 
-		var id = user._id ;
+		var id = user.getId() ;
 
 		await user.save() ;
 		var dbUser = await users.get( id ) ;
-		console.log( 'user>>>' , user ) ;
 		
 		expect( dbUser ).to.be.an( Object ) ;
 		expect( dbUser._ ).to.be.a( rootsDb.Document ) ;
@@ -475,171 +501,127 @@ describe( "Get documents" , () => {
 		} ) ;
 	} ) ;
 
-	it( "should get a document (create, save and retrieve)" , ( done ) => {
-
-		var user = users.createDocument( {
-			firstName: 'John' ,
-			lastName: 'McGregor'
-		} ) ;
-
-		var id = user._id ;
-
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , user ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( {
-						_id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor'
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.get( id , { raw: true } , ( error , user ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).not.to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( {
-						_id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor'
-					} ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-
-	it( "when trying to get an unexistant document, an ErrorStatus (type: notFound) should be issued" , ( done ) => {
-
+	it( "when trying to get an unexistant document, an ErrorStatus (type: notFound) should be issued" , async () => {
 		// Unexistant ID
 		var id = new mongodb.ObjectID() ;
 
-		async.parallel( [
-			function( callback ) {
-				users.get( id , ( error , user ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).to.be.an( ErrorStatus ) ;
-					expect( error.type ).to.equal( 'notFound' ) ;
-					expect( user ).to.be( undefined ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.get( id , { raw: true } , ( error , user ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).to.be.an( ErrorStatus ) ;
-					expect( error.type ).to.equal( 'notFound' ) ;
-					expect( user ).to.be( undefined ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		await expect( () => users.get( id ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
+		await expect( () => users.get( id , { raw: true } ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
 	} ) ;
 } ) ;
 
-return ;
+
 
 describe( "Save documents" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should save correctly and only non-default value are registered into the upstream (create, save and retrieve)" , ( done ) => {
-
+	it( "should save (create) correctly" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jack'
 		} ) ;
 
-		var id = user._id ;
+		var id = user.getId() ;
 
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , user ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
-						_id: user._id , firstName: 'Jack' , lastName: 'Doe' , memberSid: 'Jack Doe'
-					} ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		await user.save() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Doe' , memberSid: 'Jack Doe'
+		} ) ;
+		
+		expect( user ).to.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Doe' , memberSid: 'Jack Doe'
+		} ) ;
 	} ) ;
 
-	it( "should save a full document so parallel save *DO* overwrite each others (create, save, retrieve, full update² and retrieve)" , ( done ) => {
+	it( "should save (create) correctly and then modify and save again (update the whole document)" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jack'
+		} ) ;
 
+		var id = user.getId() ;
+
+		await user.save() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Doe' , memberSid: 'Jack Doe'
+		} ) ;
+		
+		expect( user ).to.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Doe' , memberSid: 'Jack Doe'
+		} ) ;
+		
+		user.firstName = 'Jim' ;
+		
+		expect( user ).to.equal( {
+			_id: id , firstName: 'Jim' , lastName: 'Doe' , memberSid: 'Jack Doe'
+		} ) ;
+		
+		await user.save() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Jim' , lastName: 'Doe' , memberSid: 'Jack Doe'
+		} ) ;
+	} ) ;
+
+	it( "should save a full document so parallel save *DO* overwrite each others (create, save, retrieve, full update² and retrieve)" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Johnny B.' ,
 			lastName: 'Starks'
 		} ) ;
 
-		var id = user._id ;
+		var id = user.getId() ;
 		var user2 ;
-
-
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , u ) => {
-					user2 = u ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user2 ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user2._id ).to.equal( id ) ;
-					expect( user2 ).to.equal( {
-						_id: user2._id , firstName: 'Johnny B.' , lastName: 'Starks' , memberSid: 'Johnny B. Starks'
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			async.parallel( [
-				function( callback ) {
-					user.lastName = 'Smith' ;
-					user.$.save( callback ) ;
-				} ,
-				function( callback ) {
-					user2.firstName = 'Joey' ;
-					user2.$.save( callback ) ;
-				}
-			] ) ,
-			function( callback ) {
-				users.get( id , ( error , u ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.equal( id ) ;
-					expect( u ).to.equal( {
-						_id: u._id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny B. Starks'
-					} ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		
+		await user.save() ;
+		var dbUser = await users.get( id ) ;
+		
+		expect( dbUser._id ).to.equal( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'Johnny B.' , lastName: 'Starks' , memberSid: 'Johnny B. Starks'
+		} ) ;
+		
+		user.lastName = 'Smith' ;
+		dbUser.firstName = 'Joey' ;
+		
+		await Promise.all( [
+			user.save() ,
+			dbUser.save()
+		] ) ;
+		
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny B. Starks'
+		} ) ;
 	} ) ;
 } ) ;
 
 
+
+describe( "Delete documents" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should delete a document (create, save, retrieve, then delete it so it cannot be retrieved again)" , async () => {
+		var user = users.createDocument( {
+			firstName: 'John' ,
+			lastName: 'McGregor'
+		} ) ;
+
+		//console.log( user ) ;
+		var id = user.getId() ;
+
+		await user.save() ;
+		
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'John' , lastName: 'McGregor' , memberSid: "John McGregor"
+		} ) ;
+		
+		await user.delete() ;
+		
+		await expect( () => users.get( id ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
+	} ) ;
+} ) ;
+
+
+
+return ;
 
 describe( "Patch, stage and commit documents" , () => {
 
@@ -804,59 +786,6 @@ describe( "Patch, stage and commit documents" , () => {
 	} ) ;
 
 	it( "overwrite and depth mixing" ) ;
-} ) ;
-
-
-
-describe( "Delete documents" , () => {
-
-	beforeEach( clearDB ) ;
-
-	it( "should delete a document (create, save, retrieve, then delete it so it cannot be retrieved again)" , ( done ) => {
-
-		var user = users.createDocument( {
-			firstName: 'John' ,
-			lastName: 'McGregor'
-		} ) ;
-
-		//console.log( user ) ;
-		var id = user._id ;
-
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , u ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.equal( id ) ;
-					expect( u ).to.equal( {
-						_id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: "John McGregor"
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.delete( ( error ) => {
-					expect( error ).not.to.be.ok() ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , user ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).to.be.an( ErrorStatus ) ;
-					expect( error.type ).to.equal( 'notFound' ) ;
-					expect( user ).to.be( undefined ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
 } ) ;
 
 
