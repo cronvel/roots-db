@@ -446,6 +446,30 @@ describe( "Document creation" , () => {
 		} ) ;
 	} ) ;
 
+	it( "should create a document with embedded data and modify it" , () => {
+		var town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				population: '2200K' ,
+				country: 'France'
+			}
+		} ) ;
+
+		var id = town.getId() ;
+		
+		expect( town.$ ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
+		expect( town.$.meta.population ).to.be( '2200K' ) ;
+		
+		expect( town.meta.population ).to.be( '2200K' ) ;
+		expect( town.meta ).to.equal( { population: '2200K' , country: 'France' } ) ;
+		expect( town ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
+		
+		town.meta.population = '2500K' ;
+		expect( town.meta.population ).to.be( '2500K' ) ;
+		expect( town.meta ).to.equal( { population: '2500K' , country: 'France' } ) ;
+		expect( town ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2500K' , country: 'France' } } ) ;
+	} ) ;
+
 	it( "should throw when trying to create a document that does not validate the schema" , () => {
 		var user ;
 
@@ -561,14 +585,13 @@ describe( "Save documents" , () => {
 		} ) ;
 	} ) ;
 
-	it( "should save a full document so parallel save *DO* overwrite each others (create, save, retrieve, full update² and retrieve)" , async () => {
+	it( "should save a full document so parallel save *DO* overwrite each others" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Johnny B.' ,
 			lastName: 'Starks'
 		} ) ;
 
 		var id = user.getId() ;
-		var user2 ;
 		
 		await user.save() ;
 		var dbUser = await users.get( id ) ;
@@ -590,6 +613,22 @@ describe( "Save documents" , () => {
 			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny B. Starks'
 		} ) ;
 	} ) ;
+
+	it( "should save and retrieve embedded data" , async () => {
+		var town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				population: '2200K' ,
+				country: 'France'
+			}
+		} ) ;
+
+		var id = town.getId() ;
+		
+		await town.save() ;
+		await expect( towns.get( id ) ).to.eventually.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
+	} ) ;
+
 } ) ;
 
 
@@ -598,7 +637,7 @@ describe( "Delete documents" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should delete a document (create, save, retrieve, then delete it so it cannot be retrieved again)" , async () => {
+	it( "should delete a document" , async () => {
 		var user = users.createDocument( {
 			firstName: 'John' ,
 			lastName: 'McGregor'
@@ -616,174 +655,171 @@ describe( "Delete documents" , () => {
 
 
 
-return ;
-
-describe( "Patch, stage and commit documents" , () => {
+describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "'commit' should save staged data and do nothing on data not staged" , ( done ) => {
-
+	it( "auto-staging setter and the .commit() method" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Johnny' ,
 			lastName: 'Starks'
 		} ) ;
 
-		var id = user._id ;
-		var user2 ;
-		//id = users.createDocument()._id ;
+		var id = user.getId() ;
 
-
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , u ) => {
-					user2 = u ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user2 ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user2._id ).to.equal( id ) ;
-					expect( user2 ).to.equal( {
-						_id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks'
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user2.firstName = 'Joey' ;
-				user2.lastName = 'Smith' ;
-				user2.$.stage( 'lastName' ) ;
-				expect( user2 ).to.equal( {
-					_id: user2._id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks'
-				} ) ;
-				user2.$.commit( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , u ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.equal( id ) ;
-					expect( u ).to.equal( {
-						_id: u._id , firstName: 'Johnny' , lastName: 'Smith' , memberSid: 'Johnny Starks'
-					} ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		await user.save() ;
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		
+		dbUser.firstName = 'Joey' ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		expect( dbUser._.localPatch ).to.equal( { firstName: 'Joey' } ) ;
+		
+		await dbUser.commit() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		
+		dbUser.firstName = 'Jack' ;
+		dbUser.lastName = 'Smith' ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Smith' , memberSid: 'Johnny Starks'
+		} ) ;
+		expect( dbUser._.localPatch ).to.equal( { firstName: 'Jack' , lastName: 'Smith' } ) ;
+		
+		await dbUser.commit() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Smith' , memberSid: 'Johnny Starks'
+		} ) ;
 	} ) ;
 
-	it( "'commit' should save data staged using .patch() and do nothing on data modified by .patch()" , ( done ) => {
-
+	it( "manual staging and the .commit() method" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Johnny' ,
 			lastName: 'Starks'
 		} ) ;
 
-		var id = user._id ;
-		var user2 ;
-		//id = users.createDocument()._id ;
+		var id = user.getId() ;
 
-
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , u ) => {
-					user2 = u ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user2 ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user2._id ).to.equal( id ) ;
-					expect( user2 ).to.equal( {
-						_id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks'
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user2.firstName = 'Joey' ;
-				user2.$.patch( { lastName: 'Smith' } ) ;
-				expect( user2 ).to.equal( {
-					_id: user2._id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks'
-				} ) ;
-				user2.$.commit( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , u ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.equal( id ) ;
-					expect( u ).to.equal( {
-						_id: u._id , firstName: 'Johnny' , lastName: 'Smith' , memberSid: 'Johnny Starks'
-					} ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		await user.save() ;
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		
+		dbUser._.raw.firstName = 'Joey' ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		expect( dbUser._.localPatch ).to.be( null ) ;
+		
+		// Nothing will be commited
+		await dbUser.commit() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		
+		// Now it will be commited
+		dbUser.stage( 'firstName' ) ;
+		await dbUser.commit() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
 	} ) ;
 
-	it( "should save creating a minimalistic patch so parallel save do not overwrite each others (create, save, retrieve, patch², commit² and retrieve)" , ( done ) => {
-
+	it( "apply a patch then commit" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Johnny' ,
 			lastName: 'Starks'
 		} ) ;
 
-		var id = user._id ;
-		var user2 ;
-		//id = users.createDocument()._id ;
+		var id = user.getId() ;
 
+		await user.save() ;
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		
+		dbUser.patch( { firstName: 'Joey' } ) ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		expect( dbUser._.localPatch ).to.equal( { firstName: 'Joey' } ) ;
+		
+		await dbUser.commit() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		
+		dbUser.patch( { firstName: 'Jack' , lastName: 'Smith' } ) ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Smith' , memberSid: 'Johnny Starks'
+		} ) ;
+		expect( dbUser._.localPatch ).to.equal( { firstName: 'Jack' , lastName: 'Smith' } ) ;
+		
+		await dbUser.commit() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Smith' , memberSid: 'Johnny Starks'
+		} ) ;
+	} ) ;
 
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , u ) => {
-					user2 = u ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user2 ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user2._id ).to.equal( id ) ;
-					expect( user2 ).to.equal( {
-						_id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks'
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			async.parallel( [
-				function( callback ) {
-					user.$.patch( { lastName: 'Smith' } ) ;
-					expect( user.lastName ).to.be( 'Smith' ) ;
-					user.$.commit( callback ) ;
-				} ,
-				function( callback ) {
-					user2.$.patch( { firstName: 'Joey' } ) ;
-					expect( user2.firstName ).to.be( 'Joey' ) ;
-					user2.$.commit( callback ) ;
-				}
-			] ) ,
-			function( callback ) {
-				users.get( id , ( error , u ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.equal( id ) ;
-					expect( u ).to.equal( {
-						_id: u._id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks'
-					} ) ;
-					callback() ;
-				} ) ;
+	it( "staging/commit and embedded data" , async () => {
+		var town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				population: '2200K' ,
+				country: 'France'
 			}
-		] )
-			.exec( done ) ;
+		} ) ;
+
+		var id = town.getId() ;
+
+		await town.save() ;
+		var dbTown = await towns.get( id ) ;
+		expect( dbTown ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
+		dbTown.patch( { "meta.population": "2300K" } ) ;
+		await dbTown.commit() ;
+		
+		await expect( towns.get( id ) ).to.eventually.equal( { _id: id , name: 'Paris' , meta: { population: '2300K' , country: 'France' } } ) ;
+	} ) ;
+
+	it( "parallel and non-overlapping commit should not overwrite each others" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Johnny' ,
+			lastName: 'Starks'
+		} ) ;
+
+		var id = user.getId() ;
+
+		await user.save() ;
+		var dbUser = await users.get( id ) ;
+		
+		user.patch( { lastName: 'Smith' } ) ;
+		dbUser.firstName = 'Joey' ;
+		expect( user ).to.equal( { _id: id , firstName: 'Johnny' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
+		expect( dbUser ).to.equal( { _id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks' } ) ;
+		
+		await Promise.all( [
+			user.commit() ,
+			dbUser.commit()
+		] ) ;
+		
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks'
+		} ) ;
 	} ) ;
 
 	it( "overwrite and depth mixing" ) ;
 } ) ;
 
 
+
+return ;
 
 describe( "Fingerprint" , () => {
 
@@ -1088,76 +1124,6 @@ describe( "MultiGet, Collect & find batchs" , () => {
 describe( "Embedded documents" , () => {
 
 	beforeEach( clearDB ) ;
-
-	it( "should save and retrieve embedded data" , ( done ) => {
-
-		var town = towns.createDocument( {
-			name: 'Paris' ,
-			meta: {
-				population: '2200K' ,
-				country: 'France'
-			}
-		} ) ;
-
-		async.series( [
-			function( callback ) {
-				town.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				towns.get( town._id , ( error , t ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Town:' , string.inspect( { style: 'color' , proto: true } , town.$.meta ) ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( t.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( t._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( t ).to.equal( { _id: town._id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-
-	it( "should be able to update embedded data (patch)" , ( done ) => {
-
-		var town = towns.createDocument( {
-			name: 'Paris' ,
-			meta: {
-				population: '2200K' ,
-				country: 'France'
-			}
-		} ) ;
-
-		async.series( [
-			function( callback ) {
-				town.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				towns.get( town._id , ( error , t ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Town:' , town ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( t ).to.equal( { _id: town._id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
-					expect( t.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-
-					t.$.patch( { "meta.population": "2300K" } ) ;
-					t.$.commit( callback ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				towns.get( town._id , ( error , t ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Town:' , town ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( t.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( t._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( t ).to.equal( { _id: town._id , name: 'Paris' , meta: { population: '2300K' , country: 'France' } } ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
 
 	it( "should collect a batch & get unique using embedded data as fingerprint (create, save and collect batch)" , ( done ) => {
 
