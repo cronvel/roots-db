@@ -844,86 +844,47 @@ describe( "Fingerprint" , () => {
 	} ) ;
 } ) ;
 
-return ;
-
 
 
 describe( "Get documents by unique fingerprint" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should get a document (create, save and retrieve)" , ( done ) => {
-
+	it( "should get a document by a unique fingerprint" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Bill' ,
 			lastName: "Cut'throat"
 		} ) ;
 
-		var id = user._id ;
+		var userId = user.getId() ;
 		var memberSid = user.memberSid ;
 
 		var job = jobs.createDocument() ;
-		user.job = job._id ;
+		var jobId = job.getId() ;
+		user.job = jobId ;
 
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.getUnique( { memberSid: memberSid , job: job._id } , ( error , u ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( u.$ ).to.be.a( rootsDb.DocumentWrapper ) ;
-					expect( u._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( u._id ).to.equal( id ) ;
-					expect( u ).to.equal( tree.extend( null , {
-						_id: user._id , job: job._id , firstName: 'Bill' , lastName: "Cut'throat" , memberSid: "Bill Cut'throat"
-					} ) ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		await user.save() ;
+		await job.save() ;
+		
+		await expect( users.getUnique( { memberSid: memberSid , job: jobId } ) ).to.eventually.equal( {
+			_id: userId , job: jobId , firstName: 'Bill' , lastName: "Cut'throat" , memberSid: "Bill Cut'throat"
+		} ) ;
 	} ) ;
 
-	it( "when trying to get a document with a non-unique fingerprint, an ErrorStatus (type: badRequest) should be issued" , ( done ) => {
-
+	it( "when trying to get a document with a non-unique fingerprint, an ErrorStatus (type: badRequest) should be issued" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Bill' ,
 			lastName: "Tannen"
 		} ) ;
 
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.getUnique( { firstName: 'Bill' , lastName: "Tannen" } , { raw: true } , ( error ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).to.be.an( Error ) ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.getUnique( { firstName: 'Bill' , lastName: "Tannen" } , ( error ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).to.be.an( Error ) ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		var id = user.getId() ;
+		await user.save() ;
+		
+		await expect( () => users.getUnique( { firstName: 'Bill' , lastName: "Tannen" } ) ).to.reject.with.an( ErrorStatus , { type: 'badRequest' } ) ;
 	} ) ;
 } ) ;
 
+return ;
 
 
 describe( "MultiGet, Collect & find batchs" , () => {
