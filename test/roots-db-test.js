@@ -603,18 +603,13 @@ describe( "Delete documents" , () => {
 			firstName: 'John' ,
 			lastName: 'McGregor'
 		} ) ;
-
-		//console.log( user ) ;
 		var id = user.getId() ;
-
 		await user.save() ;
-		
 		await expect( users.get( id ) ).to.eventually.equal( {
 			_id: id , firstName: 'John' , lastName: 'McGregor' , memberSid: "John McGregor"
 		} ) ;
 		
 		await user.delete() ;
-		
 		await expect( () => users.get( id ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
 	} ) ;
 } ) ;
