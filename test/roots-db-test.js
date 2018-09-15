@@ -108,9 +108,9 @@ var usersDescriptor = {
 	] ,
 	hooks: {
 		afterCreateDocument: //[
-			function( data ) {
+			function( document ) {
 				//console.log( "- Users afterCreateDocument 'after' hook -" ) ;
-				data.memberSid = '' + data.firstName + ' ' + data.lastName ;
+				document.memberSid = '' + document.firstName + ' ' + document.lastName ;
 			}
 		//]
 	}
@@ -396,7 +396,7 @@ describe( "Document creation" , () => {
 		expect( user.$ ).to.partially.equal( expectedDefaultUser ) ;
 	} ) ;
 
-	it( "should create a document using the given correct values" , () => {
+	it( "should create a document with valid data" , () => {
 		var user = users.createDocument( {
 			firstName: 'Bobby' ,
 			lastName: 'Fischer'
@@ -1029,6 +1029,86 @@ describe( "Links" , () => {
 		} ) ;
 	} ) ;
 } ) ;
+
+
+
+describe( "Batch creation" , () => {
+
+	it( "should create an empty batch" , () => {
+		var userBatch = users.createBatch() ;
+		
+		expect( Array.isArray( userBatch ) ).to.be.ok() ;
+		expect( userBatch ).to.be.an( Array ) ;
+		expect( userBatch ).to.be.a( rootsDb.Batch ) ;
+		expect( userBatch ).to.have.length( 0 ) ;
+	} ) ;
+
+	it( "should create a batch with few default documents" , () => {
+		var userBatch = users.createBatch( [ {} , {} ] ) ;
+		
+		expect( Array.isArray( userBatch ) ).to.be.ok() ;
+		expect( userBatch ).to.be.an( Array ) ;
+		expect( userBatch ).to.be.a( rootsDb.Batch ) ;
+		expect( userBatch ).to.have.length( 2 ) ;
+		
+		expect( userBatch[ 0 ] ).to.be.an( Object ) ;
+		expect( userBatch[ 0 ].$ ).to.be.an( Object ) ;
+		expect( userBatch[ 0 ]._ ).to.be.a( rootsDb.Document ) ;
+		expect( userBatch[ 0 ]._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 0 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 0 ]._id ).to.be( userBatch[ 0 ].getId() ) ;
+		expect( userBatch[ 0 ] ).to.partially.equal( expectedDefaultUser ) ;
+		expect( userBatch[ 0 ].$ ).to.partially.equal( expectedDefaultUser ) ;
+		
+		expect( userBatch[ 1 ] ).to.be.an( Object ) ;
+		expect( userBatch[ 1 ].$ ).to.be.an( Object ) ;
+		expect( userBatch[ 1 ]._ ).to.be.a( rootsDb.Document ) ;
+		expect( userBatch[ 1 ]._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 1 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 1 ]._id ).to.be( userBatch[ 1 ].getId() ) ;
+		expect( userBatch[ 1 ] ).to.partially.equal( expectedDefaultUser ) ;
+		expect( userBatch[ 1 ].$ ).to.partially.equal( expectedDefaultUser ) ;
+	} ) ;
+
+	it( "should create a batch with few documents with valid data" , () => {
+		var userBatch = users.createBatch( [
+			{ firstName: 'Bobby' , lastName: 'Fischer' } ,
+			{ firstName: 'John' , lastName: 'Smith' }
+		] ) ;
+		
+		expect( Array.isArray( userBatch ) ).to.be.ok() ;
+		expect( userBatch ).to.be.an( Array ) ;
+		expect( userBatch ).to.be.a( rootsDb.Batch ) ;
+		expect( userBatch ).to.have.length( 2 ) ;
+		
+		expect( userBatch[ 0 ] ).to.be.an( Object ) ;
+		expect( userBatch[ 0 ].$ ).to.be.an( Object ) ;
+		expect( userBatch[ 0 ]._ ).to.be.a( rootsDb.Document ) ;
+		expect( userBatch[ 0 ]._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 0 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 0 ]._id ).to.be( userBatch[ 0 ].getId() ) ;
+		expect( userBatch[ 0 ] ).to.equal( { _id: userBatch[ 0 ].getId() , firstName: 'Bobby' , lastName: 'Fischer' , memberSid: 'Bobby Fischer' } ) ;
+		
+		expect( userBatch[ 1 ] ).to.be.an( Object ) ;
+		expect( userBatch[ 1 ].$ ).to.be.an( Object ) ;
+		expect( userBatch[ 1 ]._ ).to.be.a( rootsDb.Document ) ;
+		expect( userBatch[ 1 ]._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 1 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 1 ]._id ).to.be( userBatch[ 1 ].getId() ) ;
+		expect( userBatch[ 1 ] ).to.partially.equal( { _id: userBatch[ 1 ].getId() , firstName: 'John' , lastName: 'Smith' , memberSid: 'John Smith' } ) ;
+		
+		userBatch.push( { firstName: 'Kurisu' , lastName: 'Makise' } ) ;
+		expect( userBatch ).to.have.length( 3 ) ;
+		expect( userBatch[ 2 ] ).to.be.an( Object ) ;
+		expect( userBatch[ 2 ].$ ).to.be.an( Object ) ;
+		expect( userBatch[ 2 ]._ ).to.be.a( rootsDb.Document ) ;
+		expect( userBatch[ 2 ]._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 2 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 2 ]._id ).to.be( userBatch[ 2 ].getId() ) ;
+		expect( userBatch[ 2 ] ).to.partially.equal( { _id: userBatch[ 2 ].getId() , firstName: 'Kurisu' , lastName: 'Makise' , memberSid: 'Kurisu Makise' } ) ;
+	} ) ;
+} ) ;
+
 
 return ;
 
