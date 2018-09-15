@@ -903,7 +903,7 @@ describe( "Links" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should retrieve details of an inactive link" , () => {
+	it( "should retrieve details of an inactive link" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -912,6 +912,24 @@ describe( "Links" , () => {
 		var userId = user.getId() ;
 		
 		expect( user.getLinkDetails( 'job' ) ).to.equal( {
+			type: 'link' ,
+			foreignCollection: 'jobs' ,
+			//foreignId:  ,
+			hostPath: 'job' ,
+			schema: {
+				collection: 'jobs' ,
+				optional: true ,
+				type: 'link' ,
+				sanitize: [ 'toLink' ] ,
+				tier: 3
+			}
+		} ) ;
+		
+		// Same on saved documents...
+		await user.save() ;
+		var dbUser = await users.get( userId ) ;
+
+		expect( dbUser.getLinkDetails( 'job' ) ).to.equal( {
 			type: 'link' ,
 			foreignCollection: 'jobs' ,
 			//foreignId:  ,
@@ -926,7 +944,7 @@ describe( "Links" , () => {
 		} ) ;
 	} ) ;
 	
-	it( "should retrieve details of an active link" , async () => {
+	it( "should retrieve details of an active link (setLink then getLinkDetails)" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -934,10 +952,20 @@ describe( "Links" , () => {
 
 		var userId = user.getId() ;
 		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var jobId = job.getId() ;
+		
+		user.setLink( 'job' , job ) ;
+
+		expect( user.job ).to.equal( jobId ) ;
 		expect( user.getLinkDetails( 'job' ) ).to.equal( {
 			type: 'link' ,
 			foreignCollection: 'jobs' ,
-			//foreignId:  ,
+			foreignId: jobId ,
 			hostPath: 'job' ,
 			schema: {
 				collection: 'jobs' ,
@@ -948,84 +976,57 @@ describe( "Links" , () => {
 			}
 		} ) ;
 		
-		return ;
+		// Same on saved documents...
+		await user.save() ;
+		await job.save() ;
+		var dbUser = await users.get( userId ) ;
+		var dbJob = await jobs.get( jobId ) ;
 
+		expect( dbUser.job ).to.equal( jobId ) ;
+		expect( user.getLinkDetails( 'job' ) ).to.equal( {
+			type: 'link' ,
+			foreignCollection: 'jobs' ,
+			foreignId: jobId ,
+			hostPath: 'job' ,
+			schema: {
+				collection: 'jobs' ,
+				optional: true ,
+				type: 'link' ,
+				sanitize: [ 'toLink' ] ,
+				tier: 3
+			}
+		} ) ;
+	} ) ;
+	
+	it( "should retrieve an active link" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var userId = user.getId() ;
+		
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
 
 		var jobId = job.getId() ;
+		
+		user.setLink( 'job' , job ) ;
 
-		// Link the documents!
-		user.$.setLink( 'job' , job ) ;
+		await user.save() ;
+		await job.save() ;
+		var dbUser = await users.get( userId ) ;
 
-		expect( user.job ).to.equal( jobId ) ;
-
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				jobs.get( jobId , ( error , job ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Job:' , job ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( job._id ).to.equal( jobId ) ;
-					expect( job ).to.equal( {
-						_id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: []
-					} ) ;
-
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , user_ ) => {
-					user = user_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( {
-						_id: user._id , job: jobId , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "job" , ( error , job ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( job ).to.equal( {
-						_id: jobId , title: 'developer' , salary: 60000 , users: [] , schools: []
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				expect( user.$.getLinkDetails( "job" ) ).to.equal( {
-					type: 'link' ,
-					foreignCollection: 'jobs' ,
-					foreignId: jobId ,
-					hostPath: 'job' ,
-					schema: {
-						collection: 'jobs' ,
-						optional: true ,
-						type: 'link' ,
-						sanitize: [ 'toLink' ] ,
-						tier: 3
-					}
-				} ) ;
-				callback() ;
-			}
-		] )
-			.exec( done ) ;
+		expect( dbUser.job ).to.equal( jobId ) ;
+		await expect( dbUser.getLink( 'job' ) ).to.eventually.equal( {
+			_id: jobId ,
+			title: "developer" ,
+			salary: 60000 ,
+			users: [] ,
+			schools: []
+		} ) ;
 	} ) ;
 } ) ;
 
@@ -1343,94 +1344,6 @@ describe( "Embedded documents" , () => {
 describe( "Links" , () => {
 
 	beforeEach( clearDB ) ;
-
-	it( "basic link (create both, link, save both, retrieve parent, navigate to child)" , ( done ) => {
-
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var id = user._id ;
-
-		var job = jobs.createDocument( {
-			title: 'developer' ,
-			salary: 60000
-		} ) ;
-
-		//console.log( job ) ;
-		var jobId = job.$.id ;
-
-		// Link the documents!
-		user.$.setLink( 'job' , job ) ;
-
-		expect( user.job ).to.equal( jobId ) ;
-
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				jobs.get( jobId , ( error , job ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Job:' , job ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( job._id ).to.equal( jobId ) ;
-					expect( job ).to.equal( {
-						_id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: []
-					} ) ;
-
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , user_ ) => {
-					user = user_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( {
-						_id: user._id , job: jobId , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "job" , ( error , job ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( job ).to.equal( {
-						_id: jobId , title: 'developer' , salary: 60000 , users: [] , schools: []
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				expect( user.$.getLinkDetails( "job" ) ).to.equal( {
-					type: 'link' ,
-					foreignCollection: 'jobs' ,
-					foreignId: jobId ,
-					hostPath: 'job' ,
-					schema: {
-						collection: 'jobs' ,
-						optional: true ,
-						type: 'link' ,
-						sanitize: [ 'toLink' ] ,
-						tier: 3
-					}
-				} ) ;
-				callback() ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
 
 	it( "basic nested links (create both, link, save both, retrieve parent, navigate to child)" , ( done ) => {
 
