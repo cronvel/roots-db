@@ -222,8 +222,6 @@ var extendablesDescriptor = {
 
 
 
-
-
 /* Utils */
 
 
@@ -267,8 +265,6 @@ function clearCollectionIndexes( collection ) {
 	return collection.driver.rawInit()
 		.then( () => collection.driver.raw.dropIndexes() ) ;
 }
-
-
 
 
 
@@ -827,10 +823,27 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 describe( "Fingerprint" , () => {
 
 	it( "should create a fingerprint" , () => {
-		var f = users.createFingerprint( { firstName: 'Terry' } ) ;
+		var f ;
+		
+		f = users.createFingerprint( { firstName: 'Terry' } ) ;
 
 		expect( f ).to.be.an( rootsDb.Fingerprint ) ;
 		expect( f.def ).to.equal( { firstName: 'Terry' } ) ;
+		expect( f.partial ).to.equal( { firstName: 'Terry' } ) ;
+		
+		f = users.createFingerprint( { "path.to.data": "my data" } ) ;
+
+		expect( f ).to.be.an( rootsDb.Fingerprint ) ;
+		expect( f.def ).to.equal( { "path.to.data": "my data" } ) ;
+		expect( f.partial ).to.equal( { path: { to: { data: "my data" } } } ) ;
+	} ) ;
+
+	it( "should create a fingerprint from a partial document" , () => {
+		var f = users.createFingerprint( { path: { to: { data: "my data" } } } , true ) ;
+
+		expect( f ).to.be.an( rootsDb.Fingerprint ) ;
+		expect( f.def ).to.equal( { "path.to.data": "my data" } ) ;
+		expect( f.partial ).to.equal( { path: { to: { data: "my data" } } } ) ;
 	} ) ;
 
 	it( "should detect uniqueness correctly" , () => {
@@ -881,6 +894,138 @@ describe( "Get documents by unique fingerprint" , () => {
 		await user.save() ;
 		
 		await expect( () => users.getUnique( { firstName: 'Bill' , lastName: "Tannen" } ) ).to.reject.with.an( ErrorStatus , { type: 'badRequest' } ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Links" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should retrieve details of an inactive link" , () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var userId = user.getId() ;
+		
+		expect( user.getLinkDetails( 'job' ) ).to.equal( {
+			type: 'link' ,
+			foreignCollection: 'jobs' ,
+			//foreignId:  ,
+			hostPath: 'job' ,
+			schema: {
+				collection: 'jobs' ,
+				optional: true ,
+				type: 'link' ,
+				sanitize: [ 'toLink' ] ,
+				tier: 3
+			}
+		} ) ;
+	} ) ;
+	
+	it( "should retrieve details of an active link" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var userId = user.getId() ;
+		
+		expect( user.getLinkDetails( 'job' ) ).to.equal( {
+			type: 'link' ,
+			foreignCollection: 'jobs' ,
+			//foreignId:  ,
+			hostPath: 'job' ,
+			schema: {
+				collection: 'jobs' ,
+				optional: true ,
+				type: 'link' ,
+				sanitize: [ 'toLink' ] ,
+				tier: 3
+			}
+		} ) ;
+		
+		return ;
+
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var jobId = job.getId() ;
+
+		// Link the documents!
+		user.$.setLink( 'job' , job ) ;
+
+		expect( user.job ).to.equal( jobId ) ;
+
+		async.series( [
+			function( callback ) {
+				job.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				jobs.get( jobId , ( error , job ) => {
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'Job:' , job ) ;
+					expect( error ).not.to.be.ok() ;
+					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( job._id ).to.equal( jobId ) ;
+					expect( job ).to.equal( {
+						_id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: []
+					} ) ;
+
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				users.get( id , ( error , user_ ) => {
+					user = user_ ;
+					//console.log( 'Error:' , error ) ;
+					//console.log( 'User:' , user ) ;
+					expect( error ).not.to.be.ok() ;
+					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
+					expect( user._id ).to.equal( id ) ;
+					expect( user ).to.equal( {
+						_id: user._id , job: jobId , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
+					} ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "job" , ( error , job ) => {
+					expect( error ).not.to.be.ok() ;
+					expect( job ).to.equal( {
+						_id: jobId , title: 'developer' , salary: 60000 , users: [] , schools: []
+					} ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				expect( user.$.getLinkDetails( "job" ) ).to.equal( {
+					type: 'link' ,
+					foreignCollection: 'jobs' ,
+					foreignId: jobId ,
+					hostPath: 'job' ,
+					schema: {
+						collection: 'jobs' ,
+						optional: true ,
+						type: 'link' ,
+						sanitize: [ 'toLink' ] ,
+						tier: 3
+					}
+				} ) ;
+				callback() ;
+			}
+		] )
+			.exec( done ) ;
 	} ) ;
 } ) ;
 
