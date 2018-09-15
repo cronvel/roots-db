@@ -1096,7 +1096,17 @@ describe( "Batch creation" , () => {
 		expect( userBatch[ 1 ].getId() ).to.be.an( mongodb.ObjectID ) ;
 		expect( userBatch[ 1 ]._id ).to.be( userBatch[ 1 ].getId() ) ;
 		expect( userBatch[ 1 ] ).to.partially.equal( { _id: userBatch[ 1 ].getId() , firstName: 'John' , lastName: 'Smith' , memberSid: 'John Smith' } ) ;
+	} ) ;
 		
+	it( "batch should inherit Array methods and constructs" , () => {
+		var count , seen ;
+		
+		var userBatch = users.createBatch( [
+			{ firstName: 'Bobby' , lastName: 'Fischer' } ,
+			{ firstName: 'John' , lastName: 'Smith' }
+		] ) ;
+		
+		// .push()
 		userBatch.push( { firstName: 'Kurisu' , lastName: 'Makise' } ) ;
 		expect( userBatch ).to.have.length( 3 ) ;
 		expect( userBatch[ 2 ] ).to.be.an( Object ) ;
@@ -1106,85 +1116,103 @@ describe( "Batch creation" , () => {
 		expect( userBatch[ 2 ].getId() ).to.be.an( mongodb.ObjectID ) ;
 		expect( userBatch[ 2 ]._id ).to.be( userBatch[ 2 ].getId() ) ;
 		expect( userBatch[ 2 ] ).to.partially.equal( { _id: userBatch[ 2 ].getId() , firstName: 'Kurisu' , lastName: 'Makise' , memberSid: 'Kurisu Makise' } ) ;
+		
+		// .forEach()
+		count = 0 ;
+		seen = [] ;
+		userBatch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			seen.push( doc.lastName ) ;
+			count ++ ;
+		} ) ;
+		expect( count ).to.be( 3 ) ;
+		expect( seen ).to.equal( [ 'Fischer' , 'Smith' , 'Makise' ] ) ;
+		
+		// for ... of
+		count = 0 ;
+		seen = [] ;
+		for ( let doc of userBatch ) {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			seen.push( doc.lastName ) ;
+			count ++ ;
+		} 
+		expect( count ).to.be( 3 ) ;
+		expect( seen ).to.equal( [ 'Fischer' , 'Smith' , 'Makise' ] ) ;
+	} ) ;
+
+	it( "should save a whole batch" , async () => {
+		var userBatch = users.createBatch( [
+			{ firstName: 'Bobby' , lastName: 'Fischer' } ,
+			{ firstName: 'John' , lastName: 'Smith' }
+		] ) ;
+		
+		await userBatch.save() ;
+		
+		await expect( users.get( userBatch[ 0 ].getId() ) ).to.eventually.equal(
+			{ _id: userBatch[ 0 ].getId() , firstName: 'Bobby' , lastName: 'Fischer' , memberSid: 'Bobby Fischer' }
+		) ;
+
+		await expect( users.get( userBatch[ 1 ].getId() ) ).to.eventually.equal(
+			{ _id: userBatch[ 1 ].getId() , firstName: 'John' , lastName: 'Smith' , memberSid: 'John Smith' }
+		) ;
 	} ) ;
 } ) ;
 
 
+
+describe( "Multi Get" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should get multiple document using an array of IDs" , async () => {
+
+		var marleys = users.createBatch( [
+			{ firstName: 'Bob' , lastName: 'Marley' } ,
+			{ firstName: 'Julian' , lastName: 'Marley' } ,
+			{ firstName: 'Stephen' , lastName: 'Marley' } ,
+			{ firstName: 'Ziggy' , lastName: 'Marley' } ,
+			{ firstName: 'Rita' , lastName: 'Marley' }
+		] ) ;
+
+		expect( marleys ).to.have.length( 5 ) ;
+		var ids = marleys.map( doc => doc.getId() ) ;
+		console.log( "ids:" , ids ) ;
+		
+		await marleys.save() ;
+		
+		var batch = await users.multiGet( ids ) ;
+		
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 5 ) ;
+		
+		// MongoDB may shuffle things up, so we don't use an array here
+		var map = {} ;
+		
+		batch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			expect( doc.firstName ).to.be.ok() ;
+			expect( doc.lastName ).to.equal( 'Marley' ) ;
+			map[ doc.firstName ] = doc ;
+		} ) ;
+		
+		expect( map ).to.only.have.own.keys( 'Bob' , 'Julian' , 'Stephen' , 'Ziggy' , 'Rita' ) ;
+		expect( map ).to.equal( {
+			Bob: { _id: marleys[ 0 ].getId() , firstName: 'Bob' , lastName: 'Marley' , memberSid: 'Bob Marley' } ,
+			Julian: { _id: marleys[ 1 ].getId() , firstName: 'Julian' , lastName: 'Marley' , memberSid: 'Julian Marley' } ,
+			Stephen: { _id: marleys[ 2 ].getId() , firstName: 'Stephen' , lastName: 'Marley' , memberSid: 'Stephen Marley' } ,
+			Ziggy: { _id: marleys[ 3 ].getId() , firstName: 'Ziggy' , lastName: 'Marley' , memberSid: 'Ziggy Marley' } ,
+			Rita: { _id: marleys[ 4 ].getId() , firstName: 'Rita' , lastName: 'Marley' , memberSid: 'Rita Marley' }
+		} ) ;
+	} ) ;
+} ) ;
+
 return ;
+
 
 
 describe( "MultiGet, Collect & find batchs" , () => {
 
 	beforeEach( clearDB ) ;
-
-	it( "should get multiple document using an array of IDs (create, save and multiGet)" , ( done ) => {
-
-		var marleys = [
-			users.createDocument( {
-				firstName: 'Bob' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Julian' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Thomas' ,
-				lastName: 'Jefferson'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Stephen' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Mr' ,
-				lastName: 'X'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Ziggy' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Rita' ,
-				lastName: 'Marley'
-			} )
-		] ;
-
-		async.series( [
-			function( callback ) {
-				rootsDb.bulk( 'save' , marleys , callback ) ;
-			} ,
-			function( callback ) {
-				var ids = [
-					marleys[ 0 ]._id ,
-					marleys[ 1 ]._id ,
-					marleys[ 3 ]._id ,
-					marleys[ 5 ]._id ,
-					marleys[ 6 ]._id
-				] ;
-
-				users.multiGet( ids , ( error , batch ) => {
-					var i , map = {} ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Batch:' , batch ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
-					expect( batch ).to.have.length( 5 ) ;
-
-					for ( i = 0 ; i < batch.length ; i ++ ) {
-						//expect( batch[ i ] ).to.be.an( rootsDb.DocumentWrapper ) ;
-						expect( batch[ i ].firstName ).to.be.ok() ;
-						expect( batch[ i ].lastName ).to.equal( 'Marley' ) ;
-						map[ batch[ i ].firstName ] = true ;
-					}
-
-					expect( map ).to.only.have.keys( 'Bob' , 'Julian' , 'Stephen' , 'Ziggy' , 'Rita' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
 
 	it( "should collect a batch using a (non-unique) fingerprint (create, save and collect batch)" , ( done ) => {
 
