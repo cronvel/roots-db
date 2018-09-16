@@ -895,6 +895,47 @@ describe( "Get documents by unique fingerprint" , () => {
 		
 		await expect( () => users.getUnique( { firstName: 'Bill' , lastName: "Tannen" } ) ).to.reject.with.an( ErrorStatus , { type: 'badRequest' } ) ;
 	} ) ;
+
+	it( "should get a document by a unique fingerprint with deep ref (to embedded data)" , async () => {
+		var localBatch = towns.createBatch( [
+			{
+				name: 'Paris' ,
+				meta: {
+					country: 'France' ,
+					capital: true
+				}
+			} ,
+			{
+				name: 'Tokyo' ,
+				meta: {
+					country: 'Japan' ,
+					capital: true
+				}
+			} ,
+			{
+				name: 'New York' ,
+				meta: {
+					country: 'USA' ,
+					capital: false
+				}
+			}
+		] ) ;
+
+		expect( localBatch ).to.have.length( 3 ) ;
+		
+		await localBatch.save() ;
+		
+		var town = await towns.getUnique( { name: 'Tokyo' , "meta.country": 'Japan' } ) ;
+		
+		expect( town ).to.equal( {
+			_id: town._id ,
+			name: 'Tokyo' ,
+			meta: {
+				country: 'Japan' ,
+				capital: true
+			}
+		} ) ;
+	} ) ;
 } ) ;
 
 
@@ -1165,7 +1206,8 @@ describe( "Multi Get" , () => {
 	beforeEach( clearDB ) ;
 
 	it( "should get multiple document using an array of IDs" , async () => {
-
+		var map , batch ;
+		
 		var marleys = users.createBatch( [
 			{ firstName: 'Bob' , lastName: 'Marley' } ,
 			{ firstName: 'Julian' , lastName: 'Marley' } ,
@@ -1176,17 +1218,16 @@ describe( "Multi Get" , () => {
 
 		expect( marleys ).to.have.length( 5 ) ;
 		var ids = marleys.map( doc => doc.getId() ) ;
-		console.log( "ids:" , ids ) ;
 		
 		await marleys.save() ;
 		
-		var batch = await users.multiGet( ids ) ;
+		batch = await users.multiGet( ids ) ;
 		
 		expect( batch ).to.be.a( rootsDb.Batch ) ;
 		expect( batch ).to.have.length( 5 ) ;
 		
 		// MongoDB may shuffle things up, so we don't use an array here
-		var map = {} ;
+		map = {} ;
 		
 		batch.forEach( doc => {
 			expect( doc._ ).to.be.a( rootsDb.Document ) ;
@@ -1203,249 +1244,202 @@ describe( "Multi Get" , () => {
 			Ziggy: { _id: marleys[ 3 ].getId() , firstName: 'Ziggy' , lastName: 'Marley' , memberSid: 'Ziggy Marley' } ,
 			Rita: { _id: marleys[ 4 ].getId() , firstName: 'Rita' , lastName: 'Marley' , memberSid: 'Rita Marley' }
 		} ) ;
+		
+		
+		// Same with a subset of what is in the DB
+		batch = await users.multiGet( [ marleys[ 2 ].getId() , marleys[ 4 ].getId() ] ) ;
+		
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 2 ) ;
+		
+		// MongoDB may shuffle things up, so we don't use an array here
+		map = {} ;
+		
+		batch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			expect( doc.firstName ).to.be.ok() ;
+			expect( doc.lastName ).to.equal( 'Marley' ) ;
+			map[ doc.firstName ] = doc ;
+		} ) ;
+		
+		expect( map ).to.equal( {
+			Stephen: { _id: marleys[ 2 ].getId() , firstName: 'Stephen' , lastName: 'Marley' , memberSid: 'Stephen Marley' } ,
+			Rita: { _id: marleys[ 4 ].getId() , firstName: 'Rita' , lastName: 'Marley' , memberSid: 'Rita Marley' }
+		} ) ;
 	} ) ;
 } ) ;
 
-return ;
 
 
-
-describe( "MultiGet, Collect & find batchs" , () => {
+describe( "Collect by fingerprint" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should collect a batch using a (non-unique) fingerprint (create, save and collect batch)" , ( done ) => {
+	it( "should collect a batch using a non-unique fingerprint" , async () => {
+		var localBatch = users.createBatch( [
+			{ firstName: 'Bob' , lastName: 'Marley' } ,
+			{ firstName: 'Julian' , lastName: 'Marley' } ,
+			{ firstName: 'Mr' , lastName: 'X' } ,
+			{ firstName: 'Stephen' , lastName: 'Marley' } ,
+			{ firstName: 'Ziggy' , lastName: 'Marley' } ,
+			{ firstName: 'Thomas' , lastName: 'Jefferson' } ,
+			{ firstName: 'Rita' , lastName: 'Marley' }
+		] ) ;
 
-		var marleys = [
-			users.createDocument( {
-				firstName: 'Bob' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Julian' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Thomas' ,
-				lastName: 'Jefferson'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Stephen' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Mr' ,
-				lastName: 'X'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Ziggy' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Rita' ,
-				lastName: 'Marley'
-			} )
-		] ;
-
-		async.series( [
-			function( callback ) {
-				rootsDb.bulk( 'save' , marleys , callback ) ;
-			} ,
-			function( callback ) {
-				users.collect( { lastName: 'Marley' } , ( error , batch ) => {
-					var i , map = {} ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Batch:' , batch ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
-					expect( batch ).to.have.length( 5 ) ;
-
-					for ( i = 0 ; i < batch.length ; i ++ ) {
-						//expect( batch[ i ] ).to.be.an( rootsDb.DocumentWrapper ) ;
-						expect( batch[ i ].firstName ).to.be.ok() ;
-						expect( batch[ i ].lastName ).to.equal( 'Marley' ) ;
-						map[ batch[ i ].firstName ] = true ;
-					}
-
-					expect( map ).to.only.have.keys( 'Bob' , 'Julian' , 'Stephen' , 'Ziggy' , 'Rita' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		expect( localBatch ).to.have.length( 7 ) ;
+		
+		await localBatch.save() ;
+		
+		var batch = await users.collect( { lastName: 'Marley' } ) ;
+		
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 5 ) ;
+		
+		// MongoDB may shuffle things up, so we don't use an array here
+		var map = {} ;
+		
+		batch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			expect( doc.firstName ).to.be.ok() ;
+			expect( doc.lastName ).to.equal( 'Marley' ) ;
+			map[ doc.firstName ] = doc ;
+		} ) ;
+		
+		expect( map ).to.only.have.own.keys( 'Bob' , 'Julian' , 'Stephen' , 'Ziggy' , 'Rita' ) ;
+		expect( map ).to.equal( {
+			Bob: { _id: localBatch[ 0 ].getId() , firstName: 'Bob' , lastName: 'Marley' , memberSid: 'Bob Marley' } ,
+			Julian: { _id: localBatch[ 1 ].getId() , firstName: 'Julian' , lastName: 'Marley' , memberSid: 'Julian Marley' } ,
+			Stephen: { _id: localBatch[ 3 ].getId() , firstName: 'Stephen' , lastName: 'Marley' , memberSid: 'Stephen Marley' } ,
+			Ziggy: { _id: localBatch[ 4 ].getId() , firstName: 'Ziggy' , lastName: 'Marley' , memberSid: 'Ziggy Marley' } ,
+			Rita: { _id: localBatch[ 6 ].getId() , firstName: 'Rita' , lastName: 'Marley' , memberSid: 'Rita Marley' }
+		} ) ;
 	} ) ;
 
-	it( "should find documents (in a batch) using a queryObject (create, save and find)" , ( done ) => {
-
-		var marleys = [
-			users.createDocument( {
-				firstName: 'Bob' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Julian' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Thomas' ,
-				lastName: 'Jefferson'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Stephen' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Mr' ,
-				lastName: 'X'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Ziggy' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Rita' ,
-				lastName: 'Marley'
-			} )
-		] ;
-
-		async.series( [
-			function( callback ) {
-				rootsDb.bulk( 'save' , marleys , callback ) ;
-			} ,
-			function( callback ) {
-				users.find( { firstName: { $regex: /^[thomasstepn]+$/ , $options: 'i' } } , ( error , batch ) => {
-					var i , map = {} ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Batch:' , batch ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
-					expect( batch ).to.have.length( 2 ) ;
-
-					for ( i = 0 ; i < batch.length ; i ++ ) {
-						//expect( batch[ i ] ).to.be.an( rootsDb.DocumentWrapper ) ;
-						expect( batch[ i ].firstName ).to.be.ok() ;
-						map[ batch[ i ].firstName ] = true ;
-					}
-
-					expect( map ).to.only.have.keys( 'Thomas' , 'Stephen' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-
-} ) ;
-
-
-
-describe( "Embedded documents" , () => {
-
-	beforeEach( clearDB ) ;
-
-	it( "should collect a batch & get unique using embedded data as fingerprint (create, save and collect batch)" , ( done ) => {
-
-		var townList = [
-			towns.createDocument( {
+	it( "should collect a batch using a fingerprint with deep ref (to embedded data)" , async () => {
+		var map , batch ;
+		
+		var localBatch = towns.createBatch( [
+			{
 				name: 'Paris' ,
 				meta: {
 					country: 'France' ,
 					capital: true
 				}
-			} ) ,
-			towns.createDocument( {
+			} ,
+			{
 				name: 'Tokyo' ,
 				meta: {
 					country: 'Japan' ,
 					capital: true
 				}
-			} ) ,
-			towns.createDocument( {
+			} ,
+			{
 				name: 'New York' ,
 				meta: {
 					country: 'USA' ,
 					capital: false
 				}
-			} ) ,
-			towns.createDocument( {
+			} ,
+			{
 				name: 'Washington' ,
 				meta: {
 					country: 'USA' ,
 					capital: true
 				}
-			} ) ,
-			towns.createDocument( {
+			} ,
+			{
 				name: 'San Francisco' ,
 				meta: {
 					country: 'USA' ,
 					capital: false
 				}
-			} )
-		] ;
-
-		async.series( [
-			function( callback ) {
-				rootsDb.bulk( 'save' , townList , callback ) ;
-			} ,
-			function( callback ) {
-				towns.collect( { "meta.country": 'USA' } , ( error , batch ) => {
-					var i , map = {} ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'RawBatch:' , batch ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.an( rootsDb.BatchWrapper ) ;
-					expect( batch ).to.have.length( 3 ) ;
-
-					for ( i = 0 ; i < batch.length ; i ++ ) {
-						expect( batch[ i ].name ).to.be.ok() ;
-						expect( batch[ i ].meta.country ).to.equal( 'USA' ) ;
-						map[ batch[ i ].name ] = true ;
-					}
-
-					expect( map ).to.only.have.keys( 'New York' , 'Washington' , 'San Francisco' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				towns.collect( { "meta.country": 'USA' , "meta.capital": false } , ( error , batch ) => {
-					var i , map = {} ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Batch:' , batch ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.an( rootsDb.BatchWrapper ) ;
-					expect( batch ).to.have.length( 2 ) ;
-
-					for ( i = 0 ; i < batch.length ; i ++ ) {
-						expect( batch[ i ].name ).to.ok() ;
-						expect( batch[ i ].meta.country ).to.equal( 'USA' ) ;
-						map[ batch[ i ].name ] = true ;
-					}
-
-					expect( map ).to.only.have.keys( 'New York' , 'San Francisco' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				towns.getUnique( { name: 'Tokyo' , "meta.country": 'Japan' } , ( error , town ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Town:' , town ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( town.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( town ).to.equal( {
-						_id: town._id ,
-						name: 'Tokyo' ,
-						meta: {
-							country: 'Japan' ,
-							capital: true
-						}
-					} ) ;
-					callback() ;
-				} ) ;
 			}
-		] )
-			.exec( done ) ;
+		] ) ;
+
+		expect( localBatch ).to.have.length( 5 ) ;
+		
+		await localBatch.save() ;
+		
+		batch = await towns.collect( { "meta.country": "USA" } ) ;
+		
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 3 ) ;
+		
+		// MongoDB may shuffle things up, so we don't use an array here
+		map = {} ;
+		
+		batch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			map[ doc.name ] = doc ;
+		} ) ;
+		
+		expect( map ).to.equal( {
+			"New York": { _id: localBatch[ 2 ].getId() , name: "New York" , meta: { country: "USA" , capital: false } } ,
+			"Washington": { _id: localBatch[ 3 ].getId() , name: "Washington" , meta: { country: "USA" , capital: true } } ,
+			"San Francisco": { _id: localBatch[ 4 ].getId() , name: "San Francisco" , meta: { country: "USA" , capital: false } }
+		} ) ;
+
+		batch = await towns.collect( { "meta.country": "USA" ,  "meta.capital": false } ) ;
+		
+		expect( batch ).to.have.length( 2 ) ;
+		
+		// MongoDB may shuffle things up, so we don't use an array here
+		map = {} ;
+		
+		batch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			map[ doc.name ] = doc ;
+		} ) ;
+		
+		expect( map ).to.equal( {
+			"New York": { _id: localBatch[ 2 ].getId() , name: "New York" , meta: { country: "USA" , capital: false } } ,
+			"San Francisco": { _id: localBatch[ 4 ].getId() , name: "San Francisco" , meta: { country: "USA" , capital: false } }
+		} ) ;
 	} ) ;
 } ) ;
+
+
+
+describe( "Find with a query object" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should find documents (in a batch) using a queryObject" , async () => {
+		var localBatch = users.createBatch( [
+			{ firstName: 'Bob' , lastName: 'Marley' } ,
+			{ firstName: 'Julian' , lastName: 'Marley' } ,
+			{ firstName: 'Mr' , lastName: 'X' } ,
+			{ firstName: 'Stephen' , lastName: 'Marley' } ,
+			{ firstName: 'Ziggy' , lastName: 'Marley' } ,
+			{ firstName: 'Thomas' , lastName: 'Jefferson' } ,
+			{ firstName: 'Rita' , lastName: 'Marley' }
+		] ) ;
+
+		expect( localBatch ).to.have.length( 7 ) ;
+		
+		await localBatch.save() ;
+		
+		var batch = await users.find( { firstName: { $regex: /^[thomasstepn]+$/ , $options: 'i' } } ) ;
+		
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 2 ) ;
+		
+		// MongoDB may shuffle things up, so we don't use an array here
+		var map = {} ;
+		
+		batch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			map[ doc.firstName ] = doc ;
+		} ) ;
+		
+		expect( map ).to.equal( {
+			Stephen: { _id: localBatch[ 3 ].getId() , firstName: 'Stephen' , lastName: 'Marley' , memberSid: 'Stephen Marley' } ,
+			Thomas: { _id: localBatch[ 5 ].getId() , firstName: 'Thomas' , lastName: 'Jefferson' , memberSid: 'Thomas Jefferson' }
+		} ) ;
+	} ) ;
+} ) ;
+
+return ;
 
 
 
