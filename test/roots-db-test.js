@@ -940,139 +940,6 @@ describe( "Get documents by unique fingerprint" , () => {
 
 
 
-describe( "Links" , () => {
-
-	beforeEach( clearDB ) ;
-
-	it( "should retrieve details of an inactive link" , async () => {
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var userId = user.getId() ;
-		
-		expect( user.getLinkDetails( 'job' ) ).to.equal( {
-			type: 'link' ,
-			foreignCollection: 'jobs' ,
-			//foreignId:  ,
-			hostPath: 'job' ,
-			schema: {
-				collection: 'jobs' ,
-				optional: true ,
-				type: 'link' ,
-				sanitize: [ 'toLink' ] ,
-				tier: 3
-			}
-		} ) ;
-		
-		// Same on saved documents...
-		await user.save() ;
-		var dbUser = await users.get( userId ) ;
-
-		expect( dbUser.getLinkDetails( 'job' ) ).to.equal( {
-			type: 'link' ,
-			foreignCollection: 'jobs' ,
-			//foreignId:  ,
-			hostPath: 'job' ,
-			schema: {
-				collection: 'jobs' ,
-				optional: true ,
-				type: 'link' ,
-				sanitize: [ 'toLink' ] ,
-				tier: 3
-			}
-		} ) ;
-	} ) ;
-	
-	it( "should retrieve details of an active link (setLink then getLinkDetails)" , async () => {
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var userId = user.getId() ;
-		
-		var job = jobs.createDocument( {
-			title: 'developer' ,
-			salary: 60000
-		} ) ;
-
-		var jobId = job.getId() ;
-		
-		user.setLink( 'job' , job ) ;
-
-		expect( user.job ).to.equal( jobId ) ;
-		expect( user.getLinkDetails( 'job' ) ).to.equal( {
-			type: 'link' ,
-			foreignCollection: 'jobs' ,
-			foreignId: jobId ,
-			hostPath: 'job' ,
-			schema: {
-				collection: 'jobs' ,
-				optional: true ,
-				type: 'link' ,
-				sanitize: [ 'toLink' ] ,
-				tier: 3
-			}
-		} ) ;
-		
-		// Same on saved documents...
-		await user.save() ;
-		await job.save() ;
-		var dbUser = await users.get( userId ) ;
-		var dbJob = await jobs.get( jobId ) ;
-
-		expect( dbUser.job ).to.equal( jobId ) ;
-		expect( user.getLinkDetails( 'job' ) ).to.equal( {
-			type: 'link' ,
-			foreignCollection: 'jobs' ,
-			foreignId: jobId ,
-			hostPath: 'job' ,
-			schema: {
-				collection: 'jobs' ,
-				optional: true ,
-				type: 'link' ,
-				sanitize: [ 'toLink' ] ,
-				tier: 3
-			}
-		} ) ;
-	} ) ;
-	
-	it( "should retrieve an active link" , async () => {
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var userId = user.getId() ;
-		
-		var job = jobs.createDocument( {
-			title: 'developer' ,
-			salary: 60000
-		} ) ;
-
-		var jobId = job.getId() ;
-		
-		user.setLink( 'job' , job ) ;
-
-		await user.save() ;
-		await job.save() ;
-		var dbUser = await users.get( userId ) ;
-
-		expect( dbUser.job ).to.equal( jobId ) ;
-		await expect( dbUser.getLink( 'job' ) ).to.eventually.equal( {
-			_id: jobId ,
-			title: "developer" ,
-			salary: 60000 ,
-			users: [] ,
-			schools: []
-		} ) ;
-	} ) ;
-} ) ;
-
-
-
 describe( "Batch creation" , () => {
 
 	it( "should create an empty batch" , () => {
@@ -1439,22 +1306,145 @@ describe( "Find with a query object" , () => {
 	} ) ;
 } ) ;
 
-return ;
-
 
 
 describe( "Links" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "basic nested links (create both, link, save both, retrieve parent, navigate to child)" , ( done ) => {
-
+	it( "should retrieve details of an inactive link" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
 
-		var id = user._id ;
+		var userId = user.getId() ;
+		
+		expect( user.getLinkDetails( 'job' ) ).to.equal( {
+			type: 'link' ,
+			foreignCollection: 'jobs' ,
+			//foreignId:  ,
+			hostPath: 'job' ,
+			schema: {
+				collection: 'jobs' ,
+				optional: true ,
+				type: 'link' ,
+				sanitize: [ 'toLink' ] ,
+				tier: 3
+			}
+		} ) ;
+		
+		// Same on saved documents...
+		await user.save() ;
+		var dbUser = await users.get( userId ) ;
+
+		expect( dbUser.getLinkDetails( 'job' ) ).to.equal( {
+			type: 'link' ,
+			foreignCollection: 'jobs' ,
+			//foreignId:  ,
+			hostPath: 'job' ,
+			schema: {
+				collection: 'jobs' ,
+				optional: true ,
+				type: 'link' ,
+				sanitize: [ 'toLink' ] ,
+				tier: 3
+			}
+		} ) ;
+	} ) ;
+	
+	it( "should retrieve details of an active link (setLink then getLinkDetails)" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var userId = user.getId() ;
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var jobId = job.getId() ;
+		
+		user.setLink( 'job' , job ) ;
+
+		expect( user.job ).to.equal( jobId ) ;
+		expect( user.getLinkDetails( 'job' ) ).to.equal( {
+			type: 'link' ,
+			foreignCollection: 'jobs' ,
+			foreignId: jobId ,
+			hostPath: 'job' ,
+			schema: {
+				collection: 'jobs' ,
+				optional: true ,
+				type: 'link' ,
+				sanitize: [ 'toLink' ] ,
+				tier: 3
+			}
+		} ) ;
+		
+		// Same on saved documents...
+		await user.save() ;
+		await job.save() ;
+		var dbUser = await users.get( userId ) ;
+		var dbJob = await jobs.get( jobId ) ;
+
+		expect( dbUser.job ).to.equal( jobId ) ;
+		expect( user.getLinkDetails( 'job' ) ).to.equal( {
+			type: 'link' ,
+			foreignCollection: 'jobs' ,
+			foreignId: jobId ,
+			hostPath: 'job' ,
+			schema: {
+				collection: 'jobs' ,
+				optional: true ,
+				type: 'link' ,
+				sanitize: [ 'toLink' ] ,
+				tier: 3
+			}
+		} ) ;
+	} ) ;
+	
+	it( "should retrieve an active link" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var userId = user.getId() ;
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var jobId = job.getId() ;
+		
+		user.setLink( 'job' , job ) ;
+
+		await user.save() ;
+		await job.save() ;
+		var dbUser = await users.get( userId ) ;
+
+		expect( dbUser.job ).to.equal( jobId ) ;
+		await expect( dbUser.getLink( 'job' ) ).to.eventually.equal( {
+			_id: jobId ,
+			title: "developer" ,
+			salary: 60000 ,
+			users: [] ,
+			schools: []
+		} ) ;
+	} ) ;
+
+	it( "should retrieve an active deep links" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var id = user.getId() ;
 
 		var connectionA = users.createDocument( {
 			firstName: 'John' ,
@@ -1467,78 +1457,52 @@ describe( "Links" , () => {
 		} ) ;
 
 		//console.log( job ) ;
-		var connectionAId = connectionA.$.id ;
-		var connectionBId = connectionB.$.id ;
+		var connectionAId = connectionA.getId() ;
+		var connectionBId = connectionB.getId() ;
 
 		// Link the documents!
-		user.$.setLink( 'connection.A' , connectionA ) ;
-		user.$.setLink( 'connection.B' , connectionB ) ;
+		user.setLink( 'connection.A' , connectionA ) ;
+		user.setLink( 'connection.B' , connectionB ) ;
 
 		expect( user.connection.A ).to.equal( connectionAId ) ;
 		expect( user.connection.B ).to.equal( connectionBId ) ;
-
-		async.series( [
-			function( callback ) {
-				connectionA.$.save( callback ) ;
+		
+		await Promise.all( [ connectionA.save() , connectionB.save() , user.save() ] ) ;
+		
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			connection: {
+				A: connectionAId ,
+				B: connectionBId
 			} ,
-			function( callback ) {
-				connectionB.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , user ) => {
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						connection: {
-							A: connectionAId ,
-							B: connectionBId
-						} ,
-						memberSid: 'Jilbert Polson'
-					} ) ;
-
-					//user.$.toto = 'toto' ;
-
-					user.$.getLink( "connection.A" , ( error , userA ) => {
-						expect( error ).not.to.be.ok() ;
-						expect( userA ).to.equal( {
-							_id: connectionAId ,
-							firstName: 'John' ,
-							lastName: "Fergusson" ,
-							memberSid: "John Fergusson"
-						} ) ;
-
-						user.$.getLink( "connection.B" , ( error , userB ) => {
-							expect( error ).not.to.be.ok() ;
-							expect( userB ).to.equal( {
-								_id: connectionBId ,
-								firstName: 'Andy' ,
-								lastName: "Fergusson" ,
-								memberSid: "Andy Fergusson"
-							} ) ;
-							callback() ;
-						} ) ;
-					} ) ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+			memberSid: 'Jilbert Polson'
+		} ) ;
+		
+		await expect( user.getLink( "connection.A" ) ).to.eventually.equal( {
+			_id: connectionAId ,
+			firstName: 'John' ,
+			lastName: "Fergusson" ,
+			memberSid: "John Fergusson"
+		} ) ;
+		
+		await expect( user.getLink( "connection.B" ) ).to.eventually.equal( {
+			_id: connectionBId ,
+			firstName: 'Andy' ,
+			lastName: "Fergusson" ,
+			memberSid: "Andy Fergusson"
+		} ) ;
 	} ) ;
 
-	it( "unexistant links, non-link properties" , ( done ) => {
-
+	it( "unexistant links, non-link properties" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
 
-		var id = user._id ;
+		var id = user.getId() ;
 
 		var connectionA = users.createDocument( {
 			firstName: 'John' ,
@@ -1550,93 +1514,40 @@ describe( "Links" , () => {
 			lastName: 'Fergusson'
 		} ) ;
 
-		var connectionAId = connectionA.$.id ;
-		var connectionBId = connectionB.$.id ;
+		var connectionAId = connectionA.getId() ;
+		var connectionBId = connectionB.getId() ;
 
-		user.$.setLink( 'connection.A' , connectionA ) ;
-		doormen.shouldThrow( () => { user.$.setLink( 'unexistant' , connectionB ) ; } ) ;
-		doormen.shouldThrow( () => { user.$.setLink( 'firstName' , connectionB ) ; } ) ;
-		doormen.shouldThrow( () => { user.$.setLink( 'firstName.blah' , connectionB ) ; } ) ;
+		user.setLink( 'connection.A' , connectionA ) ;
+		expect( () => user.setLink( 'unexistant' , connectionB ) ).to.throw( ErrorStatus , { type: 'badRequest' } ) ;
+		expect( () => user.setLink( 'firstName' , connectionB ) ).to.throw( ErrorStatus , { type: 'badRequest' } ) ;
+		expect( () => user.setLink( 'firstName.blah' , connectionB ) ).to.throw( ErrorStatus , { type: 'badRequest' } ) ;
 
-		async.series( [
-			function( callback ) {
-				connectionA.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				connectionB.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , user_ ) => {
-					user = user_ ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						connection: {
-							A: connectionAId
-						} ,
-						memberSid: 'Jilbert Polson'
-					} ) ;
+		await Promise.all( [ connectionA.save() , connectionB.save() , user.save() ] ) ;
 
-					//user.$.toto = 'toto' ;
-					callback() ;
-				} ) ;
+
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			connection: {
+				A: connectionAId
 			} ,
-			function( callback ) {
-				user.$.getLink( "connection.A" , ( error , userA ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( userA ).to.equal( {
-						_id: connectionAId ,
-						firstName: 'John' ,
-						lastName: "Fergusson" ,
-						memberSid: "John Fergusson"
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "connection.B" , ( error , userB ) => {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'notFound' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "unexistant" , ( error , userB ) => {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "unexistant.unexistant" , ( error , userB ) => {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "firstName" , ( error , userB ) => {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "firstName.blah" , ( error , userB ) => {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+			memberSid: 'Jilbert Polson'
+		} ) ;
+		
+		await expect( user.getLink( "connection.A" ) ).to.eventually.equal( {
+			_id: connectionAId ,
+			firstName: 'John' ,
+			lastName: "Fergusson" ,
+			memberSid: "John Fergusson"
+		} ) ;
+		
+		await expect( () => user.getLink( "connection.B" ) ).to.reject.with( ErrorStatus , { type: 'notFound' } ) ;
+		await expect( () => user.getLink( "unexistant" ) ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
+		await expect( () => user.getLink( "unexistant.unexistant" ) ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
+		await expect( () => user.getLink( "firstName" ) ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
+		await expect( () => user.getLink( "firstName.blah" ) ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
 	} ) ;
 } ) ;
 
@@ -1646,65 +1557,47 @@ describe( "Multi-links" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "basic multi-link (create, link, save, retrieve one, retrieve multi-links, add link, check, unlink, check)" , ( done ) => {
+	it( "basic multi-link (create, link, save, retrieve one, retrieve multi-links, add link, check, unlink, check)" , async () => {
 
 		var school = schools.createDocument( {
 			title: 'Computer Science'
 		} ) ;
 
-		var id = school._id ;
+		var id = school.getId() ;
 
 		var job1 = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
 
-		var job1Id = job1.$.id ;
+		var job1Id = job1.getId() ;
 
 		var job2 = jobs.createDocument( {
 			title: 'sysadmin' ,
 			salary: 55000
 		} ) ;
 
-		var job2Id = job2.$.id ;
+		var job2Id = job2.getId() ;
 
 		var job3 = jobs.createDocument( {
 			title: 'front-end developer' ,
 			salary: 54000
 		} ) ;
 
-		var job3Id = job3.$.id ;
+		var job3Id = job3.getId() ;
 
-		// Link the documents!
-		school.$.setLink( 'jobs' , [ job1 , job2 ] ) ;
+		school.setLink( 'jobs' , [ job1 , job2 ] ) ;
 
-		async.series( [
-			function( callback ) {
-				job1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job3.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				schools.get( id , ( error , school_ ) => {
-					school = school_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Job:' , job ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( school.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( school._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( school._id ).to.equal( id ) ;
-					expect( school ).to.equal( { _id: school._id , title: 'Computer Science' , jobs: [ job1._id , job2._id ] } ) ;
-
-					callback() ;
-				} ) ;
-			} ,
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
+		
+		expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ job1Id , job2Id ] } ) ;
+		
+		expect().fail( "Multi-link not coded (set: not tested, get: not patched)" ) ;
+		
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------		
+		// Patch and uncomment the following
+		
+		/*
 			function( callback ) {
 				school.$.getLink( "jobs" , ( error , jobs_ ) => {
 					expect( error ).not.to.be.ok() ;
@@ -1803,10 +1696,13 @@ describe( "Multi-links" , () => {
 			}
 		] )
 			.exec( done ) ;
+			//*/
 	} ) ;
 
 	it( "basic nested multi-links" ) ;
 } ) ;
+
+return ;
 
 
 
