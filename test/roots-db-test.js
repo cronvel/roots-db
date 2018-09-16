@@ -1557,7 +1557,8 @@ describe( "Multi-links" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "basic multi-link (create, link, save, retrieve one, retrieve multi-links, add link, check, unlink, check)" , async () => {
+	it( "should create, save, retrieve, add and remove multi-links" , async () => {
+		var map , batch ;
 
 		var school = schools.createDocument( {
 			title: 'Computer Science'
@@ -1585,124 +1586,61 @@ describe( "Multi-links" , () => {
 		} ) ;
 
 		var job3Id = job3.getId() ;
+		
+		// First test
 
 		school.setLink( 'jobs' , [ job1 , job2 ] ) ;
+		expect( school.jobs ).to.equal( [ job1Id , job2Id ] ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
-		
 		expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ job1Id , job2Id ] } ) ;
 		
-		expect().fail( "Multi-link not coded (set: not tested, get: not patched)" ) ;
+		batch = await school.getLink( "jobs" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
 		
-// ------------------------------------------------------------------------------------------------------------------------------------------------------------		
-		// Patch and uncomment the following
+		expect( map ).to.equal( {
+			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ,
+			sysadmin: { _id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: [] }
+		} ) ;
 		
-		/*
-			function( callback ) {
-				school.$.getLink( "jobs" , ( error , jobs_ ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( jobs_ ).to.have.length( 2 ) ;
+		// Second test
+		
+		school.addLink( 'jobs' , job3 ) ;
+		expect( school.jobs ).to.equal( [ job1Id , job2Id , job3Id ] ) ;
+		await school.save() ;
 
-					//console.error( jobs_ ) ;
-					jobs_.sort( ( a , b ) => { return b.salary - a.salary ; } ) ;
+		batch = await school.getLink( "jobs" ) ;
+		
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ,
+			sysadmin: { _id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: [] } ,
+			"front-end developer": { _id: job3Id , title: 'front-end developer' , salary: 54000 , users: [] , schools: [] }
+		} ) ;
+		
+		// Third test
+		
+		school.removeLink( 'jobs' , job2 ) ;
+		expect( school.jobs ).to.equal( [ job1Id , job3Id ] ) ;
+		await school.save() ;
+		
+		batch = await school.getLink( "jobs" ) ;
 
-					expect( jobs_ ).to.equal( [
-						{
-							_id: jobs_[ 0 ]._id ,
-							title: 'developer' ,
-							salary: 60000 ,
-							users: [] ,
-							schools: []
-						} ,
-						{
-							_id: jobs_[ 1 ]._id ,
-							title: 'sysadmin' ,
-							salary: 55000 ,
-							users: [] ,
-							schools: []
-						}
-					] ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				school.$.addLink( 'jobs' , job3 ) ;
-				school.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school.$.getLink( "jobs" , ( error , jobs_ ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( jobs_ ).to.have.length( 3 ) ;
-
-					//console.error( jobs_ ) ;
-					jobs_.sort( ( a , b ) => { return b.salary - a.salary ; } ) ;
-
-					expect( jobs_ ).to.equal( [
-						{
-							_id: jobs_[ 0 ]._id ,
-							title: 'developer' ,
-							salary: 60000 ,
-							users: [] ,
-							schools: []
-						} ,
-						{
-							_id: jobs_[ 1 ]._id ,
-							title: 'sysadmin' ,
-							salary: 55000 ,
-							users: [] ,
-							schools: []
-						} ,
-						{
-							_id: jobs_[ 2 ]._id ,
-							title: 'front-end developer' ,
-							salary: 54000 ,
-							users: [] ,
-							schools: []
-						}
-					] ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				school.$.unlink( 'jobs' , job2 ) ;
-				school.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school.$.getLink( "jobs" , ( error , jobs_ ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( jobs_ ).to.have.length( 2 ) ;
-
-					//console.error( jobs_ ) ;
-					jobs_.sort( ( a , b ) => { return b.salary - a.salary ; } ) ;
-
-					expect( jobs_ ).to.equal( [
-						{
-							_id: jobs_[ 0 ]._id ,
-							title: 'developer' ,
-							salary: 60000 ,
-							users: [] ,
-							schools: []
-						} ,
-						{
-							_id: jobs_[ 1 ]._id ,
-							title: 'front-end developer' ,
-							salary: 54000 ,
-							users: [] ,
-							schools: []
-						}
-					] ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-			//*/
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ,
+			"front-end developer": { _id: job3Id , title: 'front-end developer' , salary: 54000 , users: [] , schools: [] }
+		} ) ;
 	} ) ;
 
-	it( "basic nested multi-links" ) ;
+	it( "nested multi-links" ) ;
 } ) ;
-
-return ;
 
 
 
@@ -1710,7 +1648,170 @@ describe( "Back-links" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "basic back-link (create, link, save, retrieve one, retrieve back-links)" , ( done ) => {
+	it( "back-link of single link" , async () => {
+		var map , batch ;
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+
+		var user2 = users.createDocument( {
+			firstName: 'Tony' ,
+			lastName: 'P.'
+		} ) ;
+
+		var id2 = user2.getId() ;
+
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		//console.log( job ) ;
+		var jobId = job.getId() ;
+
+		// Link the documents!
+		user.setLink( 'job' , job ) ;
+
+		await Promise.all( [ user.save() , user2.save() , job.save() ] ) ;
+
+		var dbJob = await jobs.get( jobId ) ;
+		expect( dbJob ).to.equal( {
+			_id: jobId , title: 'developer' , salary: 60000 , users: [] , schools: []
+		} ) ;
+		
+		expect( dbJob.getLinkDetails( "users" ) ).to.equal( {
+			type: 'backLink' ,
+			foreignCollection: 'users' ,
+			hostPath: 'users' ,
+			foreignPath: 'job' ,
+			schema: {
+				collection: 'users' ,
+				//optional: true ,
+				type: 'backLink' ,
+				sanitize: [ 'toBackLink' ] ,
+				path: 'job' ,
+				tier: 3
+			}
+		} ) ;
+		
+		batch = await job.getLink( "users" ) ;
+		
+		expect( batch.slice() ).to.equal( [
+			{
+				_id: id ,
+				firstName: 'Jilbert' ,
+				lastName: 'Polson' ,
+				memberSid: 'Jilbert Polson' ,
+				job: jobId
+			}
+		] ) ;
+		
+		
+		user2.setLink( 'job' , job ) ;
+		await user2.save() ;
+		
+		batch = await job.getLink( "users" ) ;
+		
+		map = {} ;
+		batch.forEach( doc => { map[ doc.firstName ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			Jilbert: { _id: id , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson' , job: jobId } ,
+			Tony: { _id: id2 , firstName: 'Tony' , lastName: 'P.' , memberSid: 'Tony P.' , job: jobId }
+		} ) ;
+	} ) ;
+
+	it( "back-link of multi-link" , async () => {
+		var map , batch ;
+		
+		var school1 = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+
+		var school1Id = school1.getId() ;
+
+		var school2 = schools.createDocument( {
+			title: 'Web Academy'
+		} ) ;
+
+		var school2Id = school2.getId() ;
+
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var job1Id = job1.getId() ;
+
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+
+		var job2Id = job2.getId() ;
+
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+
+		var job3Id = job3.getId() ;
+
+		var job4 = jobs.createDocument( {
+			title: 'designer' ,
+			salary: 56000
+		} ) ;
+
+		var job4Id = job4.getId() ;
+
+		// Link the documents!
+		school1.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
+		school2.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
+
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , job4.save() , school1.save() , school2.save() ] ) ;
+		
+		var dbJob = await jobs.get( job1Id ) ;
+		expect( dbJob ).to.equal( { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
+		
+		batch = await dbJob.getLink( 'schools' ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			'Computer Science': { _id: school1Id , title: 'Computer Science' , jobs: [ job1Id , job2Id , job3Id ] } ,
+			'Web Academy': { _id: school2Id , title: 'Web Academy' , jobs: [ job1Id , job3Id , job4Id ] }
+		} ) ;
+		
+		dbJob = await jobs.get( job4Id ) ;
+		expect( dbJob ).to.equal( { _id: job4Id , title: 'designer' , salary: 56000 , users: [] , schools: [] } ) ;
+		
+		batch = await dbJob.getLink( 'schools' ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
+		
+		expect( batch.slice() ).to.equal( [
+			{ _id: school2Id , title: 'Web Academy' , jobs: [ job1Id , job3Id , job4Id ] }
+		] ) ;
+	} ) ;
+
+	it( "nested back-links" ) ;
+} ) ;
+
+return ;
+
+
+
+describe( "Attachment links" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "basic attachment (create, attach, save both, retrieve parent, navigate to child)" , ( done ) => {
 
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -1719,276 +1820,540 @@ describe( "Back-links" , () => {
 
 		var id = user._id ;
 
-		var user2 = users.createDocument( {
-			firstName: 'Tony' ,
-			lastName: 'P.'
-		} ) ;
-
-		var id2 = user2._id ;
-
-		var job = jobs.createDocument( {
-			title: 'developer' ,
-			salary: 60000
-		} ) ;
-
-		//console.log( job ) ;
-		var jobId = job.$.id ;
-
 		// Link the documents!
-		user.$.setLink( 'job' , job ) ;
+		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		var fullUrl = attachment.fullUrl ;
+		user.$.setLink( 'file' , attachment ) ;
+		//console.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'joke.txt' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'text/plain'
+		} ) ;
 
 		async.series( [
 			function( callback ) {
-				job.$.save( callback ) ;
+				attachment.save( callback ) ;
 			} ,
 			function( callback ) {
 				user.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				jobs.get( jobId , ( error , job_ ) => {
-					job = job_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Job:' , job ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( job._id ).to.equal( jobId ) ;
-					expect( job ).to.equal( {
-						_id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: []
-					} ) ;
+				// Check that the file exist
+				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throwError() ;
 
+				users.get( id , ( error , user_ ) => {
+					user = user_ ;
+					expect( error ).not.to.be.ok() ;
+					expect( user ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson' ,
+						file: {
+							filename: 'joke.txt' ,
+							id: user.file.id ,	// Unpredictable
+							contentType: 'text/plain'
+						}
+					} ) ;
 					callback() ;
 				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "file" , ( error , file ) => {
+					expect( error ).not.to.be.ok() ;
+					expect( file ).to.equal( {
+						id: user.file.id ,
+						filename: 'joke.txt' ,
+						contentType: 'text/plain' ,
+						collectionName: 'users' ,
+						documentId: user._id.toString() ,
+						incoming: undefined ,
+						baseUrl: file.baseUrl ,
+						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
+					} ) ;
+
+					file.load( ( error , data ) => {
+						expect( error ).not.to.be.ok() ;
+						expect( data.toString() ).to.be( "grigrigredin menufretin\n" ) ;
+						callback() ;
+					} ) ;
+				} ) ;
+			} ,
+			function( callback ) {
+				var details = user.$.getLinkDetails( "file" ) ;
+				expect( details ).to.equal( {
+					type: 'attachment' ,
+					hostPath: 'file' ,
+					schema: {
+						optional: true ,
+						type: 'attachment' ,
+						tier: 3
+					} ,
+					attachment: {
+						id: user.file.id ,
+						filename: 'joke.txt' ,
+						contentType: 'text/plain' ,
+						collectionName: 'users' ,
+						documentId: user._id.toString() ,
+						incoming: undefined ,
+						baseUrl: details.attachment.baseUrl ,
+						fullUrl: details.attachment.baseUrl +
+							details.attachment.documentId.toString() +
+							'/' + details.attachment.id.toString()
+					}
+				} ) ;
+				callback() ;
+			}
+		] )
+			.exec( done ) ;
+	} ) ;
+
+	it( "Alter meta-data of an attachment" , ( done ) => {
+
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user._id ;
+
+		// Link the documents!
+		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		var fullUrl = attachment.fullUrl ;
+		user.$.setLink( 'file' , attachment ) ;
+		//console.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'joke.txt' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'text/plain'
+		} ) ;
+
+		async.series( [
+			function( callback ) {
+				attachment.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				// Check that the file exist
+				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throwError() ;
+
+				users.get( id , ( error , user_ ) => {
+					user = user_ ;
+					expect( error ).not.to.be.ok() ;
+					expect( user ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson' ,
+						file: {
+							filename: 'joke.txt' ,
+							id: user.file.id ,	// Unpredictable
+							contentType: 'text/plain'
+						}
+					} ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.patch( {
+					"file.filename": "lol.txt" ,
+					"file.contentType": "text/joke"
+				} ) ;
+				user.$.save( callback ) ;
 			} ,
 			function( callback ) {
 				users.get( id , ( error , user_ ) => {
 					user = user_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
 					expect( user ).to.equal( {
-						_id: user._id , job: jobId , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
+						_id: user._id ,
+						firstName: 'Jilbert' ,
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson' ,
+						file: {
+							filename: 'lol.txt' ,
+							id: user.file.id ,	// Unpredictable
+							contentType: 'text/joke'
+						}
 					} ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				job.$.getLink( "users" , ( error , users_ ) => {
+				user.$.getLink( "file" , ( error , file ) => {
 					expect( error ).not.to.be.ok() ;
-					expect( users_ ).to.be.an( Array ) ;
-					expect( users_ ).to.have.length( 1 ) ;
-					// Temp
-					expect( users_ ).to.equal( [
-						{
-							_id: users_[ 0 ]._id ,
-							firstName: 'Jilbert' ,
-							lastName: 'Polson' ,
-							memberSid: 'Jilbert Polson' ,
-							job: job._id
+					expect( file ).to.equal( {
+						id: user.file.id ,
+						filename: 'lol.txt' ,
+						contentType: 'text/joke' ,
+						collectionName: 'users' ,
+						documentId: user._id.toString() ,
+						incoming: undefined ,
+						baseUrl: file.baseUrl ,
+						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
+					} ) ;
+
+					file.load( ( error , data ) => {
+						expect( error ).not.to.be.ok() ;
+						expect( data.toString() ).to.be( "grigrigredin menufretin\n" ) ;
+						callback() ;
+					} ) ;
+				} ) ;
+			} ,
+			function( callback ) {
+				// Check that the file exist
+				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throwError() ;
+
+				var details = user.$.getLinkDetails( "file" ) ;
+				expect( details ).to.equal( {
+					type: 'attachment' ,
+					hostPath: 'file' ,
+					schema: {
+						optional: true ,
+						type: 'attachment' ,
+						tier: 3
+					} ,
+					attachment: {
+						id: user.file.id ,
+						filename: 'lol.txt' ,
+						contentType: 'text/joke' ,
+						collectionName: 'users' ,
+						documentId: user._id.toString() ,
+						incoming: undefined ,
+						baseUrl: details.attachment.baseUrl ,
+						fullUrl: details.attachment.baseUrl +
+							details.attachment.documentId.toString() +
+							'/' + details.attachment.id.toString()
+					}
+				} ) ;
+				callback() ;
+			}
+		] )
+			.exec( done ) ;
+	} ) ;
+
+	it( "Replace an attachment" , ( done ) => {
+
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user._id ;
+
+		// Link the documents!
+		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		var fullUrl = attachment.fullUrl ;
+		user.$.setLink( 'file' , attachment ) ;
+		//console.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'joke.txt' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'text/plain'
+		} ) ;
+
+		async.series( [
+			function( callback ) {
+				attachment.save( callback ) ;
+			} ,
+			function( callback ) {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				// Check that the file exist
+				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throwError() ;
+
+				users.get( id , ( error , user_ ) => {
+					user = user_ ;
+					expect( error ).not.to.be.ok() ;
+					expect( user ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson' ,
+						file: {
+							filename: 'joke.txt' ,
+							id: user.file.id ,	// Unpredictable
+							contentType: 'text/plain'
 						}
-					] ) ;
+					} ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				expect( job.$.getLinkDetails( "users" ) ).to.equal( {
-					type: 'backLink' ,
-					foreignCollection: 'users' ,
-					hostPath: 'users' ,
-					foreignPath: 'job' ,
+				user.$.getLink( "file" , ( error , file ) => {
+					expect( error ).not.to.be.ok() ;
+					expect( file ).to.equal( {
+						id: user.file.id ,
+						filename: 'joke.txt' ,
+						contentType: 'text/plain' ,
+						collectionName: 'users' ,
+						documentId: user._id.toString() ,
+						incoming: undefined ,
+						baseUrl: file.baseUrl ,
+						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
+					} ) ;
+
+					file.load( ( error , data ) => {
+						expect( error ).not.to.be.ok() ;
+						expect( data.toString() ).to.be( "grigrigredin menufretin\n" ) ;
+						callback() ;
+					} ) ;
+				} ) ;
+			} ,
+			function( callback ) {
+				var details = user.$.getLinkDetails( "file" ) ;
+				expect( details ).to.equal( {
+					type: 'attachment' ,
+					hostPath: 'file' ,
 					schema: {
-						collection: 'users' ,
-						//optional: true ,
-						type: 'backLink' ,
-						sanitize: [ 'toBackLink' ] ,
-						path: 'job' ,
+						optional: true ,
+						type: 'attachment' ,
 						tier: 3
+					} ,
+					attachment: {
+						id: user.file.id ,
+						filename: 'joke.txt' ,
+						contentType: 'text/plain' ,
+						collectionName: 'users' ,
+						documentId: user._id.toString() ,
+						incoming: undefined ,
+						baseUrl: details.attachment.baseUrl ,
+						fullUrl: details.attachment.baseUrl +
+							details.attachment.documentId.toString() +
+							'/' + details.attachment.id.toString()
 					}
 				} ) ;
 				callback() ;
 			} ,
 			function( callback ) {
-				user2.$.setLink( 'job' , job ) ;
-				user2.$.save( callback ) ;
+				var attachment = user.$.createAttachment(
+					{ filename: 'hello-world.html' , contentType: 'text/html' } ,
+					"<html><head></head><body>Hello world!</body></html>\n"
+				) ;
+
+				user.$.setLink( 'file' , attachment ) ;
+				attachment.save( callback ) ;
 			} ,
 			function( callback ) {
-				job.$.getLink( "users" , ( error , users_ ) => {
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				// Check that the first file has been deleted
+				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).to.throwError() ;
+
+				users.get( id , ( error , user_ ) => {
+					user = user_ ;
 					expect( error ).not.to.be.ok() ;
-					// Temp
-
-					expect( users_ ).to.have.length( 2 ) ;
-
-					//console.error( users_ ) ;
-					if ( users_[ 0 ].firstName === 'Tony' ) {
-						users_ = [ users_[ 1 ] , users_[ 0 ] ] ;
-					}
-
-					expect( users_ ).to.equal( [
-						{
-							_id: users_[ 0 ]._id ,
-							firstName: 'Jilbert' ,
-							lastName: 'Polson' ,
-							memberSid: 'Jilbert Polson' ,
-							job: job._id
-						} ,
-						{
-							_id: users_[ 1 ]._id ,
-							firstName: 'Tony' ,
-							lastName: 'P.' ,
-							memberSid: 'Tony P.' ,
-							job: job._id
+					expect( user ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson' ,
+						file: {
+							filename: 'hello-world.html' ,
+							id: user.file.id ,	// Unpredictable
+							contentType: 'text/html'
 						}
-					] ) ;
+					} ) ;
 					callback() ;
 				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "file" , ( error , file ) => {
+					expect( error ).not.to.be.ok() ;
+					expect( file ).to.equal( {
+						id: user.file.id ,
+						filename: 'hello-world.html' ,
+						contentType: 'text/html' ,
+						collectionName: 'users' ,
+						documentId: user._id.toString() ,
+						incoming: undefined ,
+						baseUrl: file.baseUrl ,
+						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
+					} ) ;
+
+					// Set the new fullUrl
+					fullUrl = file.fullUrl ;
+
+					file.load( ( error , data ) => {
+						expect( error ).not.to.be.ok() ;
+						expect( data.toString() ).to.be( "<html><head></head><body>Hello world!</body></html>\n" ) ;
+						callback() ;
+					} ) ;
+				} ) ;
+			} ,
+			function( callback ) {
+				// Check that the new file exist
+				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throwError() ;
+
+				var details = user.$.getLinkDetails( "file" ) ;
+				expect( details ).to.equal( {
+					type: 'attachment' ,
+					hostPath: 'file' ,
+					schema: {
+						optional: true ,
+						type: 'attachment' ,
+						tier: 3
+					} ,
+					attachment: {
+						id: user.file.id ,
+						filename: 'hello-world.html' ,
+						contentType: 'text/html' ,
+						collectionName: 'users' ,
+						documentId: user._id.toString() ,
+						incoming: undefined ,
+						baseUrl: details.attachment.baseUrl ,
+						fullUrl: details.attachment.baseUrl +
+							details.attachment.documentId.toString() +
+							'/' + details.attachment.id.toString()
+					}
+				} ) ;
+				callback() ;
 			}
 		] )
 			.exec( done ) ;
 	} ) ;
 
-	it( "back-link of multi-link" , ( done ) => {
+	it( "Delete an attachment" , ( done ) => {
 
-		var school1 = schools.createDocument( {
-			title: 'Computer Science'
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
 		} ) ;
 
-		var school1Id = school1._id ;
-
-		var school2 = schools.createDocument( {
-			title: 'Web Academy'
-		} ) ;
-
-		var school2Id = school2._id ;
-
-		var job1 = jobs.createDocument( {
-			title: 'developer' ,
-			salary: 60000
-		} ) ;
-
-		var job1Id = job1.$.id ;
-
-		var job2 = jobs.createDocument( {
-			title: 'sysadmin' ,
-			salary: 55000
-		} ) ;
-
-		var job2Id = job2.$.id ;
-
-		var job3 = jobs.createDocument( {
-			title: 'front-end developer' ,
-			salary: 54000
-		} ) ;
-
-		var job3Id = job3.$.id ;
-
-		var job4 = jobs.createDocument( {
-			title: 'designer' ,
-			salary: 56000
-		} ) ;
-
-		var job4Id = job4.$.id ;
+		var id = user._id ;
 
 		// Link the documents!
-		school1.$.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
-		school2.$.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
+		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		var fullUrl = attachment.fullUrl ;
+		user.$.setLink( 'file' , attachment ) ;
+		//console.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'joke.txt' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'text/plain'
+		} ) ;
 
 		async.series( [
 			function( callback ) {
-				job1.$.save( callback ) ;
+				attachment.save( callback ) ;
 			} ,
 			function( callback ) {
-				job2.$.save( callback ) ;
+				user.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				job3.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job4.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				jobs.get( job1Id , ( error , job ) => {
+				// Check that the file exist
+				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throwError() ;
+
+				users.get( id , ( error , user_ ) => {
+					user = user_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( job._id ).to.equal( job1Id ) ;
-					expect( job ).to.equal( {
-						_id: job1._id ,
-						title: 'developer' ,
-						salary: 60000 ,
-						users: [] ,
-						schools: []
+					expect( user ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson' ,
+						file: {
+							filename: 'joke.txt' ,
+							id: user.file.id ,	// Unpredictable
+							contentType: 'text/plain'
+						}
+					} ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "file" , ( error , file ) => {
+					expect( error ).not.to.be.ok() ;
+					expect( file ).to.equal( {
+						id: user.file.id ,
+						filename: 'joke.txt' ,
+						contentType: 'text/plain' ,
+						collectionName: 'users' ,
+						documentId: user._id.toString() ,
+						incoming: undefined ,
+						baseUrl: file.baseUrl ,
+						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
 					} ) ;
 
-					job.$.getLink( 'schools' , ( error , schools_ ) => {
+					file.load( ( error , data ) => {
 						expect( error ).not.to.be.ok() ;
-						expect( schools_ ).to.have.length( 2 ) ;
-
-						schools_.sort( ( a , b ) => { return b.title - a.title ; } ) ;
-
-						// Order by id
-						schools_[ 0 ].jobs.sort( ( a , b ) => { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
-						schools_[ 1 ].jobs.sort( ( a , b ) => { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
-
-						expect( schools_ ).to.equal( [
-							{
-								_id: school1._id ,
-								title: 'Computer Science' ,
-								jobs: [ job1Id , job2Id , job3Id ]
-							} ,
-							{
-								_id: school2._id ,
-								title: 'Web Academy' ,
-								jobs: [ job1Id , job3Id , job4Id ]
-							}
-						] ) ;
-
+						expect( data.toString() ).to.be( "grigrigredin menufretin\n" ) ;
 						callback() ;
 					} ) ;
 				} ) ;
 			} ,
 			function( callback ) {
-				jobs.get( job4Id , ( error , job ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( job._id ).to.equal( job4Id ) ;
-					expect( job ).to.equal( {
-						_id: job4._id ,
-						title: 'designer' ,
-						salary: 56000 ,
-						users: [] ,
-						schools: []
-					} ) ;
-
-					job.$.getLink( 'schools' , ( error , schools_ ) => {
-						expect( error ).not.to.be.ok() ;
-						expect( schools_ ).to.have.length( 1 ) ;
-
-						// Order by id
-						schools_[ 0 ].jobs.sort( ( a , b ) => { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
-
-						expect( schools_ ).to.equal( [
-							{
-								_id: school2._id ,
-								title: 'Web Academy' ,
-								jobs: [ job1Id , job3Id , job4Id ]
-							}
-						] ) ;
-
-						callback() ;
-					} ) ;
+				var details = user.$.getLinkDetails( "file" ) ;
+				expect( details ).to.equal( {
+					type: 'attachment' ,
+					hostPath: 'file' ,
+					schema: {
+						optional: true ,
+						type: 'attachment' ,
+						tier: 3
+					} ,
+					attachment: {
+						id: user.file.id ,
+						filename: 'joke.txt' ,
+						contentType: 'text/plain' ,
+						collectionName: 'users' ,
+						documentId: user._id.toString() ,
+						incoming: undefined ,
+						baseUrl: details.attachment.baseUrl ,
+						fullUrl: details.attachment.baseUrl +
+							details.attachment.documentId.toString() +
+							'/' + details.attachment.id.toString()
+					}
 				} ) ;
+				callback() ;
+			} ,
+			function( callback ) {
+				user.$.setLink( 'file' , null ) ;
+				user.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				users.get( id , ( error , user_ ) => {
+					user = user_ ;
+					expect( error ).not.to.be.ok() ;
+					expect( user ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson' ,
+						file: null
+					} ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				user.$.getLink( "file" , ( error , file ) => {
+					expect( error ).to.be.ok() ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				var details = user.$.getLinkDetails( "file" ) ;
+				expect( details ).to.equal( {
+					type: 'attachment' ,
+					attachment: null
+				} ) ;
+
+				// Finally, check that the file has been deleted
+				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).to.throwError() ;
+				callback() ;
 			}
 		] )
 			.exec( done ) ;
 	} ) ;
-
-	it( "basic nested back-links" ) ;
 } ) ;
 
 
@@ -3015,557 +3380,6 @@ describe( "Deep populate links" , () => {
 	} ) ;
 
 	it( "more deep population tests" ) ;
-} ) ;
-
-
-
-describe( "Attachment links" , () => {
-
-	beforeEach( clearDB ) ;
-
-	it( "basic attachment (create, attach, save both, retrieve parent, navigate to child)" , ( done ) => {
-
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var id = user._id ;
-
-		// Link the documents!
-		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		var fullUrl = attachment.fullUrl ;
-		user.$.setLink( 'file' , attachment ) ;
-		//console.error( user.file ) ;
-
-		expect( user.file ).to.equal( {
-			filename: 'joke.txt' ,
-			id: user.file.id ,	// Unpredictable
-			contentType: 'text/plain'
-		} ) ;
-
-		async.series( [
-			function( callback ) {
-				attachment.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				// Check that the file exist
-				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throwError() ;
-
-				users.get( id , ( error , user_ ) => {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file: {
-							filename: 'joke.txt' ,
-							id: user.file.id ,	// Unpredictable
-							contentType: 'text/plain'
-						}
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "file" , ( error , file ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( file ).to.equal( {
-						id: user.file.id ,
-						filename: 'joke.txt' ,
-						contentType: 'text/plain' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: file.baseUrl ,
-						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
-					} ) ;
-
-					file.load( ( error , data ) => {
-						expect( error ).not.to.be.ok() ;
-						expect( data.toString() ).to.be( "grigrigredin menufretin\n" ) ;
-						callback() ;
-					} ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.equal( {
-					type: 'attachment' ,
-					hostPath: 'file' ,
-					schema: {
-						optional: true ,
-						type: 'attachment' ,
-						tier: 3
-					} ,
-					attachment: {
-						id: user.file.id ,
-						filename: 'joke.txt' ,
-						contentType: 'text/plain' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: details.attachment.baseUrl ,
-						fullUrl: details.attachment.baseUrl +
-							details.attachment.documentId.toString() +
-							'/' + details.attachment.id.toString()
-					}
-				} ) ;
-				callback() ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-
-	it( "Alter meta-data of an attachment" , ( done ) => {
-
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var id = user._id ;
-
-		// Link the documents!
-		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		var fullUrl = attachment.fullUrl ;
-		user.$.setLink( 'file' , attachment ) ;
-		//console.error( user.file ) ;
-
-		expect( user.file ).to.equal( {
-			filename: 'joke.txt' ,
-			id: user.file.id ,	// Unpredictable
-			contentType: 'text/plain'
-		} ) ;
-
-		async.series( [
-			function( callback ) {
-				attachment.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				// Check that the file exist
-				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throwError() ;
-
-				users.get( id , ( error , user_ ) => {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file: {
-							filename: 'joke.txt' ,
-							id: user.file.id ,	// Unpredictable
-							contentType: 'text/plain'
-						}
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.patch( {
-					"file.filename": "lol.txt" ,
-					"file.contentType": "text/joke"
-				} ) ;
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , user_ ) => {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file: {
-							filename: 'lol.txt' ,
-							id: user.file.id ,	// Unpredictable
-							contentType: 'text/joke'
-						}
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "file" , ( error , file ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( file ).to.equal( {
-						id: user.file.id ,
-						filename: 'lol.txt' ,
-						contentType: 'text/joke' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: file.baseUrl ,
-						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
-					} ) ;
-
-					file.load( ( error , data ) => {
-						expect( error ).not.to.be.ok() ;
-						expect( data.toString() ).to.be( "grigrigredin menufretin\n" ) ;
-						callback() ;
-					} ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				// Check that the file exist
-				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throwError() ;
-
-				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.equal( {
-					type: 'attachment' ,
-					hostPath: 'file' ,
-					schema: {
-						optional: true ,
-						type: 'attachment' ,
-						tier: 3
-					} ,
-					attachment: {
-						id: user.file.id ,
-						filename: 'lol.txt' ,
-						contentType: 'text/joke' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: details.attachment.baseUrl ,
-						fullUrl: details.attachment.baseUrl +
-							details.attachment.documentId.toString() +
-							'/' + details.attachment.id.toString()
-					}
-				} ) ;
-				callback() ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-
-	it( "Replace an attachment" , ( done ) => {
-
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var id = user._id ;
-
-		// Link the documents!
-		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		var fullUrl = attachment.fullUrl ;
-		user.$.setLink( 'file' , attachment ) ;
-		//console.error( user.file ) ;
-
-		expect( user.file ).to.equal( {
-			filename: 'joke.txt' ,
-			id: user.file.id ,	// Unpredictable
-			contentType: 'text/plain'
-		} ) ;
-
-		async.series( [
-			function( callback ) {
-				attachment.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				// Check that the file exist
-				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throwError() ;
-
-				users.get( id , ( error , user_ ) => {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file: {
-							filename: 'joke.txt' ,
-							id: user.file.id ,	// Unpredictable
-							contentType: 'text/plain'
-						}
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "file" , ( error , file ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( file ).to.equal( {
-						id: user.file.id ,
-						filename: 'joke.txt' ,
-						contentType: 'text/plain' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: file.baseUrl ,
-						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
-					} ) ;
-
-					file.load( ( error , data ) => {
-						expect( error ).not.to.be.ok() ;
-						expect( data.toString() ).to.be( "grigrigredin menufretin\n" ) ;
-						callback() ;
-					} ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.equal( {
-					type: 'attachment' ,
-					hostPath: 'file' ,
-					schema: {
-						optional: true ,
-						type: 'attachment' ,
-						tier: 3
-					} ,
-					attachment: {
-						id: user.file.id ,
-						filename: 'joke.txt' ,
-						contentType: 'text/plain' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: details.attachment.baseUrl ,
-						fullUrl: details.attachment.baseUrl +
-							details.attachment.documentId.toString() +
-							'/' + details.attachment.id.toString()
-					}
-				} ) ;
-				callback() ;
-			} ,
-			function( callback ) {
-				var attachment = user.$.createAttachment(
-					{ filename: 'hello-world.html' , contentType: 'text/html' } ,
-					"<html><head></head><body>Hello world!</body></html>\n"
-				) ;
-
-				user.$.setLink( 'file' , attachment ) ;
-				attachment.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				// Check that the first file has been deleted
-				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).to.throwError() ;
-
-				users.get( id , ( error , user_ ) => {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file: {
-							filename: 'hello-world.html' ,
-							id: user.file.id ,	// Unpredictable
-							contentType: 'text/html'
-						}
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "file" , ( error , file ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( file ).to.equal( {
-						id: user.file.id ,
-						filename: 'hello-world.html' ,
-						contentType: 'text/html' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: file.baseUrl ,
-						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
-					} ) ;
-
-					// Set the new fullUrl
-					fullUrl = file.fullUrl ;
-
-					file.load( ( error , data ) => {
-						expect( error ).not.to.be.ok() ;
-						expect( data.toString() ).to.be( "<html><head></head><body>Hello world!</body></html>\n" ) ;
-						callback() ;
-					} ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				// Check that the new file exist
-				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throwError() ;
-
-				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.equal( {
-					type: 'attachment' ,
-					hostPath: 'file' ,
-					schema: {
-						optional: true ,
-						type: 'attachment' ,
-						tier: 3
-					} ,
-					attachment: {
-						id: user.file.id ,
-						filename: 'hello-world.html' ,
-						contentType: 'text/html' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: details.attachment.baseUrl ,
-						fullUrl: details.attachment.baseUrl +
-							details.attachment.documentId.toString() +
-							'/' + details.attachment.id.toString()
-					}
-				} ) ;
-				callback() ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-
-	it( "Delete an attachment" , ( done ) => {
-
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var id = user._id ;
-
-		// Link the documents!
-		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		var fullUrl = attachment.fullUrl ;
-		user.$.setLink( 'file' , attachment ) ;
-		//console.error( user.file ) ;
-
-		expect( user.file ).to.equal( {
-			filename: 'joke.txt' ,
-			id: user.file.id ,	// Unpredictable
-			contentType: 'text/plain'
-		} ) ;
-
-		async.series( [
-			function( callback ) {
-				attachment.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				// Check that the file exist
-				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throwError() ;
-
-				users.get( id , ( error , user_ ) => {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file: {
-							filename: 'joke.txt' ,
-							id: user.file.id ,	// Unpredictable
-							contentType: 'text/plain'
-						}
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "file" , ( error , file ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( file ).to.equal( {
-						id: user.file.id ,
-						filename: 'joke.txt' ,
-						contentType: 'text/plain' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: file.baseUrl ,
-						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
-					} ) ;
-
-					file.load( ( error , data ) => {
-						expect( error ).not.to.be.ok() ;
-						expect( data.toString() ).to.be( "grigrigredin menufretin\n" ) ;
-						callback() ;
-					} ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.equal( {
-					type: 'attachment' ,
-					hostPath: 'file' ,
-					schema: {
-						optional: true ,
-						type: 'attachment' ,
-						tier: 3
-					} ,
-					attachment: {
-						id: user.file.id ,
-						filename: 'joke.txt' ,
-						contentType: 'text/plain' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: details.attachment.baseUrl ,
-						fullUrl: details.attachment.baseUrl +
-							details.attachment.documentId.toString() +
-							'/' + details.attachment.id.toString()
-					}
-				} ) ;
-				callback() ;
-			} ,
-			function( callback ) {
-				user.$.setLink( 'file' , null ) ;
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , user_ ) => {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file: null
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "file" , ( error , file ) => {
-					expect( error ).to.be.ok() ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.equal( {
-					type: 'attachment' ,
-					attachment: null
-				} ) ;
-
-				// Finally, check that the file has been deleted
-				expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).to.throwError() ;
-				callback() ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
 } ) ;
 
 
