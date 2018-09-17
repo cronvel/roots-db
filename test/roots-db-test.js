@@ -54,7 +54,7 @@ var log = logfella.global.use( 'unit-test' ) ;
 var world = new rootsDb.World() ;
 
 // Collections...
-var users , jobs , schools , towns , lockables , extendables ;
+var users , jobs , schools , towns , lockables , nestedLinks , extendables ;
 
 var usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
@@ -181,6 +181,39 @@ var lockablesDescriptor = {
 	indexes: []
 } ;
 
+var nestedLinksDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/nestedLinks' ,
+	properties: {
+		name: { type: 'string' } ,
+		nested: {
+			type: 'strictObject' ,
+			default: {} ,
+			properties: {
+				link: {
+					type: 'link' ,
+					optional: true ,
+					collection: 'nestedLinks'
+				} ,
+				multiLink: {
+					type: 'multiLink' ,
+					collection: 'nestedLinks'
+				} ,
+				backLinkOfLink: {
+					type: 'backLink' ,
+					collection: 'nestedLinks' ,
+					path: 'nested.link'
+				} ,
+				backLinkOfMultiLink: {
+					type: 'backLink' ,
+					collection: 'nestedLinks' ,
+					path: 'nested.multiLink'
+				}
+			}
+		}
+	} ,
+	indexes: []
+} ;
+
 
 
 function Extended( collection , rawDoc , options ) {
@@ -234,6 +267,7 @@ function clearDB() {
 		clearCollection( schools ) ,
 		clearCollection( towns ) ,
 		clearCollection( lockables ) ,
+		clearCollection( nestedLinks ) ,
 		clearCollection( extendables )
 	] ) ;
 }
@@ -248,6 +282,7 @@ function clearDBIndexes() {
 		clearCollectionIndexes( schools ) ,
 		clearCollectionIndexes( towns ) ,
 		clearCollectionIndexes( lockables ) ,
+		clearCollectionIndexes( nestedLinks ) ,
 		clearCollectionIndexes( extendables )
 	] ).then( () => { log.verbose( "All indexes cleared" ) ; } ) ;
 }
@@ -288,6 +323,9 @@ before( () => {
 
 	lockables = world.createCollection( 'lockables' , lockablesDescriptor ) ;
 	expect( lockables ).to.be.a( rootsDb.Collection ) ;
+
+	nestedLinks = world.createCollection( 'nestedLinks' , nestedLinksDescriptor ) ;
+	expect( nestedLinks ).to.be.a( rootsDb.Collection ) ;
 
 	extendables = world.createCollection( 'extendables' , extendablesDescriptor ) ;
 	expect( extendables ).to.be.a( rootsDb.Collection ) ;
@@ -1438,7 +1476,7 @@ describe( "Links" , () => {
 		} ) ;
 	} ) ;
 
-	it( "should retrieve an active deep links" , async () => {
+	it( "should retrieve an active deep (nested) link" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -1593,7 +1631,7 @@ describe( "Multi-links" , () => {
 		expect( school.jobs ).to.equal( [ job1Id , job2Id ] ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
-		expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ job1Id , job2Id ] } ) ;
+		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ job1Id , job2Id ] } ) ;
 		
 		batch = await school.getLink( "jobs" ) ;
 
@@ -1639,7 +1677,75 @@ describe( "Multi-links" , () => {
 		} ) ;
 	} ) ;
 
-	it( "nested multi-links" ) ;
+	it( "should create, save, retrieve, add and remove deep (nested) multi-links" , async () => {
+		var map , batch ;
+
+		var rootDoc = nestedLinks.createDocument( { name: 'root' } ) ;
+		var id = rootDoc.getId() ;
+
+		var childDoc1 = nestedLinks.createDocument( { name: 'child1' } ) ;
+		var childDoc2 = nestedLinks.createDocument( { name: 'child2' } ) ;
+		var childDoc3 = nestedLinks.createDocument( { name: 'child3' } ) ;
+		
+		// First test
+
+		rootDoc.setLink( 'nested.multiLink' , [ childDoc1 , childDoc2 ] ) ;
+		expect( rootDoc.nested.multiLink ).to.equal( [ childDoc1.getId() , childDoc2.getId() ] ) ;
+
+		await Promise.all( [ rootDoc.save() , childDoc1.save() , childDoc2.save() , childDoc3.save() ] ) ;
+		await expect( nestedLinks.get( id ) ).to.eventually.equal( {
+			_id: id ,
+			name: 'root' ,
+			nested: {
+				backLinkOfLink: [] ,
+				backLinkOfMultiLink: [] ,
+				multiLink: [ childDoc1.getId() , childDoc2.getId() ]
+			}
+		} ) ;
+		
+		batch = await rootDoc.getLink( "nested.multiLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: {} } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: {} }
+		} ) ;
+		
+		// Second test
+		
+		rootDoc.addLink( 'nested.multiLink' , childDoc3 ) ;
+		expect( rootDoc.nested.multiLink ).to.equal( [ childDoc1.getId() , childDoc2.getId() , childDoc3.getId() ] ) ;
+		await rootDoc.save() ;
+
+		batch = await rootDoc.getLink( "nested.multiLink" ) ;
+		
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: {} } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: {} } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: {} }
+		} ) ;
+		
+		// Third test
+		
+		rootDoc.removeLink( 'nested.multiLink' , childDoc2 ) ;
+		expect( rootDoc.nested.multiLink ).to.equal( [ childDoc1.getId() , childDoc3.getId() ] ) ;
+		await rootDoc.save() ;
+		
+		batch = await rootDoc.getLink( "nested.multiLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: {} } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: {} }
+		} ) ;
+	} ) ;
 } ) ;
 
 
@@ -1800,7 +1906,151 @@ describe( "Back-links" , () => {
 		] ) ;
 	} ) ;
 
-	it( "nested back-links" ) ;
+	it( "deep (nested) back-link of single link" , async () => {
+		var map , batch ;
+		
+		var rootDoc = nestedLinks.createDocument( { name: 'root' } ) ;
+		var id = rootDoc.getId() ;
+
+		expect( rootDoc.getLinkDetails( "nested.backLinkOfLink" ) ).to.equal( {
+			type: 'backLink' ,
+			foreignCollection: 'nestedLinks' ,
+			hostPath: 'nested.backLinkOfLink' ,
+			foreignPath: 'nested.link' ,
+			schema: {
+				collection: 'nestedLinks' ,
+				type: 'backLink' ,
+				sanitize: [ 'toBackLink' ] ,
+				path: 'nested.link' ,
+				tier: 3
+			}
+		} ) ;
+
+		var childDoc1 = nestedLinks.createDocument( { name: 'child1' } ) ;
+		var childDoc2 = nestedLinks.createDocument( { name: 'child2' } ) ;
+		var childDoc3 = nestedLinks.createDocument( { name: 'child3' } ) ;
+		
+		// First test
+
+		childDoc1.setLink( 'nested.link' , rootDoc ) ;
+		childDoc2.setLink( 'nested.link' , rootDoc ) ;
+
+		await Promise.all( [ rootDoc.save() , childDoc1.save() , childDoc2.save() , childDoc3.save() ] ) ;
+		batch = await rootDoc.getLink( "nested.backLinkOfLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } }
+		} ) ;
+		
+		// Second test
+		
+		childDoc3.setLink( 'nested.link' , rootDoc ) ;
+		await childDoc3.save() ;
+		batch = await rootDoc.getLink( "nested.backLinkOfLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } }
+		} ) ;
+		
+		// Third test
+		
+		childDoc2.removeLink( 'nested.link' ) ;
+		await childDoc2.save() ;
+		batch = await rootDoc.getLink( "nested.backLinkOfLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } }
+		} ) ;
+	} ) ;
+
+	// This test is not fully written
+	it( "deep (nested) back-link of multi-link" , async () => {
+		var map , batch ;
+		
+		var rootDoc = nestedLinks.createDocument( { name: 'root' } ) ;
+		var id = rootDoc.getId() ;
+
+		expect( rootDoc.getLinkDetails( "nested.backLinkOfMultiLink" ) ).to.equal( {
+			type: 'backLink' ,
+			foreignCollection: 'nestedLinks' ,
+			hostPath: 'nested.backLinkOfMultiLink' ,
+			foreignPath: 'nested.multiLink' ,
+			schema: {
+				collection: 'nestedLinks' ,
+				type: 'backLink' ,
+				sanitize: [ 'toBackLink' ] ,
+				path: 'nested.multiLink' ,
+				tier: 3
+			}
+		} ) ;
+
+		var otherDoc1 = nestedLinks.createDocument( { name: 'otherDoc1' } ) ;
+		var otherDoc2 = nestedLinks.createDocument( { name: 'otherDoc2' } ) ;
+		
+		var childDoc1 = nestedLinks.createDocument( { name: 'child1' } ) ;
+		var childDoc2 = nestedLinks.createDocument( { name: 'child2' } ) ;
+		var childDoc3 = nestedLinks.createDocument( { name: 'child3' } ) ;
+		var childDoc4 = nestedLinks.createDocument( { name: 'child4' } ) ;
+		
+		// First test
+
+		childDoc1.setLink( 'nested.multiLink' , [ rootDoc ] ) ;
+		childDoc2.setLink( 'nested.multiLink' , [ rootDoc , otherDoc1 , otherDoc2 ] ) ;
+		childDoc3.setLink( 'nested.multiLink' , [ otherDoc1 , otherDoc2 ] ) ;
+
+		await Promise.all( [ rootDoc.save() , otherDoc1.save() , otherDoc2.save() , childDoc1.save() , childDoc2.save() , childDoc3.save() , childDoc4.save() ] ) ;
+		batch = await rootDoc.getLink( "nested.backLinkOfMultiLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() ] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() , otherDoc1.getId() , otherDoc2.getId() ] } }
+		} ) ;
+		
+		// Second test
+		
+		childDoc3.addLink( 'nested.multiLink' , rootDoc ) ;
+		await childDoc3.save() ;
+		batch = await rootDoc.getLink( "nested.backLinkOfMultiLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() ] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() , otherDoc1.getId() , otherDoc2.getId() ] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ otherDoc1.getId() , otherDoc2.getId() , rootDoc.getId() ] } }
+		} ) ;
+		
+		// Third test
+		
+		childDoc2.removeLink( 'nested.multiLink' , rootDoc ) ;
+		await childDoc2.save() ;
+		batch = await rootDoc.getLink( "nested.backLinkOfMultiLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() ] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ otherDoc1.getId() , otherDoc2.getId() , rootDoc.getId() ] } }
+		} ) ;
+	} ) ;
 } ) ;
 
 return ;
