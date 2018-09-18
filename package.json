@@ -10,22 +10,22 @@
     "test": "test"
   },
   "dependencies": {
-    "doormen": "^0.7.22",
+    "doormen": "^0.7.25",
     "error-status": "^1.9.2",
     "fs-kit": "^0.3.0",
     "hash-kit": "^0.3.2",
     "logfella": "^1.0.8",
-    "mongodb": "^3.1.3",
+    "mongodb": "^3.1.6",
     "nested-proxies": "^0.1.4",
-    "seventh": "^0.7.15",
+    "seventh": "^0.7.17",
     "tree-kit": "^0.6.0"
   },
   "devDependencies": {
     "async-kit": "^2.2.3",
     "expect.js": "^0.3.1",
     "minimist": "^1.2.0",
-    "stream-kit": "^0.2.5",
-    "string-kit": "^0.6.3"
+    "stream-kit": "^0.2.7",
+    "string-kit": "^0.8.12"
   },
   "scripts": {
     "test": "tea-time -R dot"

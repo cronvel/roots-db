@@ -230,10 +230,10 @@ const nestedLinksDescriptor = {
 
 
 function Extended( collection , rawDoc , options ) {
-	rootsDb.DocumentWrapper.call( this , collection , rawDoc , options ) ;
+	rootsDb.Document.call( this , collection , rawDoc , options ) ;
 }
 
-Extended.prototype = Object.create( rootsDb.DocumentWrapper.prototype ) ;
+Extended.prototype = Object.create( rootsDb.Document.prototype ) ;
 Extended.prototype.constructor = Extended ;
 
 Extended.prototype.getNormalized = function() {
@@ -241,10 +241,10 @@ Extended.prototype.getNormalized = function() {
 } ;
 
 function ExtendedBatch( collection , rawDoc , options ) {
-	rootsDb.BatchWrapper.call( this , collection , rawDoc , options ) ;
+	rootsDb.Batch.call( this , collection , rawDoc , options ) ;
 }
 
-ExtendedBatch.prototype = Object.create( rootsDb.BatchWrapper.prototype ) ;
+ExtendedBatch.prototype = Object.create( rootsDb.Batch.prototype ) ;
 ExtendedBatch.prototype.constructor = ExtendedBatch ;
 
 ExtendedBatch.prototype.concat = function() {
@@ -257,8 +257,8 @@ ExtendedBatch.prototype.concat = function() {
 
 const extendablesDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/extendables' ,
-	DocumentWrapper: Extended ,
-	BatchWrapper: ExtendedBatch ,
+	Document: Extended ,
+	Batch: ExtendedBatch ,
 	properties: {
 		data: { type: 'string' }
 	} ,
@@ -2333,14 +2333,14 @@ describe( "Attachment links" , () => {
 		expect( () => dbUser.getAttachment( 'file' ) ).to.throw( ErrorStatus , { type: 'notFound' } ) ;
 	} ) ;
 	
-	it( "should create, save and replace attachments as streams" , async () => {
+	it( "should create, save and replace attachments as stream, and load as stream" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
 
 		var id = user.getId() ;
-		var stream = new streamKit.FakeReadable( { timeout: 100 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt(0) } ) ;
+		var stream = new streamKit.FakeReadable( { timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt(0) } ) ;
 		
 		var attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
 		var fullUrl = attachment.fullUrl ;
@@ -2386,8 +2386,7 @@ describe( "Attachment links" , () => {
 		
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
 
-		
-		stream = new streamKit.FakeReadable( { timeout: 100 , chunkSize: 10 , chunkCount: 3 , filler: 'b'.charCodeAt(0) } ) ;
+		stream = new streamKit.FakeReadable( { timeout: 50 , chunkSize: 10 , chunkCount: 3 , filler: 'b'.charCodeAt(0) } ) ;
 		var attachment2 = user.createAttachment( { filename: 'more-random.bin' , contentType: 'bin/random' } , stream ) ;
 
 		await dbUser.setAttachment( 'file' , attachment2 ) ;
@@ -2430,6 +2429,14 @@ describe( "Attachment links" , () => {
 		
 		// Check that the file exists
 		expect( () => { fs.accessSync( dbAttachment.fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+		
+		// Now load as a stream
+		var readStream = await dbAttachment.getReadStream() ;
+		var fakeWritable = new streamKit.FakeWritable() ;
+		readStream.pipe( fakeWritable ) ;
+		await Promise.onceEvent( fakeWritable , "finish" ) ;
+		
+		expect( fakeWritable.get().toString() ).to.be( 'b'.repeat( 30 ) ) ;
 	} ) ;
 	
 	it( "should .save() a document with the 'attachmentStreams' option" , async () => {
@@ -2463,7 +2470,7 @@ describe( "Attachment links" , () => {
 			) ;
 		} , 200 ) ;
 		
-		attachmentStreams.end() ;
+		setTimeout( () => attachmentStreams.end() , 300 ) ;
 		
 		await user.save( { attachmentStreams: attachmentStreams } ) ;
 		
@@ -2477,6 +2484,16 @@ describe( "Attachment links" , () => {
 				filename: 'random.bin' ,
 				id: dbUser.file.id ,	// Unpredictable
 				contentType: 'bin/random'
+			} ,
+			avatar: {
+				filename: 'face.jpg' ,
+				id: dbUser.avatar.id ,	// Unpredictable
+				contentType: 'image/jpeg'
+			} ,
+			publicKey: {
+				filename: 'rsa.pub' ,
+				id: dbUser.publicKey.id ,	// Unpredictable
+				contentType: 'application/x-pem-file'
 			}
 		} ) ;
 		
@@ -2488,8 +2505,6 @@ describe( "Attachment links" , () => {
 		
 		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
 
-// ----------------------------------- only the first attachment is saved ! --------------------------------------------------------------
-		
 		var avatarAttachment = dbUser.getAttachment( 'avatar' ) ;
 
 		expect( avatarAttachment ).to.be.partially.like( {
@@ -2507,9 +2522,120 @@ describe( "Attachment links" , () => {
 		
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
 	} ) ;
-	
-	it( "AttachmentStreams objects" ) ;
 } ) ;
+
+
+
+describe( "Locks" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should lock a document (create, save, lock, retrieve, lock, retrieve)" , async () => {
+		var lockable = lockables.createDocument( { data: 'something' } ) ,
+			id = lockable.getId() ,
+			dbLockable , lockId ;
+		
+		await lockable.save() ;
+		await expect( lockables.get( id ) ).to.eventually.equal( {
+			_id: id , data: 'something' , _lockedBy: null , _lockedAt: null
+		} ) ;
+		
+		lockId = await lockable.lock() ;
+		expect( lockId ).to.be.an( mongodb.ObjectID ) ;
+		expect( lockable._.meta.lockId ).to.be.an( mongodb.ObjectID ) ;
+		expect( lockable._.meta.lockId ).to.be( lockId ) ;
+		
+		dbLockable = await lockables.get( id ) ;
+		expect( dbLockable ).to.equal( {
+			_id: id , data: 'something' , _lockedBy: lockId , _lockedAt: dbLockable._lockedAt
+		} ) ;
+		expect( dbLockable._lockedAt ).to.be.a( Date ) ;
+		
+		await expect( lockable.lock() ).to.eventually.be( null ) ;
+		await expect( lockable.unlock() ).to.eventually.be( true ) ;
+		await expect( lockable.lock() ).to.eventually.be.a( mongodb.ObjectID ) ;
+	} ) ;
+	return ;
+	
+	it( "should perform a 'lockRetrieveRelease': lock, retrieve locked document, then release locks" , ( done ) => {
+
+		var lockId ;
+
+		var docs = [
+			lockables.createDocument( { data: 'one' } ) ,
+			lockables.createDocument( { data: 'two' } ) ,
+			lockables.createDocument( { data: 'three' } ) ,
+			lockables.createDocument( { data: 'four' } ) ,
+			lockables.createDocument( { data: 'five' } ) ,
+			lockables.createDocument( { data: 'six' } )
+		] ;
+
+		var mapper = function( element ) {
+			return element.data ;
+		} ;
+
+		async.series( [
+			function( callback ) {
+				rootsDb.bulk( 'save' , docs , callback ) ;
+			} ,
+			function( callback ) {
+				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' ] } } , ( error , batch ) => {
+					expect( error ).not.to.be.ok() ;
+					//console.log( batch ) ;
+					expect( batch ).to.have.length( 2 ) ;
+					var keys = batch.map( mapper ) ;
+					expect( keys ).to.contain( 'one' ) ;
+					expect( keys ).to.contain( 'two' ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( error , batch ) => {
+					expect( error ).not.to.be.ok() ;
+					//console.log( batch ) ;
+					expect( batch ).to.have.length( 1 ) ;
+					expect( batch[ 0 ].data ).to.be( 'three' ) ;
+					callback() ;
+				} ) ;
+			} ,
+			function( callback ) {
+				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( error , batch ) => {
+					expect( error ).not.to.be.ok() ;
+					//console.log( batch ) ;
+					expect( batch ).to.have.length( 0 ) ;
+					setTimeout( callback , 50 ) ;
+				} ) ;
+			} ,
+			function( callback ) {
+				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( error , batch , releaseFn ) => {
+					expect( error ).not.to.be.ok() ;
+					//console.log( batch ) ;
+					expect( batch ).to.have.length( 3 ) ;
+					var keys = batch.map( mapper ) ;
+					expect( keys ).to.contain( 'one' ) ;
+					expect( keys ).to.contain( 'two' ) ;
+					expect( keys ).to.contain( 'three' ) ;
+					releaseFn().callback( callback ) ;
+				} ) ;
+			} ,
+			function( callback ) {
+				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( error , batch , releaseFn ) => {
+					expect( error ).not.to.be.ok() ;
+					//console.log( batch ) ;
+					expect( batch.length ).to.be( 3 ) ;
+					var keys = batch.map( mapper ) ;
+					expect( keys ).to.contain( 'one' ) ;
+					expect( keys ).to.contain( 'two' ) ;
+					expect( keys ).to.contain( 'three' ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+			.exec( done ) ;
+	} ) ;
+} ) ;
+
+
 
 return ;
 
@@ -2556,7 +2682,7 @@ describe( "Populate links" , () => {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user.$ ).to.be.an( rootsDb.Document ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( user._id ).to.equal( id ) ;
 					expect( user ).to.equal( {
@@ -2615,7 +2741,7 @@ describe( "Populate links" , () => {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user.$ ).to.be.an( rootsDb.Document ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( user._id ).to.equal( id ) ;
 					expect( user ).to.equal( {
@@ -2672,7 +2798,7 @@ describe( "Populate links" , () => {
 			function( callback ) {
 				options = { populate: [ 'connection.A' , 'connection.B' , 'connection.C' ] } ;
 				users.get( id , options , ( error , user ) => {
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user.$ ).to.be.an( rootsDb.Document ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( user._id ).to.equal( id ) ;
 					expect( user.connection.A ).to.be( user.connection.B ) ;
@@ -3113,7 +3239,7 @@ describe( "Populate links" , () => {
 					school = school_ ;
 					//console.log( '>>>>>>>>>>>\nSchool:' , school ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( school.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( school.$ ).to.be.an( rootsDb.Document ) ;
 					expect( school._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( school._id ).to.equal( school1Id ) ;
 					expect( school ).to.equal( {
@@ -3562,7 +3688,7 @@ describe( "Caching with the memory model" , () => {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user.$ ).to.be.an( rootsDb.Document ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
 					expect( user ).to.equal( { _id: rawUser._id , firstName: 'John' , lastName: 'McGregor' } ) ;
 					callback() ;
@@ -3611,7 +3737,7 @@ describe( "Caching with the memory model" , () => {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'Batch:' , batch ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
+					expect( batch.$ ).to.be.a( rootsDb.Batch ) ;
 
 					batch.sort( ( a , b ) => {
 						return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
@@ -3690,7 +3816,7 @@ describe( "Caching with the memory model" , () => {
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'Batch:' , batch ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
+					expect( batch.$ ).to.be.a( rootsDb.Batch ) ;
 
 					batch.sort( ( a , b ) => {
 						return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
@@ -3726,150 +3852,7 @@ describe( "Caching with the memory model" , () => {
 
 
 
-describe( "Locks" , () => {
-
-	beforeEach( clearDB ) ;
-
-	it( "should lock a document (create, save, lock, retrieve, lock, retrieve)" , ( done ) => {
-
-		var lockable = lockables.createDocument( {
-			data: 'something'
-		} ) ;
-
-		var id = lockable._id ;
-		var lockId ;
-
-		async.series( [
-			function( callback ) {
-				lockable.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				lockables.get( id , ( error , lockable ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( lockable ).to.equal( {
-						_id: lockable._id , data: 'something' , _lockedBy: null , _lockedAt: null
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockable.$.lock( ( error , lockId_ ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( lockId_ ).to.be.an( mongodb.ObjectID ) ;
-					lockId = lockId_ ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.get( id , ( error , lockable ) => {
-					expect( error ).not.to.be.ok() ;
-					//log.warning( 'lockable: %J' , lockable ) ;
-					expect( lockable._lockedBy ).to.equal( lockId ) ;
-					expect( lockable._lockedAt ).to.be.ok() ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockable.$.lock( ( error , lockId_ ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( lockId_ ).not.to.be.ok() ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.get( id , ( error , lockable ) => {
-					expect( error ).not.to.be.ok() ;
-					//log.warning( 'lockable: %J' , lockable ) ;
-					expect( lockable._lockedBy ).to.equal( lockId ) ;
-					expect( lockable._lockedAt ).to.be.ok() ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-
-	it( "should perform a 'lockRetrieveRelease': lock, retrieve locked document, then release locks" , ( done ) => {
-
-		var lockId ;
-
-		var docs = [
-			lockables.createDocument( { data: 'one' } ) ,
-			lockables.createDocument( { data: 'two' } ) ,
-			lockables.createDocument( { data: 'three' } ) ,
-			lockables.createDocument( { data: 'four' } ) ,
-			lockables.createDocument( { data: 'five' } ) ,
-			lockables.createDocument( { data: 'six' } )
-		] ;
-
-		var mapper = function( element ) {
-			return element.data ;
-		} ;
-
-		async.series( [
-			function( callback ) {
-				rootsDb.bulk( 'save' , docs , callback ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' ] } } , ( error , batch ) => {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch ).to.have.length( 2 ) ;
-					var keys = batch.map( mapper ) ;
-					expect( keys ).to.contain( 'one' ) ;
-					expect( keys ).to.contain( 'two' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( error , batch ) => {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch ).to.have.length( 1 ) ;
-					expect( batch[ 0 ].data ).to.be( 'three' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( error , batch ) => {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch ).to.have.length( 0 ) ;
-					setTimeout( callback , 50 ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( error , batch , releaseFn ) => {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch ).to.have.length( 3 ) ;
-					var keys = batch.map( mapper ) ;
-					expect( keys ).to.contain( 'one' ) ;
-					expect( keys ).to.contain( 'two' ) ;
-					expect( keys ).to.contain( 'three' ) ;
-					releaseFn().callback( callback ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( error , batch , releaseFn ) => {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch.length ).to.be( 3 ) ;
-					var keys = batch.map( mapper ) ;
-					expect( keys ).to.contain( 'one' ) ;
-					expect( keys ).to.contain( 'two' ) ;
-					expect( keys ).to.contain( 'three' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-} ) ;
-
-
-
-describe( "Extended DocumentWrapper" , () => {
+describe( "Extended Document" , () => {
 
 	beforeEach( clearDB ) ;
 
@@ -3879,7 +3862,7 @@ describe( "Extended DocumentWrapper" , () => {
 			data: 'sOmeDaTa'
 		} ) ;
 
-		expect( ext.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+		expect( ext.$ ).to.be.an( rootsDb.Document ) ;
 		expect( ext.$ ).to.be.an( Extended ) ;
 
 		expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
@@ -3893,7 +3876,7 @@ describe( "Extended DocumentWrapper" , () => {
 			function( callback ) {
 				extendables.get( id , ( error , ext ) => {
 					expect( error ).not.to.be.ok() ;
-					expect( ext.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( ext.$ ).to.be.an( rootsDb.Document ) ;
 					expect( ext.$ ).to.be.an( Extended ) ;
 					expect( ext ).to.equal( { _id: ext._id , data: 'sOmeDaTa' } ) ;
 					expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
@@ -3923,7 +3906,7 @@ describe( "Extended DocumentWrapper" , () => {
 			function( callback ) {
 				extendables.collect( {} , ( error , exts ) => {
 					expect( error ).not.to.be.ok() ;
-					expect( exts.$ ).to.be.an( rootsDb.BatchWrapper ) ;
+					expect( exts.$ ).to.be.an( rootsDb.Batch ) ;
 					expect( exts.$ ).to.be.an( ExtendedBatch ) ;
 					expect( exts.$.concat() ).to.be( 'oNetwOTHRee' ) ;
 					callback() ;
