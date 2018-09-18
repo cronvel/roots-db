@@ -30,34 +30,36 @@
 
 
 
-var rootsDb = require( '..' ) ;
-var util = require( 'util' ) ;
-var mongodb = require( 'mongodb' ) ;
-var fs = require( 'fs' ) ;
+const rootsDb = require( '..' ) ;
+const util = require( 'util' ) ;
+const mongodb = require( 'mongodb' ) ;
+const fs = require( 'fs' ) ;
 
-var hash = require( 'hash-kit' ) ;
-var string = require( 'string-kit' ) ;
-var tree = require( 'tree-kit' ) ;
-var streamKit = require( 'stream-kit' ) ;
+const hash = require( 'hash-kit' ) ;
+const string = require( 'string-kit' ) ;
+const tree = require( 'tree-kit' ) ;
+const streamKit = require( 'stream-kit' ) ;
 
-var Promise = require( 'seventh' ) ;
+const Promise = require( 'seventh' ) ;
 
-var ErrorStatus = require( 'error-status' ) ;
-var doormen = require( 'doormen' ) ;
+const ErrorStatus = require( 'error-status' ) ;
+ErrorStatus.alwaysCapture = true ;
 
-var logfella = require( 'logfella' ) ;
+const doormen = require( 'doormen' ) ;
+
+const logfella = require( 'logfella' ) ;
 logfella.global.setGlobalConfig( { minLevel: process.argv.includes( '--debug' ) ? 'debug' : 'warning' } ) ;
-var log = logfella.global.use( 'unit-test' ) ;
+const log = logfella.global.use( 'unit-test' ) ;
 
 
 
 // Create the world...
-var world = new rootsDb.World() ;
+const world = new rootsDb.World() ;
 
 // Collections...
 var users , jobs , schools , towns , lockables , nestedLinks , extendables ;
 
-var usersDescriptor = {
+const usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
 	attachmentUrl: __dirname + '/tmp/' ,
 	properties: {
@@ -79,11 +81,6 @@ var usersDescriptor = {
 			collection: 'users' ,
 			tier: 3
 		} ,
-		file: {
-			type: 'attachment' ,
-			optional: true ,
-			tier: 3
-		} ,
 		connection: {
 			type: 'strictObject' ,
 			optional: true ,
@@ -101,6 +98,21 @@ var usersDescriptor = {
 			type: 'string' ,
 			maxLength: 30 ,
 			tier: 2
+		} ,
+		avatar: {
+			type: 'attachment' ,
+			optional: true ,
+			tier: 3
+		} ,
+		publicKey: {
+			type: 'attachment' ,
+			optional: true ,
+			tier: 3
+		} ,
+		file: {
+			type: 'attachment' ,
+			optional: true ,
+			tier: 3
 		}
 	} ,
 	indexes: [
@@ -117,9 +129,9 @@ var usersDescriptor = {
 	}
 } ;
 
-var expectedDefaultUser = { firstName: 'Joe' , lastName: 'Doe' , memberSid: 'Joe Doe' } ;
+const expectedDefaultUser = { firstName: 'Joe' , lastName: 'Doe' , memberSid: 'Joe Doe' } ;
 
-var jobsDescriptor = {
+const jobsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/jobs' ,
 	properties: {
 		title: {
@@ -137,7 +149,7 @@ var jobsDescriptor = {
 	}
 } ;
 
-var schoolsDescriptor = {
+const schoolsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/schools' ,
 	properties: {
 		title: {
@@ -151,7 +163,7 @@ var schoolsDescriptor = {
 	}
 } ;
 
-var townsDescriptor = {
+const townsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/towns' ,
 	properties: {
 		name: { type: 'string' } ,
@@ -172,7 +184,7 @@ var townsDescriptor = {
 	]
 } ;
 
-var lockablesDescriptor = {
+const lockablesDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/lockables' ,
 	canLock: true ,
 	lockTimeout: 40 ,
@@ -182,7 +194,7 @@ var lockablesDescriptor = {
 	indexes: []
 } ;
 
-var nestedLinksDescriptor = {
+const nestedLinksDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/nestedLinks' ,
 	properties: {
 		name: { type: 'string' } ,
@@ -243,7 +255,7 @@ ExtendedBatch.prototype.concat = function() {
 
 
 
-var extendablesDescriptor = {
+const extendablesDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/extendables' ,
 	DocumentWrapper: Extended ,
 	BatchWrapper: ExtendedBatch ,
@@ -341,16 +353,16 @@ describe( "Collection" , () => {
 			{} ,
 			{ _id: true } ,
 			{
-				firstName: true , lastName: true , memberSid: true , _id: true
+				_id: true , firstName: true , lastName: true , memberSid: true
 			} ,
 			{
-				firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , _id: true
+				_id: true , avatar: true , firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , publicKey: true
 			} ,
 			{
-				firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , _id: true
+				_id: true , avatar: true , firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , publicKey: true
 			} ,
 			{
-				firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , _id: true
+				_id: true , avatar: true , firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , publicKey: true
 			}
 		] ) ;
 	} ) ;
@@ -2418,6 +2430,82 @@ describe( "Attachment links" , () => {
 		
 		// Check that the file exists
 		expect( () => { fs.accessSync( dbAttachment.fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+	} ) ;
+	
+	it( "should .save() a document with the 'attachmentStreams' option" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+		var attachmentStreams = new rootsDb.AttachmentStreams() ;
+		
+		attachmentStreams.addStream(
+			new streamKit.FakeReadable( { timeout: 20 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt(0) } ) ,
+			'file' ,
+			{ filename: 'random.bin' , contentType: 'bin/random' }
+		) ;
+		
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( { timeout: 20 , chunkSize: 7 , chunkCount: 4 , filler: 'b'.charCodeAt(0) } ) ,
+				'avatar' ,
+				{ filename: 'face.jpg' , contentType: 'image/jpeg' }
+			) ;
+		} , 100 ) ;
+
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( { timeout: 20 , chunkSize: 7 , chunkCount: 3 , filler: 'c'.charCodeAt(0) } ) ,
+				'publicKey' ,
+				{ filename: 'rsa.pub' , contentType: 'application/x-pem-file' }
+			) ;
+		} , 200 ) ;
+		
+		attachmentStreams.end() ;
+		
+		await user.save( { attachmentStreams: attachmentStreams } ) ;
+		
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'random.bin' ,
+				id: dbUser.file.id ,	// Unpredictable
+				contentType: 'bin/random'
+			}
+		} ) ;
+		
+		var fileAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( fileAttachment ).to.be.partially.like( {
+			filename: 'random.bin' ,
+			contentType: 'bin/random' ,
+		} ) ;
+		
+		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
+
+// ----------------------------------- only the first attachment is saved ! --------------------------------------------------------------
+		
+		var avatarAttachment = dbUser.getAttachment( 'avatar' ) ;
+
+		expect( avatarAttachment ).to.be.partially.like( {
+			filename: 'face.jpg' ,
+			contentType: 'image/jpeg' ,
+		} ) ;
+		
+		await expect( avatarAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
+
+		var publicKeyAttachment = dbUser.getAttachment( 'publicKey' ) ;
+		expect( publicKeyAttachment ).to.be.partially.like( {
+			filename: 'rsa.pub' ,
+			contentType: 'application/x-pem-file' ,
+		} ) ;
+		
+		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
 	} ) ;
 	
 	it( "AttachmentStreams objects" ) ;
