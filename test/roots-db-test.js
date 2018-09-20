@@ -2555,34 +2555,32 @@ describe( "Locks" , () => {
 		await expect( lockable.unlock() ).to.eventually.be( true ) ;
 		await expect( lockable.lock() ).to.eventually.be.a( mongodb.ObjectID ) ;
 	} ) ;
-	return ;
 	
-	it( "should perform a 'lockRetrieveRelease': lock, retrieve locked document, then release locks" , ( done ) => {
-
+	it( "should perform a .lockedPartialFind(): lock, retrieve locked document, then release locks" , async () => {
 		var lockId ;
 
-		var docs = [
-			lockables.createDocument( { data: 'one' } ) ,
-			lockables.createDocument( { data: 'two' } ) ,
-			lockables.createDocument( { data: 'three' } ) ,
-			lockables.createDocument( { data: 'four' } ) ,
-			lockables.createDocument( { data: 'five' } ) ,
-			lockables.createDocument( { data: 'six' } )
-		] ;
+		var batch = lockables.createBatch( [
+			{ data: 'one' } ,
+			{ data: 'two' } ,
+			{ data: 'three' } ,
+			{ data: 'four' } ,
+			{ data: 'five' } ,
+			{ data: 'six' }
+		] ) ;
+		
+		await batch.save() ;
+		
+		
 
 		var mapper = function( element ) {
 			return element.data ;
 		} ;
 
-		async.series( [
-			function( callback ) {
-				rootsDb.bulk( 'save' , docs , callback ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' ] } } , ( error , batch ) => {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch ).to.have.length( 2 ) ;
+		await lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' ] } } , dbBatch => {
+			expect( dbBatch ).to.have.length( 2 ) ;
+		} ) ;
+		
+		/*
 					var keys = batch.map( mapper ) ;
 					expect( keys ).to.contain( 'one' ) ;
 					expect( keys ).to.contain( 'two' ) ;
@@ -2632,6 +2630,7 @@ describe( "Locks" , () => {
 			}
 		] )
 			.exec( done ) ;
+			*/
 	} ) ;
 } ) ;
 
