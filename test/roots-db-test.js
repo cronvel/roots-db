@@ -2570,67 +2570,40 @@ describe( "Locks" , () => {
 		
 		await batch.save() ;
 		
-		
+		await Promise.all( [
+			lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' ] } } , dbBatch => {
+				expect( dbBatch ).to.have.length( 2 ) ;
+				
+				var map = {} ;
+				dbBatch.forEach( doc => {
+					map[ doc.data ] = doc ;
+				} ) ;
+				
+				expect( map ).to.partially.equal( {
+					one: { data: 'one' } ,
+					two: { data: 'two' }
+				} ) ;
+				
+				return Promise.resolveTimeout( 30 ) ;
+			} ) ,
+			Promise.resolveTimeout( 0 , () => lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
+				expect( dbBatch ).to.have.length( 1 ) ;
+				expect( dbBatch ).to.be.partially.like( [ { data: 'three' } ] ) ;
+				return Promise.resolveTimeout( 30 ) ;
+			} ) ) ,
+			Promise.resolveTimeout( 10 , () => lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
+				expect( dbBatch ).to.have.length( 0 ) ;
+			} ) )
+		] ) ;
 
-		var mapper = function( element ) {
-			return element.data ;
-		} ;
-
-		await lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' ] } } , dbBatch => {
-			expect( dbBatch ).to.have.length( 2 ) ;
+		await lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
+			expect( dbBatch ).to.have.length( 3 ) ;
 		} ) ;
 		
-		/*
-					var keys = batch.map( mapper ) ;
-					expect( keys ).to.contain( 'one' ) ;
-					expect( keys ).to.contain( 'two' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( error , batch ) => {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch ).to.have.length( 1 ) ;
-					expect( batch[ 0 ].data ).to.be( 'three' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( error , batch ) => {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch ).to.have.length( 0 ) ;
-					setTimeout( callback , 50 ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( error , batch , releaseFn ) => {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch ).to.have.length( 3 ) ;
-					var keys = batch.map( mapper ) ;
-					expect( keys ).to.contain( 'one' ) ;
-					expect( keys ).to.contain( 'two' ) ;
-					expect( keys ).to.contain( 'three' ) ;
-					releaseFn().callback( callback ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( error , batch , releaseFn ) => {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch.length ).to.be( 3 ) ;
-					var keys = batch.map( mapper ) ;
-					expect( keys ).to.contain( 'one' ) ;
-					expect( keys ).to.contain( 'two' ) ;
-					expect( keys ).to.contain( 'three' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-			*/
+		// Check that immediatley after 'await', the data are available
+		await lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
+			expect( dbBatch ).to.have.length( 3 ) ;
+		} ) ;
 	} ) ;
 } ) ;
 
