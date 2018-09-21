@@ -2609,15 +2609,13 @@ describe( "Locks" , () => {
 
 
 
-return ;
 
 
 describe( "Populate links" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "link population (create both, link, save both, get with populate option)" , ( done ) => {
-
+	it( "link population (create both, link, save both, get with populate option)" , async () => {
 		var options ;
 
 		var user = users.createDocument( {
@@ -2625,7 +2623,7 @@ describe( "Populate links" , () => {
 			lastName: 'Polson'
 		} ) ;
 
-		var id = user._id ;
+		var id = user.getId() ;
 
 		var job = jobs.createDocument( {
 			title: 'developer' ,
@@ -2633,43 +2631,22 @@ describe( "Populate links" , () => {
 		} ) ;
 
 		//console.log( job ) ;
-		var jobId = job.$.id ;
+		var jobId = job.getId() ;
 
-		// Link the documents!
-		user.$.setLink( 'job' , job ) ;
+		user.setLink( 'job' , job ) ;
 
-		expect( user.job ).to.equal( jobId ) ;
-
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				options = { populate: 'job' } ;
-				users.get( id , options , ( error , user_ ) => {
-					user = user_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.Document ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( {
-						_id: user._id , job: job , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
-					} ) ;
-
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		await job.save() ;
+		await user.save() ;
+		
+		options = { populate: 'job' } ;
+		var dbUser = users.get( id , options ) ;
+		expect( user ).to.equal( {
+			_id: user._id , job: job , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
+		} ) ;
+		expect( options.populateDepth ).to.be( 1 ) ;
+		expect( options.populateDbQueries ).to.be( 1 ) ;
 	} ) ;
+	return ;
 
 	it( "multiple link population (create, link, save, get with populate option)" , ( done ) => {
 
@@ -3527,6 +3504,8 @@ describe( "Populate links" , () => {
 	} ) ;
 
 } ) ;
+
+return ;
 
 
 
