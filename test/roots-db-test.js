@@ -373,6 +373,7 @@ describe( "Build collections' indexes" , function() {
 	beforeEach( clearDBIndexes ) ;
 	
 	it( "should build indexes" , function( done ) {
+		this.timeout( 3000 ) ;
 		
 		expect( users.uniques ).to.be.eql( [ [ '_id' ], [ 'job', 'memberSid' ] ] ) ;
 		expect( jobs.uniques ).to.be.eql( [ [ '_id' ] ] ) ;
