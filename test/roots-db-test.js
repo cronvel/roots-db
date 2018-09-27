@@ -510,6 +510,35 @@ describe( "Document creation" , () => {
 			} ) ;
 		} ).to.throw.a( doormen.ValidatorError ) ;
 	} ) ;
+
+	it( "should create a document with embedded data and use method of objects through the proxy" , () => {
+		var town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				population: '2200K' ,
+				country: 'France' ,
+				someArray: [ 'one' , 'two' ]
+			}
+		} ) ;
+
+		var id = town.getId() ;
+		
+		expect( town ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' , someArray: [ 'one' , 'two' ] } } ) ;
+		expect( town.hasOwnProperty ).to.be.a( 'function' ) ;
+		expect( town.hasOwnProperty( 'name' ) ).to.be.true() ;
+		expect( town.hasOwnProperty( 'names' ) ).to.be.false() ;
+		
+		expect( town.meta.hasOwnProperty ).to.be.a( 'function' ) ;
+		expect( town.meta.hasOwnProperty( 'country' ) ).to.be.true() ;
+		expect( town.meta.hasOwnProperty( 'countries' ) ).to.be.false() ;
+		
+		expect( town.meta.someArray.slice ).to.be.a( 'function' ) ;
+		expect( town.meta.someArray.slice() ).not.to.be( town.meta.someArray ) ;
+		expect( town.meta.someArray.slice() ).to.equal( [ 'one' , 'two' ] ) ;
+		
+		town.meta.someArray.push( 'three' ) ;
+		expect( town.meta.someArray ).to.equal( [ 'one' , 'two' , 'three' ] ) ;
+	} ) ;
 } ) ;
 
 
