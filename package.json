@@ -15,15 +15,17 @@
     "fs-kit": "^0.3.2",
     "hash-kit": "^0.3.2",
     "logfella": "^1.0.9",
-    "mongodb": "^2.2.33",
+    "mongodb": "^3.1.6",
+    "nested-proxies": "^0.1.5",
     "seventh": "^0.7.17",
     "tree-kit": "^0.6.0"
   },
   "devDependencies": {
-    "async-kit": "^2.2.3",
+    "async-kit": "^2.2.4",
     "expect.js": "^0.3.1",
     "minimist": "^1.2.0",
-    "string-kit": "^0.6.3"
+    "stream-kit": "^0.2.7",
+    "string-kit": "^0.8.13"
   },
   "scripts": {
     "test": "tea-time -R dot"
@@ -51,7 +53,7 @@
     "title": "Roots DB",
     "years": [
       2014,
-      2017
+      2018
     ],
     "owner": "Cédric Ronvel"
   }

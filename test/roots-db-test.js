@@ -1,20 +1,20 @@
 /*
 	Roots DB
-	
-	Copyright (c) 2014 - 2017 Cédric Ronvel
-	
+
+	Copyright (c) 2014 - 2018 Cédric Ronvel
+
 	The MIT License (MIT)
-	
+
 	Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
 	in the Software without restriction, including without limitation the rights
 	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 	copies of the Software, and to permit persons to whom the Software is
 	furnished to do so, subject to the following conditions:
-	
+
 	The above copyright notice and this permission notice shall be included in all
 	copies or substantial portions of the Software.
-	
+
 	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,47 +24,42 @@
 	SOFTWARE.
 */
 
-/* jshint unused:false */
-/* global describe, it, before, after, beforeEach */
+/* global describe, it, before, after, beforeEach, expect */
 
 "use strict" ;
 
 
 
-var rootsDb = require( '../lib/rootsDb.js' ) ;
-var util = require( 'util' ) ;
-var mongodb = require( 'mongodb' ) ;
-var fs = require( 'fs' ) ;
+const rootsDb = require( '..' ) ;
+const util = require( 'util' ) ;
+const mongodb = require( 'mongodb' ) ;
+const fs = require( 'fs' ) ;
 
-var hash = require( 'hash-kit' ) ;
-var string = require( 'string-kit' ) ;
-var tree = require( 'tree-kit' ) ;
+const hash = require( 'hash-kit' ) ;
+const string = require( 'string-kit' ) ;
+const tree = require( 'tree-kit' ) ;
+const streamKit = require( 'stream-kit' ) ;
 
-var async = require( 'async-kit' ) ;
-var seventh = require( 'seventh' ) ;
-var Promise = seventh.Promise ;
+const Promise = require( 'seventh' ) ;
 
-var ErrorStatus = require( 'error-status' ) ;
-var doormen = require( 'doormen' ) ;
+const ErrorStatus = require( 'error-status' ) ;
+ErrorStatus.alwaysCapture = true ;
 
-var expect = require( 'expect.js' ) ;
+const doormen = require( 'doormen' ) ;
 
-var cliOptions = getCliOptions() ;
-if ( ! cliOptions.log ) { cliOptions.log = { minLevel: 4 } ; }
-
-var logfella = require( 'logfella' ) ;
-logfella.global.setGlobalConfig( cliOptions.log ) ;
-var log = logfella.global.use( 'mocha' ) ;
+const logfella = require( 'logfella' ) ;
+logfella.global.setGlobalConfig( { minLevel: process.argv.includes( '--debug' ) ? 'debug' : 'warning' } ) ;
+const log = logfella.global.use( 'unit-test' ) ;
 
 
 
 // Create the world...
-var world = rootsDb.World.create() ;
+const world = new rootsDb.World() ;
 
 // Collections...
-var users , jobs , schools , towns , lockables , extendables ;
+var users , jobs , schools , towns , lockables , nestedLinks , extendables ;
 
-var usersDescriptor = {
+const usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
 	attachmentUrl: __dirname + '/tmp/' ,
 	properties: {
@@ -86,11 +81,6 @@ var usersDescriptor = {
 			collection: 'users' ,
 			tier: 3
 		} ,
-		file: {
-			type: 'attachment' ,
-			optional: true ,
-			tier: 3
-		} ,
 		connection: {
 			type: 'strictObject' ,
 			optional: true ,
@@ -108,6 +98,21 @@ var usersDescriptor = {
 			type: 'string' ,
 			maxLength: 30 ,
 			tier: 2
+		} ,
+		avatar: {
+			type: 'attachment' ,
+			optional: true ,
+			tier: 3
+		} ,
+		publicKey: {
+			type: 'attachment' ,
+			optional: true ,
+			tier: 3
+		} ,
+		file: {
+			type: 'attachment' ,
+			optional: true ,
+			tier: 3
 		}
 	} ,
 	indexes: [
@@ -116,17 +121,17 @@ var usersDescriptor = {
 	] ,
 	hooks: {
 		afterCreateDocument: //[
-			function( data ) {
+			function( document ) {
 				//console.log( "- Users afterCreateDocument 'after' hook -" ) ;
-				data.memberSid = '' + data.firstName + ' ' + data.lastName ;
+				document.memberSid = '' + document.firstName + ' ' + document.lastName ;
 			}
 		//]
 	}
 } ;
 
-var expectedDefaultUser = { firstName: 'Joe', lastName: 'Doe' , memberSid: 'Joe Doe' } ;
+const expectedDefaultUser = { firstName: 'Joe' , lastName: 'Doe' , memberSid: 'Joe Doe' } ;
 
-var jobsDescriptor = {
+const jobsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/jobs' ,
 	properties: {
 		title: {
@@ -141,10 +146,10 @@ var jobsDescriptor = {
 		} ,
 		users: { type: 'backLink' , collection: 'users' , path: 'job' } ,
 		schools: { type: 'backLink' , collection: 'schools' , path: 'jobs' }
-	} ,
+	}
 } ;
 
-var schoolsDescriptor = {
+const schoolsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/schools' ,
 	properties: {
 		title: {
@@ -154,16 +159,16 @@ var schoolsDescriptor = {
 		jobs: {
 			type: 'multiLink' ,
 			collection: 'jobs'
-		} ,
-	} ,
+		}
+	}
 } ;
 
-var townsDescriptor = {
+const townsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/towns' ,
 	properties: {
 		name: { type: 'string' } ,
 		meta: {
-			type: 'strictObject',
+			type: 'strictObject' ,
 			default: {} ,
 			extraProperties: true ,
 			properties: {
@@ -179,7 +184,7 @@ var townsDescriptor = {
 	]
 } ;
 
-var lockablesDescriptor = {
+const lockablesDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/lockables' ,
 	canLock: true ,
 	lockTimeout: 40 ,
@@ -189,56 +194,71 @@ var lockablesDescriptor = {
 	indexes: []
 } ;
 
+const nestedLinksDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/nestedLinks' ,
+	properties: {
+		name: { type: 'string' } ,
+		nested: {
+			type: 'strictObject' ,
+			default: {} ,
+			properties: {
+				link: {
+					type: 'link' ,
+					optional: true ,
+					collection: 'nestedLinks'
+				} ,
+				multiLink: {
+					type: 'multiLink' ,
+					collection: 'nestedLinks'
+				} ,
+				backLinkOfLink: {
+					type: 'backLink' ,
+					collection: 'nestedLinks' ,
+					path: 'nested.link'
+				} ,
+				backLinkOfMultiLink: {
+					type: 'backLink' ,
+					collection: 'nestedLinks' ,
+					path: 'nested.multiLink'
+				}
+			}
+		}
+	} ,
+	indexes: []
+} ;
 
 
-function Extended() { throw new Error( 'Use Extended.create() instead' ) ; }
-Extended.prototype = Object.create( rootsDb.DocumentWrapper.prototype ) ;
+
+function Extended( collection , rawDoc , options ) {
+	rootsDb.Document.call( this , collection , rawDoc , options ) ;
+}
+
+Extended.prototype = Object.create( rootsDb.Document.prototype ) ;
 Extended.prototype.constructor = Extended ;
 
-Extended.create = function extendedCreate( collection , rawDoc , options )
-{
-	var o = Object.create( Extended.prototype ) ;
-	o.create( collection , rawDoc , options ) ;
-	return o ;
-} ;
-
-Extended.prototype.create = function create( collection , rawDoc , options )
-{
-	rootsDb.DocumentWrapper.prototype.create.call( this , collection , rawDoc , options ) ;
-} ;
-
-Extended.prototype.getNormalized = function getNormalized()
-{
+Extended.prototype.getNormalized = function() {
 	return this.document.data.toLowerCase() ;
 } ;
 
-function ExtendedBatch() { throw new Error( 'Use ExtendedBatch.create() instead' ) ; }
-ExtendedBatch.prototype = Object.create( rootsDb.BatchWrapper.prototype ) ;
+function ExtendedBatch( collection , rawDoc , options ) {
+	rootsDb.Batch.call( this , collection , rawDoc , options ) ;
+}
+
+ExtendedBatch.prototype = Object.create( rootsDb.Batch.prototype ) ;
 ExtendedBatch.prototype.constructor = ExtendedBatch ;
 
-ExtendedBatch.create = function extendedCreate( collection , rawDoc , options )
-{
-	var o = Object.create( ExtendedBatch.prototype ) ;
-	o.create( collection , rawDoc , options ) ;
-	return o ;
-} ;
-
-ExtendedBatch.prototype.create = function create( collection , rawDoc , options )
-{
-	rootsDb.BatchWrapper.prototype.create.call( this , collection , rawDoc , options ) ;
-} ;
-
-ExtendedBatch.prototype.concat = function concat()
-{
+ExtendedBatch.prototype.concat = function() {
 	var i , iMax , str = '' ;
 	for ( i = 0 , iMax = this.batch.length ; i < iMax ; i ++ ) { str += this.batch[ i ].data ; }
 	return str ;
 } ;
 
-var extendablesDescriptor = {
+
+
+const extendablesDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/extendables' ,
-	DocumentWrapper: Extended ,
-	BatchWrapper: ExtendedBatch ,
+	Document: Extended ,
+	Batch: ExtendedBatch ,
 	properties: {
 		data: { type: 'string' }
 	} ,
@@ -248,164 +268,137 @@ var extendablesDescriptor = {
 
 
 
-
-
-			/* Utils */
+/* Utils */
 
 
 
-// Return options while trying to avoid mocha's parameters
-function getCliOptions()
-{
-	var i , max = 0 ;
-	
-	for ( i = 2 ; i < process.argv.length ; i ++ )
-	{
-		if ( process.argv[ i ].match( /\*|.+\.js/ ) )
-		{
-			max = i ;
-		}
-	}
-	
-	return require( 'minimist' )( process.argv.slice( max + 1 ) ) ;
+// clear DB: remove every item, so we can safely test
+function clearDB() {
+	return Promise.all( [
+		clearCollection( users ) ,
+		clearCollection( jobs ) ,
+		clearCollection( schools ) ,
+		clearCollection( towns ) ,
+		clearCollection( lockables ) ,
+		clearCollection( nestedLinks ) ,
+		clearCollection( extendables )
+	] ) ;
 }
 
 
 
 // clear DB: remove every item, so we can safely test
-function clearDB( callback )
-{
-	async.parallel( [
-		[ clearCollection , users ] ,
-		[ clearCollection , jobs ] ,
-		[ clearCollection , schools ] ,
-		[ clearCollection , towns ] ,
-		[ clearCollection , lockables ] ,
-		[ clearCollection , extendables ]
-	] )
-	.exec( callback ) ;
+function clearDBIndexes() {
+	return Promise.all( [
+		clearCollectionIndexes( users ) ,
+		clearCollectionIndexes( jobs ) ,
+		clearCollectionIndexes( schools ) ,
+		clearCollectionIndexes( towns ) ,
+		clearCollectionIndexes( lockables ) ,
+		clearCollectionIndexes( nestedLinks ) ,
+		clearCollectionIndexes( extendables )
+	] ).then( () => { log.verbose( "All indexes cleared" ) ; } ) ;
 }
 
 
 
-// clear DB: remove every item, so we can safely test
-function clearDBIndexes( callback )
-{
-	async.parallel( [
-		[ clearCollectionIndexes , users ] ,
-		[ clearCollectionIndexes , jobs ] ,
-		[ clearCollectionIndexes , schools ] ,
-		[ clearCollectionIndexes , towns ] ,
-		[ clearCollectionIndexes , lockables ] ,
-		[ clearCollectionIndexes , extendables ]
-	] )
-	.exec( callback ) ;
+function clearCollection( collection ) {
+	return collection.driver.rawInit()
+		.then( () => collection.driver.raw.deleteMany() ) ;
 }
 
 
 
-function clearCollection( collection , callback )
-{
-	collection.driver.rawInit().then( () => { collection.driver.raw.remove( callback ) ; } )
-	.catch( error => { callback( error ) ; } ) ;
+function clearCollectionIndexes( collection ) {
+	return collection.driver.rawInit()
+		.then( () => collection.driver.raw.dropIndexes() ) ;
 }
 
 
 
-function clearCollectionIndexes( collection , callback )
-{
-	collection.driver.rawInit().then( () => { collection.driver.raw.dropIndexes( () => callback() ) ; } )
-	.catch( error => { callback( error ) ; } ) ;
-}
-
-
-
-
-
-			/* Tests */
+/* Tests */
 
 
 
 // Force creating the collection
-before( function( done ) {
-	
+before( () => {
 	users = world.createCollection( 'users' , usersDescriptor ) ;
 	expect( users ).to.be.a( rootsDb.Collection ) ;
-	
+
 	jobs = world.createCollection( 'jobs' , jobsDescriptor ) ;
 	expect( jobs ).to.be.a( rootsDb.Collection ) ;
-	
+
 	schools = world.createCollection( 'schools' , schoolsDescriptor ) ;
 	expect( schools ).to.be.a( rootsDb.Collection ) ;
-	
+
 	towns = world.createCollection( 'towns' , townsDescriptor ) ;
 	expect( towns ).to.be.a( rootsDb.Collection ) ;
-	
+
 	lockables = world.createCollection( 'lockables' , lockablesDescriptor ) ;
 	expect( lockables ).to.be.a( rootsDb.Collection ) ;
-	
+
+	nestedLinks = world.createCollection( 'nestedLinks' , nestedLinksDescriptor ) ;
+	expect( nestedLinks ).to.be.a( rootsDb.Collection ) ;
+
 	extendables = world.createCollection( 'extendables' , extendablesDescriptor ) ;
 	expect( extendables ).to.be.a( rootsDb.Collection ) ;
-	
-	done() ;
 } ) ;
 
 
 
-describe( "Collection" , function() {
-	
-	it( "Tier masks" , function() {
-		expect( users.tierPropertyMasks ).to.eql( [
-			{},
-			{ _id: true },
-			{ firstName: true, lastName: true, memberSid: true, _id: true },
-			{ firstName: true, lastName: true, godfather: true, file: true, connection: true, job: true, memberSid: true, _id: true },
-			{ firstName: true, lastName: true, godfather: true, file: true, connection: true, job: true, memberSid: true, _id: true },
-			{ firstName: true, lastName: true, godfather: true, file: true, connection: true, job: true, memberSid: true, _id: true }
+describe( "Collection" , () => {
+
+	it( "Tier masks" , () => {
+		expect( users.tierPropertyMasks ).to.equal( [
+			{} ,
+			{ _id: true } ,
+			{
+				_id: true , firstName: true , lastName: true , memberSid: true
+			} ,
+			{
+				_id: true , avatar: true , firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , publicKey: true
+			} ,
+			{
+				_id: true , avatar: true , firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , publicKey: true
+			} ,
+			{
+				_id: true , avatar: true , firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , publicKey: true
+			}
 		] ) ;
 	} ) ;
 } ) ;
 
 
 
-describe( "Build collections' indexes" , function() {
-	
+describe( "Build collections' indexes" , () => {
+
 	beforeEach( clearDBIndexes ) ;
-	
-	it( "should build indexes" , function( done ) {
-		this.timeout( 3000 ) ;
-		
-		expect( users.uniques ).to.be.eql( [ [ '_id' ], [ 'job', 'memberSid' ] ] ) ;
-		expect( jobs.uniques ).to.be.eql( [ [ '_id' ] ] ) ;
-		
-		async.foreach( world.collections , function( collection , name , foreachCallback )
-		{
-			collection.buildIndexes( function( error ) {
-				
-				expect( error ).not.to.be.ok() ;
-				
-				collection.driver.getIndexes().then( indexes => {
-					expect( indexes ).to.be.eql( collection.indexes ) ;
-				} ).callback( foreachCallback ) ;
-			} ) ;
-		} )
-		.exec( done ) ;
+
+	it.skip( "should build indexes" , async () => {
+		expect( users.uniques ).to.equal( [ [ '_id' ] , [ 'job' , 'memberSid' ] ] ) ;
+		expect( jobs.uniques ).to.equal( [ [ '_id' ] ] ) ;
+
+		return Promise.forEach( Object.keys( world.collections ) , async ( name ) => {
+			var collection = world.collections[ name ] ;
+			await collection.buildIndexes() ;
+			log.verbose( 'Index built for collection %s' , name ) ;
+			expect( await collection.driver.getIndexes() ).to.equal( collection.indexes ) ;
+		} ) ;
 	} ) ;
 } ) ;
 
 
 
-describe( "ID" , function() {
-	
-	it( "should create ID (like Mongo ID)" , function() {
-		
-		expect( users.createId() ).to.match( /^[0-9a-f]{24}$/ ) ;
-		expect( users.createId() ).to.match( /^[0-9a-f]{24}$/ ) ;
-		expect( users.createId() ).to.match( /^[0-9a-f]{24}$/ ) ;
-		expect( users.createId() ).to.match( /^[0-9a-f]{24}$/ ) ;
-		expect( users.createId() ).to.match( /^[0-9a-f]{24}$/ ) ;
+describe( "ID" , () => {
+
+	it( "should create ID (like Mongo ID)" , () => {
+		expect( users.createId().toString() ).to.match( /^[0-9a-f]{24}$/ ) ;
+		expect( users.createId().toString() ).to.match( /^[0-9a-f]{24}$/ ) ;
+		expect( users.createId().toString() ).to.match( /^[0-9a-f]{24}$/ ) ;
+		expect( users.createId().toString() ).to.match( /^[0-9a-f]{24}$/ ) ;
+		expect( users.createId().toString() ).to.match( /^[0-9a-f]{24}$/ ) ;
 	} ) ;
-	
+
 	it( "$id in document" ) ;
 	it( "$id in fingerprint" ) ;
 	it( "$id in criteria (queryObject)" ) ;
@@ -413,766 +406,69 @@ describe( "ID" , function() {
 
 
 
-describe( "Document creation" , function() {
-	
-	it( "should create a document with default values" , function() {
-		
+describe( "Document creation" , () => {
+
+	it( "should create a document with default values" , () => {
 		var user = users.createDocument() ;
-		
-		expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+
+		expect( user ).to.be.an( Object ) ;
+		expect( user.$ ).to.be.an( Object ) ;
+		expect( user._ ).to.be.a( rootsDb.Document ) ;
 		expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( user ).to.eql( tree.extend( null , { _id: user._id } , expectedDefaultUser ) ) ;
-	} ) ;
-	
-	it( "should create a document using the given correct values" , function() {
+		expect( user.getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( user._id ).to.be( user.getId() ) ;
 		
+		expect( user ).to.partially.equal( expectedDefaultUser ) ;
+		expect( user.$ ).to.partially.equal( expectedDefaultUser ) ;
+	} ) ;
+
+	it( "should create a document with valid data" , () => {
 		var user = users.createDocument( {
-			firstName: 'Bobby',
+			firstName: 'Bobby' ,
 			lastName: 'Fischer'
 		} ) ;
-		
-		expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+
+		expect( user ).to.be.an( Object ) ;
+		expect( user.$ ).to.be.an( Object ) ;
+		expect( user._ ).to.be.a( rootsDb.Document ) ;
 		expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( user ).to.eql( {
+		expect( user.getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( user._id ).to.be( user.getId() ) ;
+
+		expect( user ).to.equal( {
 			_id: user._id ,
 			firstName: 'Bobby' ,
 			lastName: 'Fischer' ,
 			memberSid: 'Bobby Fischer'
 		} ) ;
 	} ) ;
-	
-	it( "should throw when trying to create a document that does not validate the schema" , function() {
-		
-		var user ;
-		
-		doormen.shouldThrow( function() {
-			user = users.createDocument( {
-				firstName: true,
-				lastName: 3
-			} ) ;
-		} ) ;
-		
-		doormen.shouldThrow( function() {
-			user = users.createDocument( {
-				firstName: 'Bobby',
-				lastName: 'Fischer',
-				extra: 'property'
-			} ) ;
-		} ) ;
-	} ) ;
-} ) ;
 
-
-
-describe( "Get documents" , function() {
-	
-	beforeEach( clearDB ) ;
-	
-	it( "zzz" , function( done ) {
-		
+	it( "should create a document and modify it" , () => {
 		var user = users.createDocument( {
-			firstName: 'John' ,
-			lastName: 'McGregor'
+			firstName: 'Bobby' ,
+			lastName: 'Fischer'
+		} ) ;
+
+		var id = user.getId() ;
+
+		expect( user ).to.equal( {
+			_id: id ,
+			firstName: 'Bobby' ,
+			lastName: 'Fischer' ,
+			memberSid: 'Bobby Fischer'
 		} ) ;
 		
-		var id = user._id ;
-		
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.getPromVer( id )
-				.then( user => {
-					console.log( 'user' , user ) ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
-				} )
-				.callback( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , { raw: true } , function( error , user ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).not.to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "should get a document (create, save and retrieve)" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'John' ,
-			lastName: 'McGregor'
+		user.firstName = 'Robert' ;
+
+		expect( user ).to.equal( {
+			_id: id ,
+			firstName: 'Robert' ,
+			lastName: 'Fischer' ,
+			memberSid: 'Bobby Fischer'
 		} ) ;
-		
-		var id = user._id ;
-		
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , user ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.get( id , { raw: true } , function( error , user ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).not.to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor' } ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
 	} ) ;
-	
-	it( "when trying to get an unexistant document, an ErrorStatus (type: notFound) should be issued" , function( done ) {
-		
-		// Unexistant ID
-		var id = new mongodb.ObjectID() ;
-		
-		async.parallel( [
-			function( callback ) {
-				users.get( id , function( error , user ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ; 
-					expect( error ).to.be.an( ErrorStatus ) ;
-					expect( error.type ).to.equal( 'notFound' ) ;
-					expect( user ).to.be( undefined ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.get( id , { raw: true } , function( error , user ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ; 
-					expect( error ).to.be.an( ErrorStatus ) ;
-					expect( error.type ).to.equal( 'notFound' ) ;
-					expect( user ).to.be( undefined ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-} ) ;
 
-
-
-describe( "Save documents" , function() {
-	
-	beforeEach( clearDB ) ;
-	
-	it( "should save correctly and only non-default value are registered into the upstream (create, save and retrieve)" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Jack'
-		} ) ;
-		
-		var id = user._id ;
-		
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , user ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.eql( { _id: user._id , firstName: 'Jack' , lastName: 'Doe' , memberSid: 'Jack Doe' } ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "should save a full document so parallel save *DO* overwrite each others (create, save, retrieve, full update² and retrieve)" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Johnny B.' ,
-			lastName: 'Starks'
-		} ) ;
-		
-		var id = user._id ;
-		var user2 ;
-		
-		
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , u ) {
-					user2 = u ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user2 ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( user2._id ).to.eql( id ) ;
-					expect( user2 ).to.eql( { _id: user2._id , firstName: 'Johnny B.' , lastName: 'Starks' , memberSid: 'Johnny B. Starks' } ) ;
-					callback() ;
-				} ) ;
-			} ,
-			async.parallel( [
-				function( callback ) {
-					user.lastName = 'Smith' ;
-					user.$.save( callback ) ;
-				} ,
-				function( callback ) {
-					user2.firstName = 'Joey' ;
-					user2.$.save( callback ) ;
-				}
-			] ) ,
-			function( callback ) {
-				users.get( id , function( error , u ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.eql( id ) ;
-					expect( u ).to.eql( { _id: u._id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny B. Starks' } ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-} ) ;
-	
-
-
-describe( "Patch, stage and commit documents" , function() {
-	
-	beforeEach( clearDB ) ;
-	
-	it( "'commit' should save staged data and do nothing on data not staged" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Johnny' ,
-			lastName: 'Starks'
-		} ) ;
-		
-		var id = user._id ;
-		var user2 ;
-		//id = users.createDocument()._id ;
-		
-		
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , u ) {
-					user2 = u ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user2 ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( user2._id ).to.eql( id ) ;
-					expect( user2 ).to.eql( { _id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks' } ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user2.firstName = 'Joey' ;
-				user2.lastName = 'Smith' ;
-				user2.$.stage( 'lastName' ) ;
-				expect( user2 ).to.eql( { _id: user2._id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
-				user2.$.commit( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , u ) {
-					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.eql( id ) ;
-					expect( u ).to.eql( { _id: u._id , firstName: 'Johnny' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "'commit' should save data staged using .patch() and do nothing on data modified by .patch()" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Johnny' ,
-			lastName: 'Starks'
-		} ) ;
-		
-		var id = user._id ;
-		var user2 ;
-		//id = users.createDocument()._id ;
-		
-		
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , u ) {
-					user2 = u ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user2 ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( user2._id ).to.eql( id ) ;
-					expect( user2 ).to.eql( { _id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks' } ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user2.firstName = 'Joey' ;
-				user2.$.patch( { lastName: 'Smith' } ) ;
-				expect( user2 ).to.eql( { _id: user2._id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
-				user2.$.commit( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , u ) {
-					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.eql( id ) ;
-					expect( u ).to.eql( { _id: u._id , firstName: 'Johnny' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "should save creating a minimalistic patch so parallel save do not overwrite each others (create, save, retrieve, patch², commit² and retrieve)" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Johnny' ,
-			lastName: 'Starks'
-		} ) ;
-		
-		var id = user._id ;
-		var user2 ;
-		//id = users.createDocument()._id ;
-		
-		
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , u ) {
-					user2 = u ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user2 ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( user2._id ).to.eql( id ) ;
-					expect( user2 ).to.eql( { _id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks' } ) ;
-					callback() ;
-				} ) ;
-			} ,
-			async.parallel( [
-				function( callback ) {
-					user.$.patch( { lastName: 'Smith' } ) ;
-					expect( user.lastName ).to.be( 'Smith' ) ;
-					user.$.commit( callback ) ;
-				} ,
-				function( callback ) {
-					user2.$.patch( { firstName: 'Joey' } ) ;
-					expect( user2.firstName ).to.be( 'Joey' ) ;
-					user2.$.commit( callback ) ;
-				}
-			] ) ,
-			function( callback ) {
-				users.get( id , function( error , u ) {
-					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.eql( id ) ;
-					expect( u ).to.eql( { _id: u._id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "overwrite and depth mixing" ) ;
-} ) ;
-
-
-
-describe( "Delete documents" , function() {
-	
-	beforeEach( clearDB ) ;
-	
-	it( "should delete a document (create, save, retrieve, then delete it so it cannot be retrieved again)" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'John' ,
-			lastName: 'McGregor'
-		} ) ;
-		
-		//console.log( user ) ;
-		var id = user._id ;
-		
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , u ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( u._id ).to.eql( id ) ;
-					expect( u ).to.eql( { _id: user._id , firstName: 'John' , lastName: 'McGregor' , memberSid: "John McGregor" } ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.delete( function( error ) {
-					expect( error ).not.to.be.ok() ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , user ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ; 
-					expect( error ).to.be.an( ErrorStatus ) ;
-					expect( error.type ).to.equal( 'notFound' ) ;
-					expect( user ).to.be( undefined ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-} ) ;
-
-
-
-describe( "Fingerprint" , function() {
-	
-	it( "should create a fingerprint" , function() {
-		
-		var f = users.createFingerprint( { firstName: 'Terry' } ) ;
-		
-		expect( f.$ ).to.be.an( rootsDb.FingerprintWrapper ) ;
-		expect( f ).to.eql( { firstName: 'Terry' } ) ;
-	} ) ;
-	
-	it( "should detect uniqueness correctly" , function() {
-		
-		expect( users.createFingerprint( { _id: '123456789012345678901234' } ).$.unique ).to.be( true ) ;
-		expect( users.createFingerprint( { firstName: 'Terry' } ).$.unique ).to.be( false ) ;
-		expect( users.createFingerprint( { firstName: 'Terry', lastName: 'Bogard' } ).$.unique ).to.be( false ) ;
-		expect( users.createFingerprint( { _id: '123456789012345678901234', firstName: 'Terry', lastName: 'Bogard' } ).$.unique ).to.be( true ) ;
-		expect( users.createFingerprint( { job: '123456789012345678901234' } ).$.unique ).to.be( false ) ;
-		expect( users.createFingerprint( { memberSid: 'terry-bogard' } ).$.unique ).to.be( false ) ;
-		expect( users.createFingerprint( { job: '123456789012345678901234', memberSid: 'terry-bogard' } ).$.unique ).to.be( true ) ;
-	} ) ;
-} ) ;
-
-
-
-describe( "Get documents by unique fingerprint" , function() {
-	
-	beforeEach( clearDB ) ;
-	
-	it( "should get a document (create, save and retrieve)" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Bill' ,
-			lastName: "Cut'throat"
-		} ) ;
-		
-		var id = user._id ;
-		var memberSid = user.memberSid ;
-		
-		var job = jobs.createDocument() ;
-		user.job = job._id ;
-		
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.getUnique( { memberSid: memberSid , job: job._id } , function( error , u ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( u.$ ).to.be.a( rootsDb.DocumentWrapper ) ;
-					expect( u._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( u._id ).to.eql( id ) ;
-					expect( u ).to.eql( tree.extend( null , { _id: user._id , job: job._id , firstName: 'Bill' , lastName: "Cut'throat" , memberSid: "Bill Cut'throat" } ) ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "when trying to get a document with a non-unique fingerprint, an ErrorStatus (type: badRequest) should be issued" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Bill' ,
-			lastName: "Tannen"
-		} ) ;
-		
-		async.series( [
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.getUnique( { firstName: 'Bill' , lastName: "Tannen" } , { raw: true } , function( error ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).to.be.an( Error ) ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.getUnique( { firstName: 'Bill' , lastName: "Tannen" } , function( error ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ; 
-					expect( error ).to.be.an( Error ) ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-} ) ;
-
-
-
-describe( "MultiGet, Collect & find batchs" , function() {
-	
-	beforeEach( clearDB ) ;
-	
-	it( "should get multiple document using an array of IDs (create, save and multiGet)" , function( done ) {
-		
-		var marleys = [
-			users.createDocument( {
-				firstName: 'Bob' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Julian' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Thomas' ,
-				lastName: 'Jefferson'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Stephen' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Mr' ,
-				lastName: 'X'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Ziggy' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Rita' ,
-				lastName: 'Marley'
-			} )
-		] ;
-		
-		async.series( [
-			function( callback ) {
-				rootsDb.bulk( 'save' , marleys , callback ) ;
-			} ,
-			function( callback ) {
-				var ids = [
-					marleys[ 0 ]._id ,
-					marleys[ 1 ]._id ,
-					marleys[ 3 ]._id ,
-					marleys[ 5 ]._id ,
-					marleys[ 6 ]._id
-				] ;
-				
-				users.multiGet( ids , function( error , batch ) {
-					var i , map = {} ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Batch:' , batch ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
-					expect( batch ).to.have.length( 5 ) ;
-					
-					for ( i = 0 ; i < batch.length ; i ++ )
-					{
-						//expect( batch[ i ] ).to.be.an( rootsDb.DocumentWrapper ) ;
-						expect( batch[ i ].firstName ).to.be.ok() ;
-						expect( batch[ i ].lastName ).to.equal( 'Marley' ) ;
-						map[ batch[ i ].firstName ] = true ;
-					}
-					
-					expect( map ).to.only.have.keys( 'Bob' , 'Julian' , 'Stephen' , 'Ziggy' , 'Rita' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "should collect a batch using a (non-unique) fingerprint (create, save and collect batch)" , function( done ) {
-		
-		var marleys = [
-			users.createDocument( {
-				firstName: 'Bob' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Julian' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Thomas' ,
-				lastName: 'Jefferson'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Stephen' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Mr' ,
-				lastName: 'X'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Ziggy' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Rita' ,
-				lastName: 'Marley'
-			} )
-		] ;
-		
-		async.series( [
-			function( callback ) {
-				rootsDb.bulk( 'save' , marleys , callback ) ;
-			} ,
-			function( callback ) {
-				users.collect( { lastName: 'Marley' } , function( error , batch ) {
-					var i , map = {} ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Batch:' , batch ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
-					expect( batch ).to.have.length( 5 ) ;
-					
-					for ( i = 0 ; i < batch.length ; i ++ )
-					{
-						//expect( batch[ i ] ).to.be.an( rootsDb.DocumentWrapper ) ;
-						expect( batch[ i ].firstName ).to.be.ok() ;
-						expect( batch[ i ].lastName ).to.equal( 'Marley' ) ;
-						map[ batch[ i ].firstName ] = true ;
-					}
-					
-					expect( map ).to.only.have.keys( 'Bob' , 'Julian' , 'Stephen' , 'Ziggy' , 'Rita' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "should find documents (in a batch) using a queryObject (create, save and find)" , function( done ) {
-		
-		var marleys = [
-			users.createDocument( {
-				firstName: 'Bob' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Julian' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Thomas' ,
-				lastName: 'Jefferson'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Stephen' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Mr' ,
-				lastName: 'X'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Ziggy' ,
-				lastName: 'Marley'
-			} ) ,
-			users.createDocument( {
-				firstName: 'Rita' ,
-				lastName: 'Marley'
-			} )
-		] ;
-		
-		async.series( [
-			function( callback ) {
-				rootsDb.bulk( 'save' , marleys , callback ) ;
-			} ,
-			function( callback ) {
-				users.find( { firstName: { $regex: /^[thomasstepn]+$/ , $options: 'i' } } , function( error , batch ) {
-					var i , map = {} ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Batch:' , batch ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
-					expect( batch ).to.have.length( 2 ) ;
-					
-					for ( i = 0 ; i < batch.length ; i ++ )
-					{
-						//expect( batch[ i ] ).to.be.an( rootsDb.DocumentWrapper ) ;
-						expect( batch[ i ].firstName ).to.be.ok() ;
-						map[ batch[ i ].firstName ] = true ;
-					}
-					
-					expect( map ).to.only.have.keys( 'Thomas' , 'Stephen' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-} ) ;
-
-
-
-describe( "Embedded documents" , function() {
-	
-	beforeEach( clearDB ) ;
-	
-	it( "should save and retrieve embedded data" , function( done ) {
-		
+	it( "should create a document with embedded data and modify it" , () => {
 		var town = towns.createDocument( {
 			name: 'Paris' ,
 			meta: {
@@ -1180,990 +476,2232 @@ describe( "Embedded documents" , function() {
 				country: 'France'
 			}
 		} ) ;
+
+		var id = town.getId() ;
 		
-		async.series( [
-			function( callback ) {
-				town.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				towns.get( town._id , function( error , t ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Town:' , string.inspect( { style: 'color' , proto: true } , town.$.meta ) ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( t.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( t._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( t ).to.eql( { _id: town._id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
+		expect( town.$ ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
+		expect( town.$.meta.population ).to.be( '2200K' ) ;
+		
+		expect( town.meta.population ).to.be( '2200K' ) ;
+		expect( town.meta ).to.equal( { population: '2200K' , country: 'France' } ) ;
+		expect( town ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
+		
+		town.meta.population = '2500K' ;
+		expect( town.meta.population ).to.be( '2500K' ) ;
+		expect( town.meta ).to.equal( { population: '2500K' , country: 'France' } ) ;
+		expect( town ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2500K' , country: 'France' } } ) ;
 	} ) ;
-	
-	it( "should be able to update embedded data (patch)" , function( done ) {
-		
+
+	it( "should throw when trying to create a document that does not validate the schema" , () => {
+		var user ;
+
+		expect( () => {
+			user = users.createDocument( {
+				firstName: true ,
+				lastName: 3
+			} ) ;
+		} ).to.throw.a( doormen.ValidatorError ) ;
+
+		expect( () => {
+			user = users.createDocument( {
+				firstName: 'Bobby' ,
+				lastName: 'Fischer' ,
+				extra: 'property'
+			} ) ;
+		} ).to.throw.a( doormen.ValidatorError ) ;
+	} ) ;
+
+	it( "should create a document with embedded data and use method of objects through the proxy" , () => {
 		var town = towns.createDocument( {
 			name: 'Paris' ,
 			meta: {
-				population: '2200K',
+				population: '2200K' ,
+				country: 'France' ,
+				someArray: [ 'one' , 'two' ]
+			}
+		} ) ;
+
+		var id = town.getId() ;
+		
+		expect( town ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' , someArray: [ 'one' , 'two' ] } } ) ;
+		expect( town.hasOwnProperty ).to.be.a( 'function' ) ;
+		expect( town.hasOwnProperty( 'name' ) ).to.be.true() ;
+		expect( town.hasOwnProperty( 'names' ) ).to.be.false() ;
+		
+		expect( town.meta.hasOwnProperty ).to.be.a( 'function' ) ;
+		expect( town.meta.hasOwnProperty( 'country' ) ).to.be.true() ;
+		expect( town.meta.hasOwnProperty( 'countries' ) ).to.be.false() ;
+		
+		expect( town.meta.someArray.slice ).to.be.a( 'function' ) ;
+		expect( town.meta.someArray.slice() ).not.to.be( town.meta.someArray ) ;
+		expect( town.meta.someArray.slice() ).to.equal( [ 'one' , 'two' ] ) ;
+		
+		town.meta.someArray.push( 'three' ) ;
+		expect( town.meta.someArray ).to.equal( [ 'one' , 'two' , 'three' ] ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Get documents" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should get an existing document" , async () => {
+		var user = users.createDocument( {
+			firstName: 'John' ,
+			lastName: 'McGregor'
+		} ) ;
+
+		var id = user.getId() ;
+
+		await user.save() ;
+		var dbUser = await users.get( id ) ;
+		
+		expect( dbUser ).to.be.an( Object ) ;
+		expect( dbUser._ ).to.be.a( rootsDb.Document ) ;
+		expect( dbUser._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( dbUser._id ).to.equal( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: dbUser._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor'
+		} ) ;
+		
+		var rawDbUser = await users.get( id , { raw: true } ) ;
+		
+		expect( rawDbUser._ ).not.to.be.a( rootsDb.Document ) ;
+		expect( rawDbUser._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( rawDbUser._id ).to.equal( id ) ;
+		expect( rawDbUser ).to.equal( {
+			_id: rawDbUser._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor'
+		} ) ;
+	} ) ;
+
+	it( "when trying to get an unexistant document, an ErrorStatus (type: notFound) should be issued" , async () => {
+		// Unexistant ID
+		var id = new mongodb.ObjectID() ;
+
+		await expect( () => users.get( id ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
+		await expect( () => users.get( id , { raw: true } ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Save documents" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should save (create) correctly" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jack'
+		} ) ;
+
+		var id = user.getId() ;
+
+		await user.save() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Doe' , memberSid: 'Jack Doe'
+		} ) ;
+		
+		expect( user ).to.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Doe' , memberSid: 'Jack Doe'
+		} ) ;
+	} ) ;
+
+	it( "should save (create) correctly and then modify and save again (update the whole document)" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jack'
+		} ) ;
+
+		var id = user.getId() ;
+
+		await user.save() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Doe' , memberSid: 'Jack Doe'
+		} ) ;
+		
+		expect( user ).to.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Doe' , memberSid: 'Jack Doe'
+		} ) ;
+		
+		user.firstName = 'Jim' ;
+		
+		expect( user ).to.equal( {
+			_id: id , firstName: 'Jim' , lastName: 'Doe' , memberSid: 'Jack Doe'
+		} ) ;
+		
+		await user.save() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Jim' , lastName: 'Doe' , memberSid: 'Jack Doe'
+		} ) ;
+	} ) ;
+
+	it( "should save a full document so parallel save *DO* overwrite each others" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Johnny B.' ,
+			lastName: 'Starks'
+		} ) ;
+
+		var id = user.getId() ;
+		
+		await user.save() ;
+		var dbUser = await users.get( id ) ;
+		
+		expect( dbUser._id ).to.equal( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'Johnny B.' , lastName: 'Starks' , memberSid: 'Johnny B. Starks'
+		} ) ;
+		
+		user.lastName = 'Smith' ;
+		dbUser.firstName = 'Joey' ;
+		
+		await Promise.all( [
+			user.save() ,
+			dbUser.save()
+		] ) ;
+		
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny B. Starks'
+		} ) ;
+	} ) ;
+
+	it( "should save and retrieve embedded data" , async () => {
+		var town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				population: '2200K' ,
 				country: 'France'
 			}
 		} ) ;
+
+		var id = town.getId() ;
 		
-		async.series( [
-			function( callback ) {
-				town.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				towns.get( town._id , function( error , t ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Town:' , town ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( t ).to.eql( { _id: town._id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
-					expect( t.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					
-					t.$.patch( { "meta.population": "2300K" } ) ;
-					t.$.commit( callback ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				towns.get( town._id , function( error , t ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Town:' , town ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( t.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( t._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( t ).to.eql( { _id: town._id , name: 'Paris' , meta: { population: '2300K' , country: 'France' } } ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
+		await town.save() ;
+		await expect( towns.get( id ) ).to.eventually.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
 	} ) ;
-	
-	it( "should collect a batch & get unique using embedded data as fingerprint (create, save and collect batch)" , function( done ) {
+
+} ) ;
+
+
+
+describe( "Delete documents" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should delete a document" , async () => {
+		var user = users.createDocument( {
+			firstName: 'John' ,
+			lastName: 'McGregor'
+		} ) ;
+		var id = user.getId() ;
+		await user.save() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'John' , lastName: 'McGregor' , memberSid: "John McGregor"
+		} ) ;
 		
-		var townList = [
-			towns.createDocument( {
+		await user.delete() ;
+		await expect( () => users.get( id ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Patch, auto-staging, manual staging and commit documents" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "auto-staging setter and the .commit() method" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Johnny' ,
+			lastName: 'Starks'
+		} ) ;
+
+		var id = user.getId() ;
+
+		await user.save() ;
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		
+		dbUser.firstName = 'Joey' ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		expect( dbUser._.localPatch ).to.equal( { firstName: 'Joey' } ) ;
+		
+		await dbUser.commit() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		
+		dbUser.firstName = 'Jack' ;
+		dbUser.lastName = 'Smith' ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Smith' , memberSid: 'Johnny Starks'
+		} ) ;
+		expect( dbUser._.localPatch ).to.equal( { firstName: 'Jack' , lastName: 'Smith' } ) ;
+		
+		await dbUser.commit() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Smith' , memberSid: 'Johnny Starks'
+		} ) ;
+	} ) ;
+
+	it( "manual staging and the .commit() method" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Johnny' ,
+			lastName: 'Starks'
+		} ) ;
+
+		var id = user.getId() ;
+
+		await user.save() ;
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		
+		dbUser._.raw.firstName = 'Joey' ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		expect( dbUser._.localPatch ).to.be( null ) ;
+		
+		// Nothing will be commited
+		await dbUser.commit() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		
+		// Now it will be commited
+		dbUser.stage( 'firstName' ) ;
+		await dbUser.commit() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+	} ) ;
+
+	it( "apply a patch then commit" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Johnny' ,
+			lastName: 'Starks'
+		} ) ;
+
+		var id = user.getId() ;
+
+		await user.save() ;
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: user._id , firstName: 'Johnny' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		
+		dbUser.patch( { firstName: 'Joey' } ) ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		expect( dbUser._.localPatch ).to.equal( { firstName: 'Joey' } ) ;
+		
+		await dbUser.commit() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
+		} ) ;
+		
+		dbUser.patch( { firstName: 'Jack' , lastName: 'Smith' } ) ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Smith' , memberSid: 'Johnny Starks'
+		} ) ;
+		expect( dbUser._.localPatch ).to.equal( { firstName: 'Jack' , lastName: 'Smith' } ) ;
+		
+		await dbUser.commit() ;
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Jack' , lastName: 'Smith' , memberSid: 'Johnny Starks'
+		} ) ;
+	} ) ;
+
+	it( "staging/commit and embedded data" , async () => {
+		var town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				population: '2200K' ,
+				country: 'France'
+			}
+		} ) ;
+
+		var id = town.getId() ;
+
+		await town.save() ;
+		var dbTown = await towns.get( id ) ;
+		expect( dbTown ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
+		
+		dbTown.patch( { "meta.population": "2300K" } ) ;
+		await dbTown.commit() ;
+		await expect( towns.get( id ) ).to.eventually.equal( { _id: id , name: 'Paris' , meta: { population: '2300K' , country: 'France' } } ) ;
+		
+		dbTown.meta.population = "2500K" ;
+		expect( dbTown._.localPatch ).to.equal( { "meta.population": "2500K" } ) ;
+		await dbTown.commit() ;
+		await expect( towns.get( id ) ).to.eventually.equal( { _id: id , name: 'Paris' , meta: { population: '2500K' , country: 'France' } } ) ;
+	} ) ;
+
+	it( "parallel and non-overlapping commit should not overwrite each others" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Johnny' ,
+			lastName: 'Starks'
+		} ) ;
+
+		var id = user.getId() ;
+
+		await user.save() ;
+		var dbUser = await users.get( id ) ;
+		
+		user.patch( { lastName: 'Smith' } ) ;
+		dbUser.firstName = 'Joey' ;
+		expect( user ).to.equal( { _id: id , firstName: 'Johnny' , lastName: 'Smith' , memberSid: 'Johnny Starks' } ) ;
+		expect( dbUser ).to.equal( { _id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks' } ) ;
+		
+		await Promise.all( [
+			user.commit() ,
+			dbUser.commit()
+		] ) ;
+		
+		await expect( users.get( id ) ).to.eventually.equal( {
+			_id: id , firstName: 'Joey' , lastName: 'Smith' , memberSid: 'Johnny Starks'
+		} ) ;
+	} ) ;
+
+	it( "overwrite and depth mixing" ) ;
+} ) ;
+
+
+
+describe( "Fingerprint" , () => {
+
+	it( "should create a fingerprint" , () => {
+		var f ;
+		
+		f = users.createFingerprint( { firstName: 'Terry' } ) ;
+
+		expect( f ).to.be.an( rootsDb.Fingerprint ) ;
+		expect( f.def ).to.equal( { firstName: 'Terry' } ) ;
+		expect( f.partial ).to.equal( { firstName: 'Terry' } ) ;
+		
+		f = users.createFingerprint( { "path.to.data": "my data" } ) ;
+
+		expect( f ).to.be.an( rootsDb.Fingerprint ) ;
+		expect( f.def ).to.equal( { "path.to.data": "my data" } ) ;
+		expect( f.partial ).to.equal( { path: { to: { data: "my data" } } } ) ;
+	} ) ;
+
+	it( "should create a fingerprint from a partial document" , () => {
+		var f = users.createFingerprint( { path: { to: { data: "my data" } } } , true ) ;
+
+		expect( f ).to.be.an( rootsDb.Fingerprint ) ;
+		expect( f.def ).to.equal( { "path.to.data": "my data" } ) ;
+		expect( f.partial ).to.equal( { path: { to: { data: "my data" } } } ) ;
+	} ) ;
+
+	it( "should detect uniqueness correctly" , () => {
+		expect( users.createFingerprint( { _id: '123456789012345678901234' } ).unique ).to.be( true ) ;
+		expect( users.createFingerprint( { firstName: 'Terry' } ).unique ).to.be( false ) ;
+		expect( users.createFingerprint( { firstName: 'Terry' , lastName: 'Bogard' } ).unique ).to.be( false ) ;
+		expect( users.createFingerprint( { _id: '123456789012345678901234' , firstName: 'Terry' , lastName: 'Bogard' } ).unique ).to.be( true ) ;
+		expect( users.createFingerprint( { job: '123456789012345678901234' } ).unique ).to.be( false ) ;
+		expect( users.createFingerprint( { memberSid: 'terry-bogard' } ).unique ).to.be( false ) ;
+		expect( users.createFingerprint( { job: '123456789012345678901234' , memberSid: 'terry-bogard' } ).unique ).to.be( true ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Get documents by unique fingerprint" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should get a document by a unique fingerprint" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Bill' ,
+			lastName: "Cut'throat"
+		} ) ;
+
+		var userId = user.getId() ;
+		var memberSid = user.memberSid ;
+
+		var job = jobs.createDocument() ;
+		var jobId = job.getId() ;
+		user.job = jobId ;
+
+		await user.save() ;
+		await job.save() ;
+		
+		await expect( users.getUnique( { memberSid: memberSid , job: jobId } ) ).to.eventually.equal( {
+			_id: userId , job: jobId , firstName: 'Bill' , lastName: "Cut'throat" , memberSid: "Bill Cut'throat"
+		} ) ;
+	} ) ;
+
+	it( "when trying to get a document with a non-unique fingerprint, an ErrorStatus (type: badRequest) should be issued" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Bill' ,
+			lastName: "Tannen"
+		} ) ;
+
+		var id = user.getId() ;
+		await user.save() ;
+		
+		await expect( () => users.getUnique( { firstName: 'Bill' , lastName: "Tannen" } ) ).to.reject.with.an( ErrorStatus , { type: 'badRequest' } ) ;
+	} ) ;
+
+	it( "should get a document by a unique fingerprint with deep ref (to embedded data)" , async () => {
+		var localBatch = towns.createBatch( [
+			{
 				name: 'Paris' ,
 				meta: {
 					country: 'France' ,
 					capital: true
 				}
-			} ) ,
-			towns.createDocument( {
+			} ,
+			{
 				name: 'Tokyo' ,
 				meta: {
 					country: 'Japan' ,
 					capital: true
 				}
-			} ) ,
-			towns.createDocument( {
+			} ,
+			{
 				name: 'New York' ,
 				meta: {
 					country: 'USA' ,
 					capital: false
 				}
-			} ) ,
-			towns.createDocument( {
+			}
+		] ) ;
+
+		expect( localBatch ).to.have.length( 3 ) ;
+		
+		await localBatch.save() ;
+		
+		var town = await towns.getUnique( { name: 'Tokyo' , "meta.country": 'Japan' } ) ;
+		
+		expect( town ).to.equal( {
+			_id: town._id ,
+			name: 'Tokyo' ,
+			meta: {
+				country: 'Japan' ,
+				capital: true
+			}
+		} ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Batch creation" , () => {
+
+	it( "should create an empty batch" , () => {
+		var userBatch = users.createBatch() ;
+		
+		expect( Array.isArray( userBatch ) ).to.be.ok() ;
+		expect( userBatch ).to.be.an( Array ) ;
+		expect( userBatch ).to.be.a( rootsDb.Batch ) ;
+		expect( userBatch ).to.have.length( 0 ) ;
+	} ) ;
+
+	it( "should create a batch with few default documents" , () => {
+		var userBatch = users.createBatch( [ {} , {} ] ) ;
+		
+		expect( Array.isArray( userBatch ) ).to.be.ok() ;
+		expect( userBatch ).to.be.an( Array ) ;
+		expect( userBatch ).to.be.a( rootsDb.Batch ) ;
+		expect( userBatch ).to.have.length( 2 ) ;
+		
+		expect( userBatch[ 0 ] ).to.be.an( Object ) ;
+		expect( userBatch[ 0 ].$ ).to.be.an( Object ) ;
+		expect( userBatch[ 0 ]._ ).to.be.a( rootsDb.Document ) ;
+		expect( userBatch[ 0 ]._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 0 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 0 ]._id ).to.be( userBatch[ 0 ].getId() ) ;
+		expect( userBatch[ 0 ] ).to.partially.equal( expectedDefaultUser ) ;
+		expect( userBatch[ 0 ].$ ).to.partially.equal( expectedDefaultUser ) ;
+		
+		expect( userBatch[ 1 ] ).to.be.an( Object ) ;
+		expect( userBatch[ 1 ].$ ).to.be.an( Object ) ;
+		expect( userBatch[ 1 ]._ ).to.be.a( rootsDb.Document ) ;
+		expect( userBatch[ 1 ]._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 1 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 1 ]._id ).to.be( userBatch[ 1 ].getId() ) ;
+		expect( userBatch[ 1 ] ).to.partially.equal( expectedDefaultUser ) ;
+		expect( userBatch[ 1 ].$ ).to.partially.equal( expectedDefaultUser ) ;
+	} ) ;
+
+	it( "should create a batch with few documents with valid data" , () => {
+		var userBatch = users.createBatch( [
+			{ firstName: 'Bobby' , lastName: 'Fischer' } ,
+			{ firstName: 'John' , lastName: 'Smith' }
+		] ) ;
+		
+		expect( Array.isArray( userBatch ) ).to.be.ok() ;
+		expect( userBatch ).to.be.an( Array ) ;
+		expect( userBatch ).to.be.a( rootsDb.Batch ) ;
+		expect( userBatch ).to.have.length( 2 ) ;
+		
+		expect( userBatch[ 0 ] ).to.be.an( Object ) ;
+		expect( userBatch[ 0 ].$ ).to.be.an( Object ) ;
+		expect( userBatch[ 0 ]._ ).to.be.a( rootsDb.Document ) ;
+		expect( userBatch[ 0 ]._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 0 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 0 ]._id ).to.be( userBatch[ 0 ].getId() ) ;
+		expect( userBatch[ 0 ] ).to.equal( { _id: userBatch[ 0 ].getId() , firstName: 'Bobby' , lastName: 'Fischer' , memberSid: 'Bobby Fischer' } ) ;
+		
+		expect( userBatch[ 1 ] ).to.be.an( Object ) ;
+		expect( userBatch[ 1 ].$ ).to.be.an( Object ) ;
+		expect( userBatch[ 1 ]._ ).to.be.a( rootsDb.Document ) ;
+		expect( userBatch[ 1 ]._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 1 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 1 ]._id ).to.be( userBatch[ 1 ].getId() ) ;
+		expect( userBatch[ 1 ] ).to.partially.equal( { _id: userBatch[ 1 ].getId() , firstName: 'John' , lastName: 'Smith' , memberSid: 'John Smith' } ) ;
+	} ) ;
+		
+	it( "batch should inherit Array methods and constructs" , () => {
+		var count , seen ;
+		
+		var userBatch = users.createBatch( [
+			{ firstName: 'Bobby' , lastName: 'Fischer' } ,
+			{ firstName: 'John' , lastName: 'Smith' }
+		] ) ;
+		
+		// .push()
+		userBatch.push( { firstName: 'Kurisu' , lastName: 'Makise' } ) ;
+		expect( userBatch ).to.have.length( 3 ) ;
+		expect( userBatch[ 2 ] ).to.be.an( Object ) ;
+		expect( userBatch[ 2 ].$ ).to.be.an( Object ) ;
+		expect( userBatch[ 2 ]._ ).to.be.a( rootsDb.Document ) ;
+		expect( userBatch[ 2 ]._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 2 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 2 ]._id ).to.be( userBatch[ 2 ].getId() ) ;
+		expect( userBatch[ 2 ] ).to.partially.equal( { _id: userBatch[ 2 ].getId() , firstName: 'Kurisu' , lastName: 'Makise' , memberSid: 'Kurisu Makise' } ) ;
+		
+		// .forEach()
+		count = 0 ;
+		seen = [] ;
+		userBatch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			seen.push( doc.lastName ) ;
+			count ++ ;
+		} ) ;
+		expect( count ).to.be( 3 ) ;
+		expect( seen ).to.equal( [ 'Fischer' , 'Smith' , 'Makise' ] ) ;
+		
+		// for ... of
+		count = 0 ;
+		seen = [] ;
+		for ( let doc of userBatch ) {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			seen.push( doc.lastName ) ;
+			count ++ ;
+		} 
+		expect( count ).to.be( 3 ) ;
+		expect( seen ).to.equal( [ 'Fischer' , 'Smith' , 'Makise' ] ) ;
+	} ) ;
+
+	it( "should save a whole batch" , async () => {
+		var userBatch = users.createBatch( [
+			{ firstName: 'Bobby' , lastName: 'Fischer' } ,
+			{ firstName: 'John' , lastName: 'Smith' }
+		] ) ;
+		
+		await userBatch.save() ;
+		
+		await expect( users.get( userBatch[ 0 ].getId() ) ).to.eventually.equal(
+			{ _id: userBatch[ 0 ].getId() , firstName: 'Bobby' , lastName: 'Fischer' , memberSid: 'Bobby Fischer' }
+		) ;
+
+		await expect( users.get( userBatch[ 1 ].getId() ) ).to.eventually.equal(
+			{ _id: userBatch[ 1 ].getId() , firstName: 'John' , lastName: 'Smith' , memberSid: 'John Smith' }
+		) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Multi Get" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should get multiple document using an array of IDs" , async () => {
+		var map , batch ;
+		
+		var marleys = users.createBatch( [
+			{ firstName: 'Bob' , lastName: 'Marley' } ,
+			{ firstName: 'Julian' , lastName: 'Marley' } ,
+			{ firstName: 'Stephen' , lastName: 'Marley' } ,
+			{ firstName: 'Ziggy' , lastName: 'Marley' } ,
+			{ firstName: 'Rita' , lastName: 'Marley' }
+		] ) ;
+
+		expect( marleys ).to.have.length( 5 ) ;
+		var ids = marleys.map( doc => doc.getId() ) ;
+		
+		await marleys.save() ;
+		
+		batch = await users.multiGet( ids ) ;
+		
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 5 ) ;
+		
+		// MongoDB may shuffle things up, so we don't use an array here
+		map = {} ;
+		
+		batch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			expect( doc.firstName ).to.be.ok() ;
+			expect( doc.lastName ).to.equal( 'Marley' ) ;
+			map[ doc.firstName ] = doc ;
+		} ) ;
+		
+		expect( map ).to.only.have.own.keys( 'Bob' , 'Julian' , 'Stephen' , 'Ziggy' , 'Rita' ) ;
+		expect( map ).to.equal( {
+			Bob: { _id: marleys[ 0 ].getId() , firstName: 'Bob' , lastName: 'Marley' , memberSid: 'Bob Marley' } ,
+			Julian: { _id: marleys[ 1 ].getId() , firstName: 'Julian' , lastName: 'Marley' , memberSid: 'Julian Marley' } ,
+			Stephen: { _id: marleys[ 2 ].getId() , firstName: 'Stephen' , lastName: 'Marley' , memberSid: 'Stephen Marley' } ,
+			Ziggy: { _id: marleys[ 3 ].getId() , firstName: 'Ziggy' , lastName: 'Marley' , memberSid: 'Ziggy Marley' } ,
+			Rita: { _id: marleys[ 4 ].getId() , firstName: 'Rita' , lastName: 'Marley' , memberSid: 'Rita Marley' }
+		} ) ;
+		
+		
+		// Same with a subset of what is in the DB
+		batch = await users.multiGet( [ marleys[ 2 ].getId() , marleys[ 4 ].getId() ] ) ;
+		
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 2 ) ;
+		
+		// MongoDB may shuffle things up, so we don't use an array here
+		map = {} ;
+		
+		batch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			expect( doc.firstName ).to.be.ok() ;
+			expect( doc.lastName ).to.equal( 'Marley' ) ;
+			map[ doc.firstName ] = doc ;
+		} ) ;
+		
+		expect( map ).to.equal( {
+			Stephen: { _id: marleys[ 2 ].getId() , firstName: 'Stephen' , lastName: 'Marley' , memberSid: 'Stephen Marley' } ,
+			Rita: { _id: marleys[ 4 ].getId() , firstName: 'Rita' , lastName: 'Marley' , memberSid: 'Rita Marley' }
+		} ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Collect by fingerprint" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should collect a batch using a non-unique fingerprint" , async () => {
+		var localBatch = users.createBatch( [
+			{ firstName: 'Bob' , lastName: 'Marley' } ,
+			{ firstName: 'Julian' , lastName: 'Marley' } ,
+			{ firstName: 'Mr' , lastName: 'X' } ,
+			{ firstName: 'Stephen' , lastName: 'Marley' } ,
+			{ firstName: 'Ziggy' , lastName: 'Marley' } ,
+			{ firstName: 'Thomas' , lastName: 'Jefferson' } ,
+			{ firstName: 'Rita' , lastName: 'Marley' }
+		] ) ;
+
+		expect( localBatch ).to.have.length( 7 ) ;
+		
+		await localBatch.save() ;
+		
+		var batch = await users.collect( { lastName: 'Marley' } ) ;
+		
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 5 ) ;
+		
+		// MongoDB may shuffle things up, so we don't use an array here
+		var map = {} ;
+		
+		batch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			expect( doc.firstName ).to.be.ok() ;
+			expect( doc.lastName ).to.equal( 'Marley' ) ;
+			map[ doc.firstName ] = doc ;
+		} ) ;
+		
+		expect( map ).to.only.have.own.keys( 'Bob' , 'Julian' , 'Stephen' , 'Ziggy' , 'Rita' ) ;
+		expect( map ).to.equal( {
+			Bob: { _id: localBatch[ 0 ].getId() , firstName: 'Bob' , lastName: 'Marley' , memberSid: 'Bob Marley' } ,
+			Julian: { _id: localBatch[ 1 ].getId() , firstName: 'Julian' , lastName: 'Marley' , memberSid: 'Julian Marley' } ,
+			Stephen: { _id: localBatch[ 3 ].getId() , firstName: 'Stephen' , lastName: 'Marley' , memberSid: 'Stephen Marley' } ,
+			Ziggy: { _id: localBatch[ 4 ].getId() , firstName: 'Ziggy' , lastName: 'Marley' , memberSid: 'Ziggy Marley' } ,
+			Rita: { _id: localBatch[ 6 ].getId() , firstName: 'Rita' , lastName: 'Marley' , memberSid: 'Rita Marley' }
+		} ) ;
+	} ) ;
+
+	it( "should collect a batch using a fingerprint with deep ref (to embedded data)" , async () => {
+		var map , batch ;
+		
+		var localBatch = towns.createBatch( [
+			{
+				name: 'Paris' ,
+				meta: {
+					country: 'France' ,
+					capital: true
+				}
+			} ,
+			{
+				name: 'Tokyo' ,
+				meta: {
+					country: 'Japan' ,
+					capital: true
+				}
+			} ,
+			{
+				name: 'New York' ,
+				meta: {
+					country: 'USA' ,
+					capital: false
+				}
+			} ,
+			{
 				name: 'Washington' ,
 				meta: {
 					country: 'USA' ,
 					capital: true
 				}
-			} ) ,
-			towns.createDocument( {
+			} ,
+			{
 				name: 'San Francisco' ,
 				meta: {
 					country: 'USA' ,
 					capital: false
 				}
-			} )
-		] ;
-		
-		async.series( [
-			function( callback ) {
-				rootsDb.bulk( 'save' , townList , callback ) ;
-			} ,
-			function( callback ) {
-				towns.collect( { "meta.country": 'USA' } , function( error , batch ) {
-					var i , map = {} ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'RawBatch:' , batch ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.an( rootsDb.BatchWrapper ) ;
-					expect( batch ).to.have.length( 3 ) ;
-					
-					for ( i = 0 ; i < batch.length ; i ++ )
-					{
-						expect( batch[ i ].name ).to.be.ok() ;
-						expect( batch[ i ].meta.country ).to.equal( 'USA' ) ;
-						map[ batch[ i ].name ] = true ;
-					}
-					
-					expect( map ).to.only.have.keys( 'New York' , 'Washington' , 'San Francisco' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				towns.collect( { "meta.country": 'USA' , "meta.capital": false } , function( error , batch ) {
-					var i , map = {} ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Batch:' , batch ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.an( rootsDb.BatchWrapper ) ;
-					expect( batch ).to.have.length( 2 ) ;
-					
-					for ( i = 0 ; i < batch.length ; i ++ )
-					{
-						expect( batch[ i ].name ).to.ok() ;
-						expect( batch[ i ].meta.country ).to.equal( 'USA' ) ;
-						map[ batch[ i ].name ] = true ;
-					}
-					
-					expect( map ).to.only.have.keys( 'New York' , 'San Francisco' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				towns.getUnique( { name: 'Tokyo', "meta.country": 'Japan' } , function( error , town ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Town:' , town ) ; 
-					expect( error ).not.to.be.ok() ;
-					expect( town.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( town ).to.eql( {
-						_id: town._id ,
-						name: 'Tokyo' ,
-						meta: {
-							country: 'Japan' ,
-							capital: true
-						}
-					} ) ;
-					callback() ;
-				} ) ;
 			}
-		] )
-		.exec( done ) ;
+		] ) ;
+
+		expect( localBatch ).to.have.length( 5 ) ;
+		
+		await localBatch.save() ;
+		
+		batch = await towns.collect( { "meta.country": "USA" } ) ;
+		
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 3 ) ;
+		
+		// MongoDB may shuffle things up, so we don't use an array here
+		map = {} ;
+		
+		batch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			map[ doc.name ] = doc ;
+		} ) ;
+		
+		expect( map ).to.equal( {
+			"New York": { _id: localBatch[ 2 ].getId() , name: "New York" , meta: { country: "USA" , capital: false } } ,
+			"Washington": { _id: localBatch[ 3 ].getId() , name: "Washington" , meta: { country: "USA" , capital: true } } ,
+			"San Francisco": { _id: localBatch[ 4 ].getId() , name: "San Francisco" , meta: { country: "USA" , capital: false } }
+		} ) ;
+
+		batch = await towns.collect( { "meta.country": "USA" ,  "meta.capital": false } ) ;
+		
+		expect( batch ).to.have.length( 2 ) ;
+		
+		// MongoDB may shuffle things up, so we don't use an array here
+		map = {} ;
+		
+		batch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			map[ doc.name ] = doc ;
+		} ) ;
+		
+		expect( map ).to.equal( {
+			"New York": { _id: localBatch[ 2 ].getId() , name: "New York" , meta: { country: "USA" , capital: false } } ,
+			"San Francisco": { _id: localBatch[ 4 ].getId() , name: "San Francisco" , meta: { country: "USA" , capital: false } }
+		} ) ;
 	} ) ;
 } ) ;
 
 
 
-describe( "Links" , function() {
-	
+describe( "Find with a query object" , () => {
+
 	beforeEach( clearDB ) ;
-	
-	it( "basic link (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
+
+	it( "should find documents (in a batch) using a queryObject" , async () => {
+		var localBatch = users.createBatch( [
+			{ firstName: 'Bob' , lastName: 'Marley' } ,
+			{ firstName: 'Julian' , lastName: 'Marley' } ,
+			{ firstName: 'Mr' , lastName: 'X' } ,
+			{ firstName: 'Stephen' , lastName: 'Marley' } ,
+			{ firstName: 'Ziggy' , lastName: 'Marley' } ,
+			{ firstName: 'Thomas' , lastName: 'Jefferson' } ,
+			{ firstName: 'Rita' , lastName: 'Marley' }
+		] ) ;
+
+		expect( localBatch ).to.have.length( 7 ) ;
 		
+		await localBatch.save() ;
+		
+		var batch = await users.find( { firstName: { $regex: /^[thomasstepn]+$/ , $options: 'i' } } ) ;
+		
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 2 ) ;
+		
+		// MongoDB may shuffle things up, so we don't use an array here
+		var map = {} ;
+		
+		batch.forEach( doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			map[ doc.firstName ] = doc ;
+		} ) ;
+		
+		expect( map ).to.equal( {
+			Stephen: { _id: localBatch[ 3 ].getId() , firstName: 'Stephen' , lastName: 'Marley' , memberSid: 'Stephen Marley' } ,
+			Thomas: { _id: localBatch[ 5 ].getId() , firstName: 'Thomas' , lastName: 'Jefferson' , memberSid: 'Thomas Jefferson' }
+		} ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Links" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should retrieve details of an inactive link" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
+
+		var userId = user.getId() ;
 		
-		var id = user._id ;
+		expect( user.getLinkDetails( 'job' ) ).to.equal( {
+			type: 'link' ,
+			foreignCollection: 'jobs' ,
+			//foreignId:  ,
+			hostPath: 'job' ,
+			schema: {
+				collection: 'jobs' ,
+				optional: true ,
+				type: 'link' ,
+				sanitize: [ 'toLink' ] ,
+				tier: 3
+			}
+		} ) ;
+		
+		// Same on saved documents...
+		await user.save() ;
+		var dbUser = await users.get( userId ) ;
+
+		expect( dbUser.getLinkDetails( 'job' ) ).to.equal( {
+			type: 'link' ,
+			foreignCollection: 'jobs' ,
+			//foreignId:  ,
+			hostPath: 'job' ,
+			schema: {
+				collection: 'jobs' ,
+				optional: true ,
+				type: 'link' ,
+				sanitize: [ 'toLink' ] ,
+				tier: 3
+			}
+		} ) ;
+	} ) ;
+	
+	it( "should retrieve details of an active link (setLink then getLinkDetails)" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var userId = user.getId() ;
 		
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
+
+		var jobId = job.getId() ;
 		
-		//console.log( job ) ;
-		var jobId = job.$.id ;
-		
-		// Link the documents!
-		user.$.setLink( 'job' , job ) ;
-		
-		expect( user.job ).to.eql( jobId ) ;
-		
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				jobs.get( jobId , function( error , job ) {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Job:' , job ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( job._id ).to.eql( jobId ) ;
-					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
-					
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , user_ ) {
-					user = user_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( { _id: user._id, job: jobId, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "job" , function( error , job ) {
-					expect( error ).not.to.be.ok() ;
-					expect( job ).to.eql( { _id: jobId , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				expect( user.$.getLinkDetails( "job" ) ).to.eql( {
-					type: 'link' ,
-					foreignCollection: 'jobs' ,
-					foreignId: jobId ,
-					hostPath: 'job' ,
-					schema: {
-						collection: 'jobs' ,
-						optional: true ,
-						type: 'link' ,
-						sanitize: [ 'toLink' ] ,
-						tier: 3
-					}
-				} ) ;
-				callback() ;
+		user.setLink( 'job' , job ) ;
+
+		expect( user.job ).to.equal( jobId ) ;
+		expect( user.getLinkDetails( 'job' ) ).to.equal( {
+			type: 'link' ,
+			foreignCollection: 'jobs' ,
+			foreignId: jobId ,
+			hostPath: 'job' ,
+			schema: {
+				collection: 'jobs' ,
+				optional: true ,
+				type: 'link' ,
+				sanitize: [ 'toLink' ] ,
+				tier: 3
 			}
-		] )
-		.exec( done ) ;
+		} ) ;
+		
+		// Same on saved documents...
+		await user.save() ;
+		await job.save() ;
+		var dbUser = await users.get( userId ) ;
+		var dbJob = await jobs.get( jobId ) ;
+
+		expect( dbUser.job ).to.equal( jobId ) ;
+		expect( user.getLinkDetails( 'job' ) ).to.equal( {
+			type: 'link' ,
+			foreignCollection: 'jobs' ,
+			foreignId: jobId ,
+			hostPath: 'job' ,
+			schema: {
+				collection: 'jobs' ,
+				optional: true ,
+				type: 'link' ,
+				sanitize: [ 'toLink' ] ,
+				tier: 3
+			}
+		} ) ;
 	} ) ;
 	
-	it( "basic nested links (create both, link, save both, retrieve parent, navigate to child)" , function( done ) {
+	it( "should retrieve an active link" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var userId = user.getId() ;
 		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var jobId = job.getId() ;
+		
+		user.setLink( 'job' , job ) ;
+
+		await user.save() ;
+		await job.save() ;
+		var dbUser = await users.get( userId ) ;
+
+		expect( dbUser.job ).to.equal( jobId ) ;
+		await expect( dbUser.getLink( 'job' ) ).to.eventually.equal( {
+			_id: jobId ,
+			title: "developer" ,
+			salary: 60000 ,
+			users: [] ,
+			schools: []
+		} ) ;
+	} ) ;
+
+	it( "should retrieve an active deep (nested) link" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
 		
-		var id = user._id ;
-		
+		var id = user.getId() ;
+
 		var connectionA = users.createDocument( {
 			firstName: 'John' ,
 			lastName: 'Fergusson'
 		} ) ;
-		
+
 		var connectionB = users.createDocument( {
 			firstName: 'Andy' ,
 			lastName: 'Fergusson'
 		} ) ;
-		
+
 		//console.log( job ) ;
-		var connectionAId = connectionA.$.id ;
-		var connectionBId = connectionB.$.id ;
-		
+		var connectionAId = connectionA.getId() ;
+		var connectionBId = connectionB.getId() ;
+
 		// Link the documents!
-		user.$.setLink( 'connection.A' , connectionA ) ;
-		user.$.setLink( 'connection.B' , connectionB ) ;
+		user.setLink( 'connection.A' , connectionA ) ;
+		user.setLink( 'connection.B' , connectionB ) ;
+
+		expect( user.connection.A ).to.equal( connectionAId ) ;
+		expect( user.connection.B ).to.equal( connectionBId ) ;
 		
-		expect( user.connection.A ).to.eql( connectionAId ) ;
-		expect( user.connection.B ).to.eql( connectionBId ) ;
+		await Promise.all( [ connectionA.save() , connectionB.save() , user.save() ] ) ;
 		
-		async.series( [
-			function( callback ) {
-				connectionA.$.save( callback ) ;
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			connection: {
+				A: connectionAId ,
+				B: connectionBId
 			} ,
-			function( callback ) {
-				connectionB.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , user ) {
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						connection: {
-							A: connectionAId ,
-							B: connectionBId
-						} ,
-						memberSid: 'Jilbert Polson'
-					} ) ;
-					
-					//user.$.toto = 'toto' ;
-					
-					user.$.getLink( "connection.A" , function( error , userA ) {
-						expect( error ).not.to.be.ok() ;
-						expect( userA ).to.eql( {
-							_id: connectionAId ,
-							firstName: 'John' ,
-							lastName: "Fergusson" ,
-							memberSid: "John Fergusson"
-						} ) ;
-						
-						user.$.getLink( "connection.B" , function( error , userB ) {
-							expect( error ).not.to.be.ok() ;
-							expect( userB ).to.eql( {
-								_id: connectionBId ,
-								firstName: 'Andy' ,
-								lastName: "Fergusson" ,
-								memberSid: "Andy Fergusson"
-							} ) ;
-							callback() ;
-						} ) ;
-					} ) ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
+			memberSid: 'Jilbert Polson'
+		} ) ;
+		
+		await expect( user.getLink( "connection.A" ) ).to.eventually.equal( {
+			_id: connectionAId ,
+			firstName: 'John' ,
+			lastName: "Fergusson" ,
+			memberSid: "John Fergusson"
+		} ) ;
+		
+		await expect( user.getLink( "connection.B" ) ).to.eventually.equal( {
+			_id: connectionBId ,
+			firstName: 'Andy' ,
+			lastName: "Fergusson" ,
+			memberSid: "Andy Fergusson"
+		} ) ;
 	} ) ;
-	
-	it( "unexistant links, non-link properties" , function( done ) {
-		
+
+	it( "unexistant links, non-link properties" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
-		var id = user._id ;
-		
+
+		var id = user.getId() ;
+
 		var connectionA = users.createDocument( {
 			firstName: 'John' ,
 			lastName: 'Fergusson'
 		} ) ;
-		
+
 		var connectionB = users.createDocument( {
 			firstName: 'Andy' ,
 			lastName: 'Fergusson'
 		} ) ;
+
+		var connectionAId = connectionA.getId() ;
+		var connectionBId = connectionB.getId() ;
+
+		user.setLink( 'connection.A' , connectionA ) ;
+		expect( () => user.setLink( 'unexistant' , connectionB ) ).to.throw( ErrorStatus , { type: 'badRequest' } ) ;
+		expect( () => user.setLink( 'firstName' , connectionB ) ).to.throw( ErrorStatus , { type: 'badRequest' } ) ;
+		expect( () => user.setLink( 'firstName.blah' , connectionB ) ).to.throw( ErrorStatus , { type: 'badRequest' } ) ;
+
+		await Promise.all( [ connectionA.save() , connectionB.save() , user.save() ] ) ;
+
+
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			connection: {
+				A: connectionAId
+			} ,
+			memberSid: 'Jilbert Polson'
+		} ) ;
 		
-		var connectionAId = connectionA.$.id ;
-		var connectionBId = connectionB.$.id ;
+		await expect( user.getLink( "connection.A" ) ).to.eventually.equal( {
+			_id: connectionAId ,
+			firstName: 'John' ,
+			lastName: "Fergusson" ,
+			memberSid: "John Fergusson"
+		} ) ;
 		
-		user.$.setLink( 'connection.A' , connectionA ) ;
-		doormen.shouldThrow( function() { user.$.setLink( 'unexistant' , connectionB ) ; } ) ;
-		doormen.shouldThrow( function() { user.$.setLink( 'firstName' , connectionB ) ; } ) ;
-		doormen.shouldThrow( function() { user.$.setLink( 'firstName.blah' , connectionB ) ; } ) ;
-		
-		async.series( [
-			function( callback ) {
-				connectionA.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				connectionB.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , user_ ) {
-					user = user_ ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						connection: {
-							A: connectionAId
-						} ,
-						memberSid: 'Jilbert Polson'
-					} ) ;
-					
-					//user.$.toto = 'toto' ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "connection.A" , function( error , userA ) {
-					expect( error ).not.to.be.ok() ;
-					expect( userA ).to.eql( {
-						_id: connectionAId ,
-						firstName: 'John' ,
-						lastName: "Fergusson" ,
-						memberSid: "John Fergusson"
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "connection.B" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'notFound' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "unexistant" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "unexistant.unexistant" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "firstName" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "firstName.blah" , function( error , userB ) {
-					expect( error ).to.be.ok() ;
-					expect( error.type ).to.be( 'badRequest' ) ;
-					callback() ;
-				} ) ;
-			} ,
-		] )
-		.exec( done ) ;
+		await expect( () => user.getLink( "connection.B" ) ).to.reject.with( ErrorStatus , { type: 'notFound' } ) ;
+		await expect( () => user.getLink( "unexistant" ) ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
+		await expect( () => user.getLink( "unexistant.unexistant" ) ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
+		await expect( () => user.getLink( "firstName" ) ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
+		await expect( () => user.getLink( "firstName.blah" ) ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
 	} ) ;
 } ) ;
 
 
 
-describe( "Multi-links" , function() {
-	
+describe( "Multi-links" , () => {
+
 	beforeEach( clearDB ) ;
-	
-	it( "basic multi-link (create, link, save, retrieve one, retrieve multi-links, add link, check, unlink, check)" , function( done ) {
-		
+
+	it( "should create, save, retrieve, add and remove multi-links" , async () => {
+		var map , batch ;
+
 		var school = schools.createDocument( {
 			title: 'Computer Science'
 		} ) ;
-		
-		var id = school._id ;
-		
+
+		var id = school.getId() ;
+
 		var job1 = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
-		var job1Id = job1.$.id ;
-		
+
+		var job1Id = job1.getId() ;
+
 		var job2 = jobs.createDocument( {
 			title: 'sysadmin' ,
 			salary: 55000
 		} ) ;
-		
-		var job2Id = job2.$.id ;
-		
+
+		var job2Id = job2.getId() ;
+
 		var job3 = jobs.createDocument( {
 			title: 'front-end developer' ,
 			salary: 54000
 		} ) ;
+
+		var job3Id = job3.getId() ;
 		
-		var job3Id = job3.$.id ;
+		// First test
+
+		school.setLink( 'jobs' , [ job1 , job2 ] ) ;
+		expect( school.jobs ).to.equal( [ job1Id , job2Id ] ) ;
+
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
+		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ job1Id , job2Id ] } ) ;
 		
-		// Link the documents!
-		school.$.setLink( 'jobs' , [ job1 , job2 ] ) ;
+		batch = await school.getLink( "jobs" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
 		
-		async.series( [
-			function( callback ) {
-				job1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job3.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				schools.get( id , function( error , school_ ) {
-					school = school_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Job:' , job ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( school.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( school._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( school._id ).to.eql( id ) ;
-					expect( school ).to.eql( { _id: school._id , title: 'Computer Science' , jobs: [ job1._id , job2._id ] } ) ;
-					
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				school.$.getLink( "jobs" , function( error , jobs_ ) {
-					expect( error ).not.to.be.ok() ;
-					expect( jobs_ ).to.have.length( 2 ) ;
-					
-					//console.error( jobs_ ) ;
-					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
-					
-					expect( jobs_ ).to.eql( [
-						{
-							_id: jobs_[ 0 ]._id,
-							title: 'developer',
-							salary: 60000,
-							users: [] ,
-							schools: []
-						} ,
-						{
-							_id: jobs_[ 1 ]._id,
-							title: 'sysadmin',
-							salary: 55000,
-							users: [] ,
-							schools: []
-						}
-					] ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				school.$.addLink( 'jobs' , job3 ) ;
-				school.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school.$.getLink( "jobs" , function( error , jobs_ ) {
-					expect( error ).not.to.be.ok() ;
-					expect( jobs_ ).to.have.length( 3 ) ;
-					
-					//console.error( jobs_ ) ;
-					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
-					
-					expect( jobs_ ).to.eql( [
-						{
-							_id: jobs_[ 0 ]._id,
-							title: 'developer',
-							salary: 60000,
-							users: [] ,
-							schools: []
-						} ,
-						{
-							_id: jobs_[ 1 ]._id,
-							title: 'sysadmin',
-							salary: 55000,
-							users: [] ,
-							schools: []
-						} ,
-						{
-							_id: jobs_[ 2 ]._id,
-							title: 'front-end developer',
-							salary: 54000,
-							users: [] ,
-							schools: []
-						} ,
-					] ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				school.$.unlink( 'jobs' , job2 ) ;
-				school.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school.$.getLink( "jobs" , function( error , jobs_ ) {
-					expect( error ).not.to.be.ok() ;
-					expect( jobs_ ).to.have.length( 2 ) ;
-					
-					//console.error( jobs_ ) ;
-					jobs_.sort( function( a , b ) { return b.salary - a.salary ; } ) ;
-					
-					expect( jobs_ ).to.eql( [
-						{
-							_id: jobs_[ 0 ]._id,
-							title: 'developer',
-							salary: 60000,
-							users: [] ,
-							schools: []
-						} ,
-						{
-							_id: jobs_[ 1 ]._id,
-							title: 'front-end developer',
-							salary: 54000,
-							users: [] ,
-							schools: []
-						} ,
-					] ) ;
-					callback() ;
-				} ) ;
-			} ,
-		] )
-		.exec( done ) ;
+		expect( map ).to.equal( {
+			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ,
+			sysadmin: { _id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: [] }
+		} ) ;
+		
+		// Second test
+		
+		school.addLink( 'jobs' , job3 ) ;
+		expect( school.jobs ).to.equal( [ job1Id , job2Id , job3Id ] ) ;
+		await school.save() ;
+
+		batch = await school.getLink( "jobs" ) ;
+		
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ,
+			sysadmin: { _id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: [] } ,
+			"front-end developer": { _id: job3Id , title: 'front-end developer' , salary: 54000 , users: [] , schools: [] }
+		} ) ;
+		
+		// Third test
+		
+		school.removeLink( 'jobs' , job2 ) ;
+		expect( school.jobs ).to.equal( [ job1Id , job3Id ] ) ;
+		await school.save() ;
+		
+		batch = await school.getLink( "jobs" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ,
+			"front-end developer": { _id: job3Id , title: 'front-end developer' , salary: 54000 , users: [] , schools: [] }
+		} ) ;
 	} ) ;
-	
-	it( "basic nested multi-links" ) ;
+
+	it( "should create, save, retrieve, add and remove deep (nested) multi-links" , async () => {
+		var map , batch ;
+
+		var rootDoc = nestedLinks.createDocument( { name: 'root' } ) ;
+		var id = rootDoc.getId() ;
+
+		var childDoc1 = nestedLinks.createDocument( { name: 'child1' } ) ;
+		var childDoc2 = nestedLinks.createDocument( { name: 'child2' } ) ;
+		var childDoc3 = nestedLinks.createDocument( { name: 'child3' } ) ;
+		
+		// First test
+
+		rootDoc.setLink( 'nested.multiLink' , [ childDoc1 , childDoc2 ] ) ;
+		expect( rootDoc.nested.multiLink ).to.equal( [ childDoc1.getId() , childDoc2.getId() ] ) ;
+
+		await Promise.all( [ rootDoc.save() , childDoc1.save() , childDoc2.save() , childDoc3.save() ] ) ;
+		await expect( nestedLinks.get( id ) ).to.eventually.equal( {
+			_id: id ,
+			name: 'root' ,
+			nested: {
+				backLinkOfLink: [] ,
+				backLinkOfMultiLink: [] ,
+				multiLink: [ childDoc1.getId() , childDoc2.getId() ]
+			}
+		} ) ;
+		
+		batch = await rootDoc.getLink( "nested.multiLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: {} } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: {} }
+		} ) ;
+		
+		// Second test
+		
+		rootDoc.addLink( 'nested.multiLink' , childDoc3 ) ;
+		expect( rootDoc.nested.multiLink ).to.equal( [ childDoc1.getId() , childDoc2.getId() , childDoc3.getId() ] ) ;
+		await rootDoc.save() ;
+
+		batch = await rootDoc.getLink( "nested.multiLink" ) ;
+		
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: {} } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: {} } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: {} }
+		} ) ;
+		
+		// Third test
+		
+		rootDoc.removeLink( 'nested.multiLink' , childDoc2 ) ;
+		expect( rootDoc.nested.multiLink ).to.equal( [ childDoc1.getId() , childDoc3.getId() ] ) ;
+		await rootDoc.save() ;
+		
+		batch = await rootDoc.getLink( "nested.multiLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: {} } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: {} }
+		} ) ;
+	} ) ;
 } ) ;
 
 
 
-describe( "Back-links" , function() {
-	
+describe( "Back-links" , () => {
+
 	beforeEach( clearDB ) ;
-	
-	it( "basic back-link (create, link, save, retrieve one, retrieve back-links)" , function( done ) {
+
+	it( "back-link of single link" , async () => {
+		var map , batch ;
 		
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
-		var id = user._id ;
-		
+
+		var id = user.getId() ;
+
 		var user2 = users.createDocument( {
 			firstName: 'Tony' ,
 			lastName: 'P.'
 		} ) ;
-		
-		var id2 = user2._id ;
-		
+
+		var id2 = user2.getId() ;
+
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		//console.log( job ) ;
-		var jobId = job.$.id ;
-		
+		var jobId = job.getId() ;
+
 		// Link the documents!
-		user.$.setLink( 'job' , job ) ;
+		user.setLink( 'job' , job ) ;
+
+		await Promise.all( [ user.save() , user2.save() , job.save() ] ) ;
+
+		var dbJob = await jobs.get( jobId ) ;
+		expect( dbJob ).to.equal( {
+			_id: jobId , title: 'developer' , salary: 60000 , users: [] , schools: []
+		} ) ;
 		
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				jobs.get( jobId , function( error , job_ ) {
-					job = job_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Job:' , job ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( job.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( job._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( job._id ).to.eql( jobId ) ;
-					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
-					
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , user_ ) {
-					user = user_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( { _id: user._id, job: jobId, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				job.$.getLink( "users" , function( error , users_ ) {
-					expect( error ).not.to.be.ok() ;
-					expect( users_ ).to.be.an( Array ) ;
-					expect( users_ ).to.have.length( 1 ) ;
-					// Temp
-					expect( users_ ).to.eql( [
-						{
-							_id: users_[ 0 ]._id,
-							firstName: 'Jilbert',
-							lastName: 'Polson',
-							memberSid: 'Jilbert Polson',
-							job: job._id
-						}
-					] ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				expect( job.$.getLinkDetails( "users" ) ).to.eql( {
-					type: 'backLink' ,
-					foreignCollection: 'users' ,
-					hostPath: 'users' ,
-					foreignPath: 'job' ,
-					schema: {
-						collection: 'users' ,
-						//optional: true ,
-						type: 'backLink' ,
-						sanitize: [ 'toBackLink' ] ,
-						path: 'job' ,
-						tier: 3
-					}
-				} ) ;
-				callback() ;
-			} ,
-			function( callback ) {
-				user2.$.setLink( 'job' , job ) ;
-				user2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job.$.getLink( "users" , function( error , users_ ) {
-					expect( error ).not.to.be.ok() ;
-					// Temp
-					
-					expect( users_ ).to.have.length( 2 ) ;
-					
-					//console.error( users_ ) ;
-					if ( users_[ 0 ].firstName === 'Tony' )
-					{
-						users_ = [ users_[ 1 ] , users_[ 0 ] ] ;
-					}
-					
-					expect( users_ ).to.eql( [
-						{
-							_id: users_[ 0 ]._id,
-							firstName: 'Jilbert',
-							lastName: 'Polson',
-							memberSid: 'Jilbert Polson',
-							job: job._id
-						} ,
-						{
-							_id: users_[ 1 ]._id,
-							firstName: 'Tony',
-							lastName: 'P.',
-							memberSid: 'Tony P.',
-							job: job._id
-						}
-					] ) ;
-					callback() ;
-				} ) ;
-			} ,
-		] )
-		.exec( done ) ;
+		expect( dbJob.getLinkDetails( "users" ) ).to.equal( {
+			type: 'backLink' ,
+			foreignCollection: 'users' ,
+			hostPath: 'users' ,
+			foreignPath: 'job' ,
+			schema: {
+				collection: 'users' ,
+				//optional: true ,
+				type: 'backLink' ,
+				sanitize: [ 'toBackLink' ] ,
+				path: 'job' ,
+				tier: 3
+			}
+		} ) ;
+		
+		batch = await job.getLink( "users" ) ;
+		
+		expect( batch.slice() ).to.equal( [
+			{
+				_id: id ,
+				firstName: 'Jilbert' ,
+				lastName: 'Polson' ,
+				memberSid: 'Jilbert Polson' ,
+				job: jobId
+			}
+		] ) ;
+		
+		
+		user2.setLink( 'job' , job ) ;
+		await user2.save() ;
+		
+		batch = await job.getLink( "users" ) ;
+		
+		map = {} ;
+		batch.forEach( doc => { map[ doc.firstName ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			Jilbert: { _id: id , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson' , job: jobId } ,
+			Tony: { _id: id2 , firstName: 'Tony' , lastName: 'P.' , memberSid: 'Tony P.' , job: jobId }
+		} ) ;
 	} ) ;
-	
-	it( "back-link of multi-link" , function( done ) {
+
+	it( "back-link of multi-link" , async () => {
+		var map , batch ;
 		
 		var school1 = schools.createDocument( {
 			title: 'Computer Science'
 		} ) ;
-		
-		var school1Id = school1._id ;
-		
+
+		var school1Id = school1.getId() ;
+
 		var school2 = schools.createDocument( {
 			title: 'Web Academy'
 		} ) ;
-		
-		var school2Id = school2._id ;
-		
+
+		var school2Id = school2.getId() ;
+
 		var job1 = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
-		var job1Id = job1.$.id ;
-		
+
+		var job1Id = job1.getId() ;
+
 		var job2 = jobs.createDocument( {
 			title: 'sysadmin' ,
 			salary: 55000
 		} ) ;
-		
-		var job2Id = job2.$.id ;
-		
+
+		var job2Id = job2.getId() ;
+
 		var job3 = jobs.createDocument( {
 			title: 'front-end developer' ,
 			salary: 54000
 		} ) ;
-		
-		var job3Id = job3.$.id ;
-		
+
+		var job3Id = job3.getId() ;
+
 		var job4 = jobs.createDocument( {
 			title: 'designer' ,
 			salary: 56000
 		} ) ;
-		
-		var job4Id = job4.$.id ;
-		
+
+		var job4Id = job4.getId() ;
+
 		// Link the documents!
-		school1.$.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
-		school2.$.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
+		school1.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
+		school2.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
+
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , job4.save() , school1.save() , school2.save() ] ) ;
 		
-		async.series( [
-			function( callback ) {
-				job1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job3.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job4.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				jobs.get( job1Id , function( error , job ) {
-					expect( error ).not.to.be.ok() ;
-					expect( job._id ).to.eql( job1Id ) ;
-					expect( job ).to.eql( {
-						_id: job1._id,
-						title: 'developer',
-						salary: 60000,
-						users: [],
-						schools: []
-					} ) ;
-					
-					job.$.getLink( 'schools' , function( error , schools_ ) {
-						expect( error ).not.to.be.ok() ;
-						expect( schools_ ).to.have.length( 2 ) ;
-						
-						schools_.sort( function( a , b ) { return b.title - a.title ; } ) ;
-						
-						// Order by id
-						schools_[ 0 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
-						schools_[ 1 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
-						
-						expect( schools_ ).to.eql( [
-							{
-								_id: school1._id,
-								title: 'Computer Science',
-								jobs: [ job1Id , job2Id , job3Id ]
-							},
-							{
-								_id: school2._id,
-								title: 'Web Academy',
-								jobs: [ job1Id , job3Id , job4Id ]
-							}
-						] ) ;
-						
-						callback() ;
-					} ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				jobs.get( job4Id , function( error , job ) {
-					expect( error ).not.to.be.ok() ;
-					expect( job._id ).to.eql( job4Id ) ;
-					expect( job ).to.eql( {
-						_id: job4._id,
-						title: 'designer',
-						salary: 56000,
-						users: [],
-						schools: []
-					} ) ;
-					
-					job.$.getLink( 'schools' , function( error , schools_ ) {
-						expect( error ).not.to.be.ok() ;
-						expect( schools_ ).to.have.length( 1 ) ;
-						
-						// Order by id
-						schools_[ 0 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
-						
-						expect( schools_ ).to.eql( [
-							{
-								_id: school2._id,
-								title: 'Web Academy',
-								jobs: [ job1Id , job3Id , job4Id ]
-							}
-						] ) ;
-						
-						callback() ;
-					} ) ;
-				} ) ;
-			} ,
-		] )
-		.exec( done ) ;
+		var dbJob = await jobs.get( job1Id ) ;
+		expect( dbJob ).to.equal( { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
+		
+		batch = await dbJob.getLink( 'schools' ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			'Computer Science': { _id: school1Id , title: 'Computer Science' , jobs: [ job1Id , job2Id , job3Id ] } ,
+			'Web Academy': { _id: school2Id , title: 'Web Academy' , jobs: [ job1Id , job3Id , job4Id ] }
+		} ) ;
+		
+		dbJob = await jobs.get( job4Id ) ;
+		expect( dbJob ).to.equal( { _id: job4Id , title: 'designer' , salary: 56000 , users: [] , schools: [] } ) ;
+		
+		batch = await dbJob.getLink( 'schools' ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
+		
+		expect( batch.slice() ).to.equal( [
+			{ _id: school2Id , title: 'Web Academy' , jobs: [ job1Id , job3Id , job4Id ] }
+		] ) ;
 	} ) ;
-	
-	it( "basic nested back-links" ) ;
+
+	it( "deep (nested) back-link of single link" , async () => {
+		var map , batch ;
+		
+		var rootDoc = nestedLinks.createDocument( { name: 'root' } ) ;
+		var id = rootDoc.getId() ;
+
+		expect( rootDoc.getLinkDetails( "nested.backLinkOfLink" ) ).to.equal( {
+			type: 'backLink' ,
+			foreignCollection: 'nestedLinks' ,
+			hostPath: 'nested.backLinkOfLink' ,
+			foreignPath: 'nested.link' ,
+			schema: {
+				collection: 'nestedLinks' ,
+				type: 'backLink' ,
+				sanitize: [ 'toBackLink' ] ,
+				path: 'nested.link' ,
+				tier: 3
+			}
+		} ) ;
+
+		var childDoc1 = nestedLinks.createDocument( { name: 'child1' } ) ;
+		var childDoc2 = nestedLinks.createDocument( { name: 'child2' } ) ;
+		var childDoc3 = nestedLinks.createDocument( { name: 'child3' } ) ;
+		
+		// First test
+
+		childDoc1.setLink( 'nested.link' , rootDoc ) ;
+		childDoc2.setLink( 'nested.link' , rootDoc ) ;
+
+		await Promise.all( [ rootDoc.save() , childDoc1.save() , childDoc2.save() , childDoc3.save() ] ) ;
+		batch = await rootDoc.getLink( "nested.backLinkOfLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } }
+		} ) ;
+		
+		// Second test
+		
+		childDoc3.setLink( 'nested.link' , rootDoc ) ;
+		await childDoc3.save() ;
+		batch = await rootDoc.getLink( "nested.backLinkOfLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } }
+		} ) ;
+		
+		// Third test
+		
+		childDoc2.removeLink( 'nested.link' ) ;
+		await childDoc2.save() ;
+		batch = await rootDoc.getLink( "nested.backLinkOfLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } }
+		} ) ;
+	} ) ;
+
+	// This test is not fully written
+	it( "deep (nested) back-link of multi-link" , async () => {
+		var map , batch ;
+		
+		var rootDoc = nestedLinks.createDocument( { name: 'root' } ) ;
+		var id = rootDoc.getId() ;
+
+		expect( rootDoc.getLinkDetails( "nested.backLinkOfMultiLink" ) ).to.equal( {
+			type: 'backLink' ,
+			foreignCollection: 'nestedLinks' ,
+			hostPath: 'nested.backLinkOfMultiLink' ,
+			foreignPath: 'nested.multiLink' ,
+			schema: {
+				collection: 'nestedLinks' ,
+				type: 'backLink' ,
+				sanitize: [ 'toBackLink' ] ,
+				path: 'nested.multiLink' ,
+				tier: 3
+			}
+		} ) ;
+
+		var otherDoc1 = nestedLinks.createDocument( { name: 'otherDoc1' } ) ;
+		var otherDoc2 = nestedLinks.createDocument( { name: 'otherDoc2' } ) ;
+		
+		var childDoc1 = nestedLinks.createDocument( { name: 'child1' } ) ;
+		var childDoc2 = nestedLinks.createDocument( { name: 'child2' } ) ;
+		var childDoc3 = nestedLinks.createDocument( { name: 'child3' } ) ;
+		var childDoc4 = nestedLinks.createDocument( { name: 'child4' } ) ;
+		
+		// First test
+
+		childDoc1.setLink( 'nested.multiLink' , [ rootDoc ] ) ;
+		childDoc2.setLink( 'nested.multiLink' , [ rootDoc , otherDoc1 , otherDoc2 ] ) ;
+		childDoc3.setLink( 'nested.multiLink' , [ otherDoc1 , otherDoc2 ] ) ;
+
+		await Promise.all( [ rootDoc.save() , otherDoc1.save() , otherDoc2.save() , childDoc1.save() , childDoc2.save() , childDoc3.save() , childDoc4.save() ] ) ;
+		batch = await rootDoc.getLink( "nested.backLinkOfMultiLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() ] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() , otherDoc1.getId() , otherDoc2.getId() ] } }
+		} ) ;
+		
+		// Second test
+		
+		childDoc3.addLink( 'nested.multiLink' , rootDoc ) ;
+		await childDoc3.save() ;
+		batch = await rootDoc.getLink( "nested.backLinkOfMultiLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() ] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() , otherDoc1.getId() , otherDoc2.getId() ] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ otherDoc1.getId() , otherDoc2.getId() , rootDoc.getId() ] } }
+		} ) ;
+		
+		// Third test
+		
+		childDoc2.removeLink( 'nested.multiLink' , rootDoc ) ;
+		await childDoc2.save() ;
+		batch = await rootDoc.getLink( "nested.backLinkOfMultiLink" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() ] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ otherDoc1.getId() , otherDoc2.getId() , rootDoc.getId() ] } }
+		} ) ;
+	} ) ;
 } ) ;
 
 
 
-describe( "Populate links" , function() {
-	
+describe( "Attachment links" , () => {
+
 	beforeEach( clearDB ) ;
-	
-	it( "link population (create both, link, save both, get with populate option)" , function( done ) {
-		
-		var options ;
-		
+
+	it( "should create, save, and load an attachment" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
+
+		var id = user.getId() ;
 		
-		var id = user._id ;
+		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		var fullUrl = attachment.fullUrl ;
+		user.setAttachment( 'file' , attachment ) ;
+		//log.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'joke.txt' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'text/plain'
+		} ) ;
 		
+		await attachment.save() ;
+		await user.save() ;
+		
+		// Check that the file exists
+		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+		
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'joke.txt' ,
+				id: user.file.id ,	// Unpredictable
+				contentType: 'text/plain'
+			}
+		} ) ;
+		
+		var details = dbUser.getAttachmentDetails( 'file' ) ;
+		expect( details ).to.be.like( {
+			type: 'attachment' ,
+			hostPath: 'file' ,
+			schema: {
+				optional: true ,
+				type: 'attachment' ,
+				tier: 3
+			} ,
+			attachment: {
+				id: user.file.id ,
+				filename: 'joke.txt' ,
+				contentType: 'text/plain' ,
+				collectionName: 'users' ,
+				documentId: id.toString() ,
+				incoming: undefined ,
+				baseUrl: details.attachment.baseUrl ,
+				fullUrl: details.attachment.baseUrl +
+					details.attachment.documentId.toString() +
+					'/' + details.attachment.id.toString()
+			}
+		} ) ;
+
+		var dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.like( {
+			id: dbUser.file.id ,
+			filename: 'joke.txt' ,
+			contentType: 'text/plain' ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			incoming: undefined ,
+			baseUrl: dbAttachment.baseUrl ,
+			fullUrl: dbAttachment.baseUrl + dbAttachment.documentId.toString() + '/' + dbAttachment.id.toString()
+		} ) ;
+		
+		var content = await dbAttachment.load() ;
+		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
+	} ) ;
+	
+	it( "should alter meta-data of an attachment" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+		
+		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		var fullUrl = attachment.fullUrl ;
+		user.setAttachment( 'file' , attachment ) ;
+		
+		await attachment.save() ;
+		await user.save() ;
+		
+		var dbUser = await users.get( id ) ;
+		dbUser.file.filename = 'lol.txt' ;
+		dbUser.file.contentType = 'text/joke' ;
+		await dbUser.save() ;
+		
+		dbUser = await users.get( id ) ;
+		
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'lol.txt' ,
+				id: user.file.id ,	// Unpredictable
+				contentType: 'text/joke'
+			}
+		} ) ;
+		
+		var details = dbUser.getAttachmentDetails( 'file' ) ;
+		expect( details ).to.be.like( {
+			type: 'attachment' ,
+			hostPath: 'file' ,
+			schema: {
+				optional: true ,
+				type: 'attachment' ,
+				tier: 3
+			} ,
+			attachment: {
+				id: user.file.id ,
+				filename: 'lol.txt' ,
+				contentType: 'text/joke' ,
+				collectionName: 'users' ,
+				documentId: id.toString() ,
+				incoming: undefined ,
+				baseUrl: details.attachment.baseUrl ,
+				fullUrl: details.attachment.baseUrl +
+					details.attachment.documentId.toString() +
+					'/' + details.attachment.id.toString()
+			}
+		} ) ;
+
+		var dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.like( {
+			id: dbUser.file.id ,
+			filename: 'lol.txt' ,
+			contentType: 'text/joke' ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			incoming: undefined ,
+			baseUrl: dbAttachment.baseUrl ,
+			fullUrl: dbAttachment.baseUrl + dbAttachment.documentId.toString() + '/' + dbAttachment.id.toString()
+		} ) ;
+		
+		var content = await dbAttachment.load() ;
+		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
+	} ) ;
+
+	it( "should replace an attachment" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+		
+		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		var fullUrl = attachment.fullUrl ;
+		await user.setAttachment( 'file' , attachment ) ;
+		
+		await attachment.save() ;
+		await user.save() ;
+		
+		// Check that the file exists
+		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+		
+		var dbUser = await users.get( id ) ;
+		
+		await expect( dbUser.getAttachment( 'file' ).load().then( v => v.toString() ) ).to.eventually.be( "grigrigredin menufretin\n" ) ;
+		
+		var attachment2 = user.createAttachment(
+			{ filename: 'hello-world.html' , contentType: 'text/html' } ,
+			"<html><head></head><body>Hello world!</body></html>\n"
+		) ;
+
+		await dbUser.setAttachment( 'file' , attachment2 ) ;
+
+		// Check that the previous file has been deleted
+		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		
+		await attachment2.save() ;
+		await dbUser.save() ;
+
+		dbUser = await users.get( id ) ;
+		
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'hello-world.html' ,
+				id: dbUser.file.id ,	// Unpredictable
+				contentType: 'text/html'
+			}
+		} ) ;
+		
+		var details = dbUser.getAttachmentDetails( 'file' ) ;
+		expect( details ).to.be.like( {
+			type: 'attachment' ,
+			hostPath: 'file' ,
+			schema: {
+				optional: true ,
+				type: 'attachment' ,
+				tier: 3
+			} ,
+			attachment: {
+				id: dbUser.file.id ,
+				filename: 'hello-world.html' ,
+				contentType: 'text/html' ,
+				collectionName: 'users' ,
+				documentId: id.toString() ,
+				incoming: undefined ,
+				baseUrl: details.attachment.baseUrl ,
+				fullUrl: details.attachment.baseUrl +
+					details.attachment.documentId.toString() +
+					'/' + details.attachment.id.toString()
+			}
+		} ) ;
+		
+		var dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.like( {
+			id: dbUser.file.id ,
+			filename: 'hello-world.html' ,
+			contentType: 'text/html' ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			incoming: undefined ,
+			baseUrl: details.attachment.baseUrl ,
+			fullUrl: details.attachment.baseUrl +
+				details.attachment.documentId.toString() +
+				'/' + details.attachment.id.toString()
+		} ) ;
+
+		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( "<html><head></head><body>Hello world!</body></html>\n" ) ;
+		
+		// Check that the file exists
+		expect( () => { fs.accessSync( dbAttachment.fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+	} ) ;
+
+	it( "Delete an attachment" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+		
+		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		var fullUrl = attachment.fullUrl ;
+		await user.setAttachment( 'file' , attachment ) ;
+		
+		await attachment.save() ;
+		await user.save() ;
+		
+		// Check that the file exists
+		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+		
+		var dbUser = await users.get( id ) ;
+		
+		await expect( dbUser.getAttachment( 'file' ).load().then( v => v.toString() ) ).to.eventually.be( "grigrigredin menufretin\n" ) ;
+		
+		await dbUser.removeAttachment( 'file' ) ;
+
+		// Check that the previous file has been deleted
+		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: null
+		} ) ;
+		
+		var details = dbUser.getAttachmentDetails( 'file' ) ;
+		expect( details ).to.be.like( {
+			type: 'attachment' ,
+			attachment: null
+		} ) ;
+		
+		expect( () => dbUser.getAttachment( 'file' ) ).to.throw( ErrorStatus , { type: 'notFound' } ) ;
+	} ) ;
+	
+	it( "should create, save and replace attachments as stream, and load as stream" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+		var stream = new streamKit.FakeReadable( { timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt(0) } ) ;
+		
+		var attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
+		var fullUrl = attachment.fullUrl ;
+		user.setAttachment( 'file' , attachment ) ;
+		//log.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'random.bin' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'bin/random'
+		} ) ;
+		
+		await attachment.save() ;
+		await user.save() ;
+		
+		// Check that the file exists
+		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+		
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'random.bin' ,
+				id: user.file.id ,	// Unpredictable
+				contentType: 'bin/random'
+			}
+		} ) ;
+		
+		var dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.like( {
+			id: dbUser.file.id ,
+			filename: 'random.bin' ,
+			contentType: 'bin/random' ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			incoming: undefined ,
+			baseUrl: dbAttachment.baseUrl ,
+			fullUrl: dbAttachment.baseUrl + dbAttachment.documentId.toString() + '/' + dbAttachment.id.toString()
+		} ) ;
+		
+		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
+
+		stream = new streamKit.FakeReadable( { timeout: 50 , chunkSize: 10 , chunkCount: 3 , filler: 'b'.charCodeAt(0) } ) ;
+		var attachment2 = user.createAttachment( { filename: 'more-random.bin' , contentType: 'bin/random' } , stream ) ;
+
+		await dbUser.setAttachment( 'file' , attachment2 ) ;
+
+		// Check that the previous file has been deleted
+		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		
+		await attachment2.save() ;
+		await dbUser.save() ;
+
+		dbUser = await users.get( id ) ;
+		
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'more-random.bin' ,
+				id: dbUser.file.id ,	// Unpredictable
+				contentType: 'bin/random'
+			}
+		} ) ;
+		
+		var dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.like( {
+			id: dbUser.file.id ,
+			filename: 'more-random.bin' ,
+			contentType: 'bin/random' ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			incoming: undefined ,
+			baseUrl: dbAttachment.baseUrl ,
+			fullUrl: dbAttachment.baseUrl +
+				dbAttachment.documentId.toString() +
+				'/' + dbAttachment.id.toString()
+		} ) ;
+
+		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 30 ) ) ;
+		
+		// Check that the file exists
+		expect( () => { fs.accessSync( dbAttachment.fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+		
+		// Now load as a stream
+		var readStream = await dbAttachment.getReadStream() ;
+		var fakeWritable = new streamKit.FakeWritable() ;
+		readStream.pipe( fakeWritable ) ;
+		await Promise.onceEvent( fakeWritable , "finish" ) ;
+		
+		expect( fakeWritable.get().toString() ).to.be( 'b'.repeat( 30 ) ) ;
+	} ) ;
+	
+	it( "should .save() a document with the 'attachmentStreams' option" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+		var attachmentStreams = new rootsDb.AttachmentStreams() ;
+		
+		attachmentStreams.addStream(
+			new streamKit.FakeReadable( { timeout: 20 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt(0) } ) ,
+			'file' ,
+			{ filename: 'random.bin' , contentType: 'bin/random' }
+		) ;
+		
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( { timeout: 20 , chunkSize: 7 , chunkCount: 4 , filler: 'b'.charCodeAt(0) } ) ,
+				'avatar' ,
+				{ filename: 'face.jpg' , contentType: 'image/jpeg' }
+			) ;
+		} , 100 ) ;
+
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( { timeout: 20 , chunkSize: 7 , chunkCount: 3 , filler: 'c'.charCodeAt(0) } ) ,
+				'publicKey' ,
+				{ filename: 'rsa.pub' , contentType: 'application/x-pem-file' }
+			) ;
+		} , 200 ) ;
+		
+		setTimeout( () => attachmentStreams.end() , 300 ) ;
+		
+		await user.save( { attachmentStreams: attachmentStreams } ) ;
+		
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'random.bin' ,
+				id: dbUser.file.id ,	// Unpredictable
+				contentType: 'bin/random'
+			} ,
+			avatar: {
+				filename: 'face.jpg' ,
+				id: dbUser.avatar.id ,	// Unpredictable
+				contentType: 'image/jpeg'
+			} ,
+			publicKey: {
+				filename: 'rsa.pub' ,
+				id: dbUser.publicKey.id ,	// Unpredictable
+				contentType: 'application/x-pem-file'
+			}
+		} ) ;
+		
+		var fileAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( fileAttachment ).to.be.partially.like( {
+			filename: 'random.bin' ,
+			contentType: 'bin/random' ,
+		} ) ;
+		
+		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
+
+		var avatarAttachment = dbUser.getAttachment( 'avatar' ) ;
+
+		expect( avatarAttachment ).to.be.partially.like( {
+			filename: 'face.jpg' ,
+			contentType: 'image/jpeg' ,
+		} ) ;
+		
+		await expect( avatarAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
+
+		var publicKeyAttachment = dbUser.getAttachment( 'publicKey' ) ;
+		expect( publicKeyAttachment ).to.be.partially.like( {
+			filename: 'rsa.pub' ,
+			contentType: 'application/x-pem-file' ,
+		} ) ;
+		
+		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Locks" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should lock a document (create, save, lock, retrieve, lock, retrieve)" , async () => {
+		var lockable = lockables.createDocument( { data: 'something' } ) ,
+			id = lockable.getId() ,
+			dbLockable , lockId ;
+		
+		await lockable.save() ;
+		await expect( lockables.get( id ) ).to.eventually.equal( {
+			_id: id , data: 'something' , _lockedBy: null , _lockedAt: null
+		} ) ;
+		
+		lockId = await lockable.lock() ;
+		expect( lockId ).to.be.an( mongodb.ObjectID ) ;
+		expect( lockable._.meta.lockId ).to.be.an( mongodb.ObjectID ) ;
+		expect( lockable._.meta.lockId ).to.be( lockId ) ;
+		
+		dbLockable = await lockables.get( id ) ;
+		expect( dbLockable ).to.equal( {
+			_id: id , data: 'something' , _lockedBy: lockId , _lockedAt: dbLockable._lockedAt
+		} ) ;
+		expect( dbLockable._lockedAt ).to.be.a( Date ) ;
+		
+		await expect( lockable.lock() ).to.eventually.be( null ) ;
+		await expect( lockable.unlock() ).to.eventually.be( true ) ;
+		await expect( lockable.lock() ).to.eventually.be.a( mongodb.ObjectID ) ;
+	} ) ;
+	
+	it( "should perform a .lockedPartialFind(): lock, retrieve locked document, then release locks" , async () => {
+		var lockId ;
+
+		var batch = lockables.createBatch( [
+			{ data: 'one' } ,
+			{ data: 'two' } ,
+			{ data: 'three' } ,
+			{ data: 'four' } ,
+			{ data: 'five' } ,
+			{ data: 'six' }
+		] ) ;
+		
+		await batch.save() ;
+		
+		await Promise.all( [
+			lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' ] } } , dbBatch => {
+				expect( dbBatch ).to.have.length( 2 ) ;
+				
+				var map = {} ;
+				dbBatch.forEach( doc => {
+					map[ doc.data ] = doc ;
+				} ) ;
+				
+				expect( map ).to.partially.equal( {
+					one: { data: 'one' } ,
+					two: { data: 'two' }
+				} ) ;
+				
+				return Promise.resolveTimeout( 30 ) ;
+			} ) ,
+			Promise.resolveTimeout( 0 , () => lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
+				expect( dbBatch ).to.have.length( 1 ) ;
+				expect( dbBatch ).to.be.partially.like( [ { data: 'three' } ] ) ;
+				return Promise.resolveTimeout( 30 ) ;
+			} ) ) ,
+			Promise.resolveTimeout( 10 , () => lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
+				expect( dbBatch ).to.have.length( 0 ) ;
+			} ) )
+		] ) ;
+
+		await lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
+			expect( dbBatch ).to.have.length( 3 ) ;
+		} ) ;
+		
+		// Check that immediatley after 'await', the data are available
+		await lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
+			expect( dbBatch ).to.have.length( 3 ) ;
+		} ) ;
+	} ) ;
+} ) ;
+
+
+
+
+
+describe( "Populate links" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "link population (create both, link, save both, get with populate option)" , async () => {
+		var options ;
+
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		//console.log( job ) ;
-		var jobId = job.$.id ;
+		var jobId = job.getId() ;
+
+		user.setLink( 'job' , job ) ;
+
+		await job.save() ;
+		await user.save() ;
 		
-		// Link the documents!
-		user.$.setLink( 'job' , job ) ;
-		
-		expect( user.job ).to.eql( jobId ) ;
-		
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				options = { populate: 'job' } ;
-				users.get( id , options , function( error , user_ ) {
-					user = user_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( { _id: user._id, job: job, firstName: 'Jilbert', lastName: 'Polson' , memberSid: 'Jilbert Polson' } ) ;
-					
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
-					callback() ;
-				} ) ;
-			}
-		] )
-		.exec( done ) ;
+		options = { populate: 'job' } ;
+		var dbUser = users.get( id , options ) ;
+		expect( user ).to.equal( {
+			_id: user._id , job: job , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
+		} ) ;
+		expect( options.populateDepth ).to.be( 1 ) ;
+		expect( options.populateDbQueries ).to.be( 1 ) ;
 	} ) ;
-	
-	it( "multiple link population (create, link, save, get with populate option)" , function( done ) {
-		
+	return ;
+
+	it( "multiple link population (create, link, save, get with populate option)" , ( done ) => {
+
 		var options ;
-		
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		var godfather = users.createDocument( {
 			firstName: 'DA' ,
 			lastName: 'GODFATHER'
 		} ) ;
-		
+
 		var id = user._id ;
-		
+
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		// Link the documents!
 		user.$.setLink( 'job' , job ) ;
 		user.$.setLink( 'godfather' , godfather ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				job.$.save( callback ) ;
@@ -2176,15 +2714,15 @@ describe( "Populate links" , function() {
 			} ,
 			function( callback ) {
 				options = { populate: [ 'job' , 'godfather' ] } ;
-				users.get( id , options , function( error , user_ ) {
+				users.get( id , options , ( error , user_ ) => {
 					user = user_ ;
 					//console.log( 'Error:' , error ) ;
 					//console.log( 'User:' , user ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user.$ ).to.be.an( rootsDb.Document ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
-					expect( user ).to.eql( {
+					expect( user._id ).to.equal( id ) ;
+					expect( user ).to.equal( {
 						_id: user._id ,
 						job: job ,
 						godfather: godfather ,
@@ -2192,42 +2730,42 @@ describe( "Populate links" , function() {
 						lastName: 'Polson' ,
 						memberSid: 'Jilbert Polson'
 					} ) ;
-					
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 2 ) ;
-					
+
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "multiple link population having same and circular target" , function( done ) {
-		
+
+	it( "multiple link population having same and circular target" , ( done ) => {
+
 		var options ;
-		
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		var id = user._id ;
-		
+
 		var connection = users.createDocument( {
 			firstName: 'John' ,
 			lastName: 'Fergusson'
 		} ) ;
-		
+
 		// Link the documents!
 		user.$.setLink( 'connection.A' , connection ) ;
 		user.$.setLink( 'connection.B' , connection ) ;
 		user.$.setLink( 'connection.C' , user ) ;
-		
-		expect( user.connection.A ).to.eql( connection.$.id ) ;
-		expect( user.connection.B ).to.eql( connection.$.id ) ;
-		expect( user.connection.C ).to.eql( user.$.id ) ;
-		
+
+		expect( user.connection.A ).to.equal( connection.$.id ) ;
+		expect( user.connection.B ).to.equal( connection.$.id ) ;
+		expect( user.connection.C ).to.equal( user.$.id ) ;
+
 		async.series( [
 			function( callback ) {
 				connection.$.save( callback ) ;
@@ -2237,14 +2775,14 @@ describe( "Populate links" , function() {
 			} ,
 			function( callback ) {
 				options = { populate: [ 'connection.A' , 'connection.B' , 'connection.C' ] } ;
-				users.get( id , options , function( error , user ) {
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+				users.get( id , options , ( error , user ) => {
+					expect( user.$ ).to.be.an( rootsDb.Document ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.eql( id ) ;
+					expect( user._id ).to.equal( id ) ;
 					expect( user.connection.A ).to.be( user.connection.B ) ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
+					expect( user ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
 						lastName: 'Polson' ,
 						connection: {
 							A: connection ,
@@ -2253,51 +2791,51 @@ describe( "Populate links" , function() {
 						} ,
 						memberSid: 'Jilbert Polson'
 					} ) ;
-					
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "collect batch with multiple link population (create, link, save, collect with populate option)" , function( done ) {
-		
+
+	it( "collect batch with multiple link population (create, link, save, collect with populate option)" , ( done ) => {
+
 		var options ;
-		
+
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		var user2 = users.createDocument( {
 			firstName: 'Thomas' ,
 			lastName: 'Campbell'
 		} ) ;
-		
+
 		var user3 = users.createDocument( {
 			firstName: 'Harry' ,
 			lastName: 'Campbell'
 		} ) ;
-		
+
 		var godfather = users.createDocument( {
 			firstName: 'DA' ,
 			lastName: 'GODFATHER'
 		} ) ;
-		
+
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		// Link the documents!
 		user1.$.setLink( 'job' , job ) ;
 		user1.$.setLink( 'godfather' , godfather ) ;
 		user3.$.setLink( 'godfather' , godfather ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				job.$.save( callback ) ;
@@ -2316,112 +2854,112 @@ describe( "Populate links" , function() {
 			} ,
 			function( callback ) {
 				options = { populate: [ 'job' , 'godfather' ] } ;
-				users.collect( {} , options , function( error , batch ) {
+				users.collect( {} , options , ( error , batch ) => {
 					expect( error ).not.to.be.ok() ;
-					
+
 					// Sort that first...
-					batch.sort( function( a , b ) {
+					batch.sort( ( a , b ) => {
 						return a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ;
 					} ) ;
-					
-					expect( batch ).to.eql( [
+
+					expect( batch ).to.equal( [
 						{
-							firstName: 'DA',
-							lastName: 'GODFATHER',
-							_id: batch[ 0 ]._id,
+							firstName: 'DA' ,
+							lastName: 'GODFATHER' ,
+							_id: batch[ 0 ]._id ,
 							memberSid: 'DA GODFATHER'
 							//, job: null, godfather: null
 							//, job: undefined, godfather: undefined
-						},
+						} ,
 						{
-							firstName: 'Harry',
-							lastName: 'Campbell',
-							_id: batch[ 1 ]._id,
-							memberSid: 'Harry Campbell',
+							firstName: 'Harry' ,
+							lastName: 'Campbell' ,
+							_id: batch[ 1 ]._id ,
+							memberSid: 'Harry Campbell' ,
 							godfather: {
-								firstName: 'DA',
-								lastName: 'GODFATHER',
-								_id: batch[ 0 ]._id,
+								firstName: 'DA' ,
+								lastName: 'GODFATHER' ,
+								_id: batch[ 0 ]._id ,
 								memberSid: 'DA GODFATHER'
 							}
 							//, job: null
 							//, job: undefined
-						},
+						} ,
 						{
-							firstName: 'Jilbert',
-							lastName: 'Polson',
-							_id: batch[ 2 ]._id,
-							memberSid: 'Jilbert Polson',
+							firstName: 'Jilbert' ,
+							lastName: 'Polson' ,
+							_id: batch[ 2 ]._id ,
+							memberSid: 'Jilbert Polson' ,
 							job: {
-								title: 'developer',
-								salary: 60000,
-								users: [],
-								schools: [],
+								title: 'developer' ,
+								salary: 60000 ,
+								users: [] ,
+								schools: [] ,
 								_id: job._id
-							},
+							} ,
 							godfather: {
-								firstName: 'DA',
-								lastName: 'GODFATHER',
-								_id: batch[ 0 ]._id,
+								firstName: 'DA' ,
+								lastName: 'GODFATHER' ,
+								_id: batch[ 0 ]._id ,
 								memberSid: 'DA GODFATHER'
 							}
-						},
+						} ,
 						{
-							firstName: 'Thomas',
-							lastName: 'Campbell',
-							_id: batch[ 3 ]._id,
+							firstName: 'Thomas' ,
+							lastName: 'Campbell' ,
+							_id: batch[ 3 ]._id ,
 							memberSid: 'Thomas Campbell'
 							//, job: null, godfather: null
 							//, job: undefined, godfather: undefined
-						},
+						}
 					] ) ;
-					
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					// Only one DB query, since the godfather is a user and all users have been collected before the populate pass
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "collect batch with multiple link population and circular references" , function( done ) {
-		
+
+	it( "collect batch with multiple link population and circular references" , ( done ) => {
+
 		var options ;
-		
+
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		var user2 = users.createDocument( {
 			firstName: 'Thomas' ,
 			lastName: 'Campbell'
 		} ) ;
-		
+
 		var user3 = users.createDocument( {
 			firstName: 'Harry' ,
 			lastName: 'Campbell'
 		} ) ;
-		
+
 		var godfather = users.createDocument( {
 			firstName: 'DA' ,
 			lastName: 'GODFATHER'
 		} ) ;
-		
+
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		// Link the documents!
 		user1.$.setLink( 'job' , job ) ;
 		user1.$.setLink( 'godfather' , godfather ) ;
 		user3.$.setLink( 'godfather' , godfather ) ;
 		godfather.$.setLink( 'godfather' , godfather ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				job.$.save( callback ) ;
@@ -2440,71 +2978,71 @@ describe( "Populate links" , function() {
 			} ,
 			function( callback ) {
 				options = { populate: [ 'job' , 'godfather' ] } ;
-				users.collect( {} , options , function( error , batch ) {
+				users.collect( {} , options , ( error , batch ) => {
 					expect( error ).not.to.be.ok() ;
-					
+
 					// Sort that first...
-					batch.sort( function( a , b ) {
+					batch.sort( ( a , b ) => {
 						return a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ;
 					} ) ;
-					
+
 					// References are painful to test...
 					// More tests covering references are done in the memory model section
 					//log.warning( 'incomplete test for populate + reference' ) ;
-					
+
 					expect( batch[ 0 ].godfather ).to.be( batch[ 0 ] ) ;
 					//expect( batch[ 1 ].godfather ).to.be( batch[ 0 ] ) ;
 					expect( batch[ 2 ].godfather ).to.be( batch[ 0 ] ) ;
-					
+
 					// JSON.stringify() should throw
-					expect( function() { JSON.stringify( batch ) ; } ).to.throwException() ;
-					
+					expect( () => { JSON.stringify( batch ) ; } ).to.throwException() ;
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					// Only one DB query, since the godfather is a user and all users have been collected before the populate pass
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "collect batch with multiple link population and circular references: using noReference" , function( done ) {
-		
+
+	it( "collect batch with multiple link population and circular references: using noReference" , ( done ) => {
+
 		var options ;
-		
+
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		var user2 = users.createDocument( {
 			firstName: 'Thomas' ,
 			lastName: 'Campbell'
 		} ) ;
-		
+
 		var user3 = users.createDocument( {
 			firstName: 'Harry' ,
 			lastName: 'Campbell'
 		} ) ;
-		
+
 		var godfather = users.createDocument( {
 			firstName: 'DA' ,
 			lastName: 'GODFATHER'
 		} ) ;
-		
+
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		// Link the documents!
 		user1.$.setLink( 'job' , job ) ;
 		user1.$.setLink( 'godfather' , godfather ) ;
 		user3.$.setLink( 'godfather' , godfather ) ;
 		godfather.$.setLink( 'godfather' , godfather ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				job.$.save( callback ) ;
@@ -2523,137 +3061,137 @@ describe( "Populate links" , function() {
 			} ,
 			function( callback ) {
 				options = { populate: [ 'job' , 'godfather' ] , noReference: true } ;
-				users.collect( {} , options , function( error , batch ) {
+				users.collect( {} , options , ( error , batch ) => {
 					expect( error ).not.to.be.ok() ;
-					
+
 					// Sort that first...
-					batch.sort( function( a , b ) {
+					batch.sort( ( a , b ) => {
 						return a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ;
 					} ) ;
-					
-					expect( batch ).to.eql( [
+
+					expect( batch ).to.equal( [
 						{
-							firstName: 'DA',
-							lastName: 'GODFATHER',
-							_id: batch[ 0 ]._id,
-							memberSid: 'DA GODFATHER',
+							firstName: 'DA' ,
+							lastName: 'GODFATHER' ,
+							_id: batch[ 0 ]._id ,
+							memberSid: 'DA GODFATHER' ,
 							godfather: {
-								firstName: 'DA',
-								lastName: 'GODFATHER',
-								_id: batch[ 0 ]._id,
-								memberSid: 'DA GODFATHER',
+								firstName: 'DA' ,
+								lastName: 'GODFATHER' ,
+								_id: batch[ 0 ]._id ,
+								memberSid: 'DA GODFATHER' ,
 								godfather: batch[ 0 ]._id
 							}
-						},
+						} ,
 						{
-							firstName: 'Harry',
-							lastName: 'Campbell',
-							_id: batch[ 1 ]._id,
-							memberSid: 'Harry Campbell',
+							firstName: 'Harry' ,
+							lastName: 'Campbell' ,
+							_id: batch[ 1 ]._id ,
+							memberSid: 'Harry Campbell' ,
 							godfather: {
-								firstName: 'DA',
-								lastName: 'GODFATHER',
-								_id: batch[ 0 ]._id,
-								memberSid: 'DA GODFATHER',
+								firstName: 'DA' ,
+								lastName: 'GODFATHER' ,
+								_id: batch[ 0 ]._id ,
+								memberSid: 'DA GODFATHER' ,
 								godfather: batch[ 0 ]._id
 							}
 							//, job: null
 							//, job: undefined
-						},
+						} ,
 						{
-							firstName: 'Jilbert',
-							lastName: 'Polson',
-							_id: batch[ 2 ]._id,
-							memberSid: 'Jilbert Polson',
+							firstName: 'Jilbert' ,
+							lastName: 'Polson' ,
+							_id: batch[ 2 ]._id ,
+							memberSid: 'Jilbert Polson' ,
 							job: {
-								title: 'developer',
-								salary: 60000,
-								users: [],
-								schools: [],
+								title: 'developer' ,
+								salary: 60000 ,
+								users: [] ,
+								schools: [] ,
 								_id: job._id
-							},
+							} ,
 							godfather: {
-								firstName: 'DA',
-								lastName: 'GODFATHER',
-								_id: batch[ 0 ]._id,
-								memberSid: 'DA GODFATHER',
+								firstName: 'DA' ,
+								lastName: 'GODFATHER' ,
+								_id: batch[ 0 ]._id ,
+								memberSid: 'DA GODFATHER' ,
 								godfather: batch[ 0 ]._id
 							}
-						},
+						} ,
 						{
-							firstName: 'Thomas',
-							lastName: 'Campbell',
-							_id: batch[ 3 ]._id,
+							firstName: 'Thomas' ,
+							lastName: 'Campbell' ,
+							_id: batch[ 3 ]._id ,
 							memberSid: 'Thomas Campbell'
 							//, job: null, godfather: null
 							//, job: undefined, godfather: undefined
-						},
+						}
 					] ) ;
-					
+
 					//console.log( batch ) ;
-					
+
 					// JSON.stringify() should not throw
-					expect( function() { JSON.stringify( batch ) ; } ).not.to.throwException() ;
-					
+					expect( () => { JSON.stringify( batch ) ; } ).not.to.throwException() ;
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					// Only one DB query, since the godfather is a user and all users have been collected before the populate pass
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "'multi-link' population (create both, link, save both, get with populate option)" , function( done ) {
-		
+
+	it( "'multi-link' population (create both, link, save both, get with populate option)" , ( done ) => {
+
 		var options ;
-		
+
 		var school ;
-		
+
 		var school1 = schools.createDocument( {
 			title: 'Computer Science'
 		} ) ;
-		
+
 		var school1Id = school1._id ;
-		
+
 		var school2 = schools.createDocument( {
 			title: 'Web Academy'
 		} ) ;
-		
+
 		var school2Id = school2._id ;
-		
+
 		var job1 = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		var job1Id = job1.$.id ;
-		
+
 		var job2 = jobs.createDocument( {
 			title: 'sysadmin' ,
 			salary: 55000
 		} ) ;
-		
+
 		var job2Id = job2.$.id ;
-		
+
 		var job3 = jobs.createDocument( {
 			title: 'front-end developer' ,
 			salary: 54000
 		} ) ;
-		
+
 		var job4 = jobs.createDocument( {
 			title: 'designer' ,
 			salary: 56000
 		} ) ;
-		
+
 		var job4Id = job4.$.id ;
-		
+
 		// Link the documents!
 		school1.$.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
 		school2.$.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				job1.$.save( callback ) ;
@@ -2675,34 +3213,34 @@ describe( "Populate links" , function() {
 			} ,
 			function( callback ) {
 				options = { populate: 'jobs' } ;
-				schools.get( school1Id , options , function( error , school_ ) {
+				schools.get( school1Id , options , ( error , school_ ) => {
 					school = school_ ;
 					//console.log( '>>>>>>>>>>>\nSchool:' , school ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( school.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( school.$ ).to.be.an( rootsDb.Document ) ;
 					expect( school._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( school._id ).to.eql( school1Id ) ;
-					expect( school ).to.eql( {
+					expect( school._id ).to.equal( school1Id ) ;
+					expect( school ).to.equal( {
 						_id: school1._id ,
 						title: 'Computer Science' ,
 						jobs: [ job1 , job2 , job3 ]
 					} ) ;
-					
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
 				options = { populate: 'jobs' } ;
-				schools.collect( {} , options , function( error , schools_ ) {
-					
+				schools.collect( {} , options , ( error , schools_ ) => {
+
 					expect( error ).not.to.be.ok() ;
-					
+
 					if ( schools_[ 0 ].title !== 'Computer Science' ) { schools_ = [ schools_[ 1 ] , schools_[ 0 ] ] ; }
-					
-					expect( schools_ ).to.eql( [
+
+					expect( schools_ ).to.equal( [
 						{
 							_id: school1._id ,
 							title: 'Computer Science' ,
@@ -2714,60 +3252,60 @@ describe( "Populate links" , function() {
 							jobs: [ job1 , job3 , job4 ]
 						}
 					] ) ;
-					
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
-			} ,
+			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "'back-link' population (create both, link, save both, get with populate option)" , function( done ) {
-		
+
+	it( "'back-link' population (create both, link, save both, get with populate option)" , ( done ) => {
+
 		var options ;
-		
+
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		var user2 = users.createDocument( {
 			firstName: 'Tony' ,
 			lastName: 'P.'
 		} ) ;
-		
+
 		var user3 = users.createDocument( {
 			firstName: 'John' ,
 			lastName: 'C.'
 		} ) ;
-		
+
 		var user4 = users.createDocument( {
 			firstName: 'Richard' ,
 			lastName: 'S.'
 		} ) ;
-		
+
 		var job1 = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		var job2 = jobs.createDocument( {
 			title: 'star developer' ,
 			salary: 200000
 		} ) ;
-		
+
 		//console.log( job1 ) ;
 		var job1Id = job1.$.id ;
-		
+
 		// Link the documents!
 		user1.$.setLink( 'job' , job1 ) ;
 		user2.$.setLink( 'job' , job1 ) ;
 		user3.$.setLink( 'job' , job2 ) ;
 		user4.$.setLink( 'job' , job2 ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				job1.$.save( callback ) ;
@@ -2789,118 +3327,118 @@ describe( "Populate links" , function() {
 			} ,
 			function( callback ) {
 				options = { populate: 'users' } ;
-				jobs.get( job1Id , options , function( error , job_ ) {
+				jobs.get( job1Id , options , ( error , job_ ) => {
 					//console.error( job_.users ) ;
 					expect( error ).not.to.be.ok() ;
 					expect( job_.users ).to.have.length( 2 ) ;
-					
+
 					if ( job_.users[ 0 ].firstName === 'Tony' ) { job_.users = [ job_.users[ 1 ] , job_.users[ 0 ] ] ; }
-					
-					expect( job_ ).to.eql( {
+
+					expect( job_ ).to.equal( {
 						_id: job1._id ,
 						title: 'developer' ,
 						salary: 60000 ,
-						users: [ user1 , user2 ],
+						users: [ user1 , user2 ] ,
 						schools: []
 					} ) ;
-					
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				options = { populate: 'users' } ; 
-				jobs.collect( {} , options , function( error , jobs_ ) {
+				options = { populate: 'users' } ;
+				jobs.collect( {} , options , ( error , jobs_ ) => {
 					expect( error ).not.to.be.ok() ;
 					expect( jobs_ ).to.have.length( 2 ) ;
-					
+
 					//console.error( "\n\n\n\njobs:" , jobs_ ) ;
 					if ( jobs_[ 0 ].title === 'star developer' ) { jobs_ = [ jobs_[ 1 ] , jobs_[ 0 ] ] ; }
-					
+
 					expect( jobs_[ 0 ].users ).to.have.length( 2 ) ;
-					
+
 					if ( jobs_[ 0 ].users[ 0 ].firstName === 'Tony' ) { jobs_[ 0 ].users = [ jobs_[ 0 ].users[ 1 ] , jobs_[ 0 ].users[ 0 ] ] ; }
-					
-					expect( jobs_[ 0 ] ).to.eql( {
+
+					expect( jobs_[ 0 ] ).to.equal( {
 						_id: job1._id ,
 						title: 'developer' ,
 						salary: 60000 ,
-						users: [ user1 , user2 ],
+						users: [ user1 , user2 ] ,
 						schools: []
 					} ) ;
-					
+
 					expect( jobs_[ 1 ].users ).to.have.length( 2 ) ;
-					
+
 					if ( jobs_[ 1 ].users[ 0 ].firstName === 'Richard' ) { jobs_[ 1 ].users = [ jobs_[ 1 ].users[ 1 ] , jobs_[ 1 ].users[ 0 ] ] ; }
-					
-					expect( jobs_[ 1 ] ).to.eql( {
+
+					expect( jobs_[ 1 ] ).to.equal( {
 						_id: job2._id ,
 						title: 'star developer' ,
 						salary: 200000 ,
-						users: [ user3 , user4 ],
+						users: [ user3 , user4 ] ,
 						schools: []
 					} ) ;
-					
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "'back-link' of multi-link population" , function( done ) {
-		
+
+	it( "'back-link' of multi-link population" , ( done ) => {
+
 		var options ;
-		
+
 		var school1 = schools.createDocument( {
 			title: 'Computer Science'
 		} ) ;
-		
+
 		var school1Id = school1._id ;
-		
+
 		var school2 = schools.createDocument( {
 			title: 'Web Academy'
 		} ) ;
-		
+
 		var school2Id = school2._id ;
-		
+
 		var job1 = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		var job1Id = job1.$.id ;
-		
+
 		var job2 = jobs.createDocument( {
 			title: 'sysadmin' ,
 			salary: 55000
 		} ) ;
-		
+
 		var job2Id = job2.$.id ;
-		
+
 		var job3 = jobs.createDocument( {
 			title: 'front-end developer' ,
 			salary: 54000
 		} ) ;
-		
+
 		var job3Id = job3.$.id ;
-		
+
 		var job4 = jobs.createDocument( {
 			title: 'designer' ,
 			salary: 56000
 		} ) ;
-		
+
 		var job4Id = job4.$.id ;
-		
+
 		// Link the documents!
 		school1.$.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
 		school2.$.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				job1.$.save( callback ) ;
@@ -2922,114 +3460,116 @@ describe( "Populate links" , function() {
 			} ,
 			function( callback ) {
 				options = { populate: 'schools' } ;
-				jobs.get( job1Id , options , function( error , job ) {
+				jobs.get( job1Id , options , ( error , job ) => {
 					expect( error ).not.to.be.ok() ;
-					expect( job._id ).to.eql( job1Id ) ;
-					
+					expect( job._id ).to.equal( job1Id ) ;
+
 					expect( job.schools ).to.have.length( 2 ) ;
-					
-					job.schools.sort( function( a , b ) { return b.title - a.title ; } ) ;
-					
+
+					job.schools.sort( ( a , b ) => { return b.title - a.title ; } ) ;
+
 					// Order by id
-					job.schools[ 0 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
-					job.schools[ 1 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
-					
-					expect( job ).to.eql( {
-						_id: job1._id,
-						title: 'developer',
-						salary: 60000,
-						users: [],
+					job.schools[ 0 ].jobs.sort( ( a , b ) => { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
+					job.schools[ 1 ].jobs.sort( ( a , b ) => { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
+
+					expect( job ).to.equal( {
+						_id: job1._id ,
+						title: 'developer' ,
+						salary: 60000 ,
+						users: [] ,
 						schools: [
 							{
-								_id: school1._id,
-								title: 'Computer Science',
+								_id: school1._id ,
+								title: 'Computer Science' ,
 								jobs: [ job1Id , job2Id , job3Id ]
-							},
+							} ,
 							{
-								_id: school2._id,
-								title: 'Web Academy',
+								_id: school2._id ,
+								title: 'Web Academy' ,
 								jobs: [ job1Id , job3Id , job4Id ]
 							}
 						]
 					} ) ;
-						
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
 				options = { populate: 'schools' } ;
-				jobs.get( job4Id , options , function( error , job ) {
+				jobs.get( job4Id , options , ( error , job ) => {
 					expect( error ).not.to.be.ok() ;
-					expect( job._id ).to.eql( job4Id ) ;
-					
+					expect( job._id ).to.equal( job4Id ) ;
+
 					expect( job.schools ).to.have.length( 1 ) ;
-					
+
 					// Order by id
-					job.schools[ 0 ].jobs.sort( function( a , b ) { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
-					
-					expect( job ).to.eql( {
-						_id: job4._id,
-						title: 'designer',
-						salary: 56000,
-						users: [],
+					job.schools[ 0 ].jobs.sort( ( a , b ) => { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
+
+					expect( job ).to.equal( {
+						_id: job4._id ,
+						title: 'designer' ,
+						salary: 56000 ,
+						users: [] ,
 						schools: [
 							{
-								_id: school2._id,
-								title: 'Web Academy',
+								_id: school2._id ,
+								title: 'Web Academy' ,
 								jobs: [ job1Id , job3Id , job4Id ]
 							}
 						]
 					} ) ;
-						
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
-			} ,
+			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
+
 } ) ;
 
+return ;
 
 
-describe( "Deep populate links" , function() {
-	
+
+describe( "Deep populate links" , () => {
+
 	beforeEach( clearDB ) ;
-	
-	it( "deep population (links then back-link)" , function( done ) {
-		
+
+	it( "deep population (links then back-link)" , ( done ) => {
+
 		var options ;
-		
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		var user2 = users.createDocument( {
 			firstName: 'Robert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		var deepPopulate = {
 			users: 'job' ,
 			jobs: 'users'
 		} ;
-		
+
 		// Link the documents!
 		user.$.setLink( 'job' , job ) ;
 		user2.$.setLink( 'job' , job ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				job.$.save( callback ) ;
@@ -3042,30 +3582,29 @@ describe( "Deep populate links" , function() {
 			} ,
 			function( callback ) {
 				options = { deepPopulate: deepPopulate } ;
-				users.get( user._id , options , function( error , user_ ) {
+				users.get( user._id , options , ( error , user_ ) => {
 					expect( error ).not.to.be.ok() ;
 					expect( user_.$.populated.job ).to.be( true ) ;
-					
+
 					expect( user_.job.users ).to.have.length( 2 ) ;
-					
-					if ( user_.job.users[ 0 ].firstName === 'Robert' )
-					{
+
+					if ( user_.job.users[ 0 ].firstName === 'Robert' ) {
 						user_.job.users = [ user_.job.users[ 1 ] , user_.job.users[ 0 ] ] ;
 					}
-					
+
 					expect( user_.job.users[ 0 ].job ).to.be( user_.job ) ;
 					expect( user_.job.users[ 1 ].job ).to.be( user_.job ) ;
-					
-					expect( user_ ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
+
+					expect( user_ ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
 						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson',
+						memberSid: 'Jilbert Polson' ,
 						job: {
 							_id: job._id ,
 							title: 'developer' ,
-							salary: 60000,
-							schools: [],
+							salary: 60000 ,
+							schools: [] ,
 							users: [
 								user_ ,
 								// We cannot use 'user2', expect.js is too confused with Circular references
@@ -3074,626 +3613,75 @@ describe( "Deep populate links" , function() {
 							]
 						}
 					} ) ;
-					
-					expect( user_.job.users[ 1 ] ).to.eql( {
-						_id: user2._id,
-						firstName: 'Robert',
+
+					expect( user_.job.users[ 1 ] ).to.equal( {
+						_id: user2._id ,
+						firstName: 'Robert' ,
 						lastName: 'Polson' ,
-						memberSid: 'Robert Polson',
+						memberSid: 'Robert Polson' ,
 						job: {
 							_id: job._id ,
 							title: 'developer' ,
-							salary: 60000,
-							schools: [],
+							salary: 60000 ,
+							schools: [] ,
 							users: [
 								user_ ,
 								user_.job.users[ 1 ]
 							]
 						}
 					} ) ;
-					
+
 					expect( options.populateDepth ).to.be( 2 ) ;
 					expect( options.populateDbQueries ).to.be( 2 ) ;
-					
+
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
+
 	it( "more deep population tests" ) ;
 } ) ;
-	
 
 
-describe( "Attachment links" , function() {
-	
+
+describe( "Caching with the memory model" , () => {
+
 	beforeEach( clearDB ) ;
-	
-	it( "basic attachment (create, attach, save both, retrieve parent, navigate to child)" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-		
-		var id = user._id ;
-		
-		// Link the documents!
-		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		var fullUrl = attachment.fullUrl ;
-		user.$.setLink( 'file' , attachment ) ;
-		//console.error( user.file ) ;
-		
-		expect( user.file ).to.eql( {
-			filename: 'joke.txt' ,
-			id: user.file.id ,	// Unpredictable
-			contentType: 'text/plain'
-		} ) ;
-		
-		async.series( [
-			function( callback ) {
-				attachment.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				// Check that the file exist
-				expect( function() { fs.accessSync( fullUrl , fs.R_OK ) } ).not.to.throwError() ;
-				
-				users.get( id , function( error , user_ ) {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file:{
-							filename: 'joke.txt' ,
-							id: user.file.id ,	// Unpredictable
-							contentType: 'text/plain'
-						}
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "file" , function( error , file ) {
-					expect( error ).not.to.be.ok() ;
-					expect( file ).to.eql( {
-						id: user.file.id ,
-						filename: 'joke.txt' ,
-						contentType: 'text/plain' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: file.baseUrl ,
-						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
-					} ) ;
-					
-					file.load( function( error , data ) {
-						expect( error ).not.to.be.ok() ;
-						expect( data.toString() ).to.be( "grigrigredin menufretin\n" ) ;
-						callback() ;
-					} ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.eql( {
-					type: 'attachment' ,
-					hostPath: 'file' ,
-					schema: {
-						optional: true ,
-						type: 'attachment' ,
-						tier: 3
-					} ,
-					attachment: {
-						id: user.file.id ,
-						filename: 'joke.txt' ,
-						contentType: 'text/plain' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: details.attachment.baseUrl ,
-						fullUrl: details.attachment.baseUrl +
-							details.attachment.documentId.toString() +
-							'/' + details.attachment.id.toString()
-					}
-				} ) ;
-				callback() ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "Alter meta-data of an attachment" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-		
-		var id = user._id ;
-		
-		// Link the documents!
-		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		var fullUrl = attachment.fullUrl ;
-		user.$.setLink( 'file' , attachment ) ;
-		//console.error( user.file ) ;
-		
-		expect( user.file ).to.eql( {
-			filename: 'joke.txt' ,
-			id: user.file.id ,	// Unpredictable
-			contentType: 'text/plain'
-		} ) ;
-		
-		async.series( [
-			function( callback ) {
-				attachment.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				// Check that the file exist
-				expect( function() { fs.accessSync( fullUrl , fs.R_OK ) } ).not.to.throwError() ;
-				
-				users.get( id , function( error , user_ ) {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file:{
-							filename: 'joke.txt' ,
-							id: user.file.id ,	// Unpredictable
-							contentType: 'text/plain'
-						}
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.patch( {
-					"file.filename": "lol.txt" ,
-					"file.contentType": "text/joke"
-				} ) ;
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , user_ ) {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file:{
-							filename: 'lol.txt' ,
-							id: user.file.id ,	// Unpredictable
-							contentType: 'text/joke'
-						}
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "file" , function( error , file ) {
-					expect( error ).not.to.be.ok() ;
-					expect( file ).to.eql( {
-						id: user.file.id ,
-						filename: 'lol.txt' ,
-						contentType: 'text/joke' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: file.baseUrl ,
-						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
-					} ) ;
-					
-					file.load( function( error , data ) {
-						expect( error ).not.to.be.ok() ;
-						expect( data.toString() ).to.be( "grigrigredin menufretin\n" ) ;
-						callback() ;
-					} ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				// Check that the file exist
-				expect( function() { fs.accessSync( fullUrl , fs.R_OK ) } ).not.to.throwError() ;
-				
-				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.eql( {
-					type: 'attachment' ,
-					hostPath: 'file' ,
-					schema: {
-						optional: true ,
-						type: 'attachment' ,
-						tier: 3
-					} ,
-					attachment: {
-						id: user.file.id ,
-						filename: 'lol.txt' ,
-						contentType: 'text/joke' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: details.attachment.baseUrl ,
-						fullUrl: details.attachment.baseUrl +
-							details.attachment.documentId.toString() +
-							'/' + details.attachment.id.toString()
-					}
-				} ) ;
-				callback() ;
-			}
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "Replace an attachment" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-		
-		var id = user._id ;
-		
-		// Link the documents!
-		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		var fullUrl = attachment.fullUrl ;
-		user.$.setLink( 'file' , attachment ) ;
-		//console.error( user.file ) ;
-		
-		expect( user.file ).to.eql( {
-			filename: 'joke.txt' ,
-			id: user.file.id ,	// Unpredictable
-			contentType: 'text/plain'
-		} ) ;
-		
-		async.series( [
-			function( callback ) {
-				attachment.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				// Check that the file exist
-				expect( function() { fs.accessSync( fullUrl , fs.R_OK ) } ).not.to.throwError() ;
-				
-				users.get( id , function( error , user_ ) {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file:{
-							filename: 'joke.txt' ,
-							id: user.file.id ,	// Unpredictable
-							contentType: 'text/plain'
-						}
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "file" , function( error , file ) {
-					expect( error ).not.to.be.ok() ;
-					expect( file ).to.eql( {
-						id: user.file.id ,
-						filename: 'joke.txt' ,
-						contentType: 'text/plain' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: file.baseUrl ,
-						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
-					} ) ;
-					
-					file.load( function( error , data ) {
-						expect( error ).not.to.be.ok() ;
-						expect( data.toString() ).to.be( "grigrigredin menufretin\n" ) ;
-						callback() ;
-					} ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.eql( {
-					type: 'attachment' ,
-					hostPath: 'file' ,
-					schema: {
-						optional: true ,
-						type: 'attachment' ,
-						tier: 3
-					} ,
-					attachment: {
-						id: user.file.id ,
-						filename: 'joke.txt' ,
-						contentType: 'text/plain' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: details.attachment.baseUrl ,
-						fullUrl: details.attachment.baseUrl +
-							details.attachment.documentId.toString() +
-							'/' + details.attachment.id.toString()
-					}
-				} ) ;
-				callback() ;
-			} ,
-			function( callback ) {
-				var attachment = user.$.createAttachment(
-					{ filename: 'hello-world.html' , contentType: 'text/html' } ,
-					"<html><head></head><body>Hello world!</body></html>\n"
-				) ;
-				
-				user.$.setLink( 'file' , attachment ) ;
-				attachment.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				// Check that the first file has been deleted
-				expect( function() { fs.accessSync( fullUrl , fs.R_OK ) } ).to.throwError() ;
-				
-				users.get( id , function( error , user_ ) {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file:{
-							filename: 'hello-world.html' ,
-							id: user.file.id ,	// Unpredictable
-							contentType: 'text/html'
-						}
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "file" , function( error , file ) {
-					expect( error ).not.to.be.ok() ;
-					expect( file ).to.eql( {
-						id: user.file.id ,
-						filename: 'hello-world.html' ,
-						contentType: 'text/html' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: file.baseUrl ,
-						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
-					} ) ;
-					
-					// Set the new fullUrl
-					fullUrl = file.fullUrl ;
-					
-					file.load( function( error , data ) {
-						expect( error ).not.to.be.ok() ;
-						expect( data.toString() ).to.be( "<html><head></head><body>Hello world!</body></html>\n" ) ;
-						callback() ;
-					} ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				// Check that the new file exist
-				expect( function() { fs.accessSync( fullUrl , fs.R_OK ) } ).not.to.throwError() ;
-				
-				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.eql( {
-					type: 'attachment' ,
-					hostPath: 'file' ,
-					schema: {
-						optional: true ,
-						type: 'attachment' ,
-						tier: 3
-					} ,
-					attachment: {
-						id: user.file.id ,
-						filename: 'hello-world.html' ,
-						contentType: 'text/html' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: details.attachment.baseUrl ,
-						fullUrl: details.attachment.baseUrl +
-							details.attachment.documentId.toString() +
-							'/' + details.attachment.id.toString()
-					}
-				} ) ;
-				callback() ;
-			} ,
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "Delete an attachment" , function( done ) {
-		
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-		
-		var id = user._id ;
-		
-		// Link the documents!
-		var attachment = user.$.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		var fullUrl = attachment.fullUrl ;
-		user.$.setLink( 'file' , attachment ) ;
-		//console.error( user.file ) ;
-		
-		expect( user.file ).to.eql( {
-			filename: 'joke.txt' ,
-			id: user.file.id ,	// Unpredictable
-			contentType: 'text/plain'
-		} ) ;
-		
-		async.series( [
-			function( callback ) {
-				attachment.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				// Check that the file exist
-				expect( function() { fs.accessSync( fullUrl , fs.R_OK ) } ).not.to.throwError() ;
-				
-				users.get( id , function( error , user_ ) {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file:{
-							filename: 'joke.txt' ,
-							id: user.file.id ,	// Unpredictable
-							contentType: 'text/plain'
-						}
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "file" , function( error , file ) {
-					expect( error ).not.to.be.ok() ;
-					expect( file ).to.eql( {
-						id: user.file.id ,
-						filename: 'joke.txt' ,
-						contentType: 'text/plain' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: file.baseUrl ,
-						fullUrl: file.baseUrl + file.documentId.toString() + '/' + file.id.toString()
-					} ) ;
-					
-					file.load( function( error , data ) {
-						expect( error ).not.to.be.ok() ;
-						expect( data.toString() ).to.be( "grigrigredin menufretin\n" ) ;
-						callback() ;
-					} ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.eql( {
-					type: 'attachment' ,
-					hostPath: 'file' ,
-					schema: {
-						optional: true ,
-						type: 'attachment' ,
-						tier: 3
-					} ,
-					attachment: {
-						id: user.file.id ,
-						filename: 'joke.txt' ,
-						contentType: 'text/plain' ,
-						collectionName: 'users' ,
-						documentId: user._id.toString() ,
-						incoming: undefined ,
-						baseUrl: details.attachment.baseUrl ,
-						fullUrl: details.attachment.baseUrl +
-							details.attachment.documentId.toString() +
-							'/' + details.attachment.id.toString()
-					}
-				} ) ;
-				callback() ;
-			} ,
-			function( callback ) {
-				user.$.setLink( 'file' , null ) ;
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				users.get( id , function( error , user_ ) {
-					user = user_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( user ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						file: null
-					} ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				user.$.getLink( "file" , function( error , file ) {
-					expect( error ).to.be.ok() ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				var details = user.$.getLinkDetails( "file" ) ;
-				expect( details ).to.eql( {
-					type: 'attachment',
-					attachment: null
-				} ) ;
-				
-				// Finally, check that the file has been deleted
-				expect( function() { fs.accessSync( fullUrl , fs.R_OK ) } ).to.throwError() ;
-				callback() ;
-			} ,
-		] )
-		.exec( done ) ;
-	} ) ;
-} ) ;
 
+	it( "should get a document from a Memory Model cache" , ( done ) => {
 
-
-describe( "Caching with the memory model" , function() {
-	
-	beforeEach( clearDB ) ;
-	
-	it( "should get a document from a Memory Model cache" , function( done ) {
-		
 		var mem = world.createMemoryModel() ;
-		
+
 		var rawUser = {
-			_id: '123456789012345678901234' , 
+			_id: '123456789012345678901234' ,
 			firstName: 'John' ,
 			lastName: 'McGregor'
 		} ;
-		
+
 		mem.add( 'users' , rawUser ) ;
-		
+
 		async.series( [
 			function( callback ) {
-				users.get( rawUser._id , { cache: mem } , function( error , user ) {
+				users.get( rawUser._id , { cache: mem } , ( error , user ) => {
 					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ; 
+					//console.log( 'User:' , user ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( user.$ ).to.be.an( rootsDb.Document ) ;
 					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user ).to.eql( { _id: rawUser._id , firstName: 'John' , lastName: 'McGregor' } ) ;
+					expect( user ).to.equal( { _id: rawUser._id , firstName: 'John' , lastName: 'McGregor' } ) ;
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "should multiGet all documents from a Memory Model cache (complete cache hit)" , function( done ) {
-		
+
+	it( "should multiGet all documents from a Memory Model cache (complete cache hit)" , ( done ) => {
+
 		var mem = world.createMemoryModel() ;
-		
+
 		var someUsers = [
 			{
 				_id: '000000000000000000000001' ,
@@ -3711,11 +3699,11 @@ describe( "Caching with the memory model" , function() {
 				lastName: 'McGregor'
 			}
 		] ;
-		
+
 		mem.add( 'users' , someUsers[ 0 ] ) ;
 		mem.add( 'users' , someUsers[ 1 ] ) ;
 		mem.add( 'users' , someUsers[ 2 ] ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				var ids = [
@@ -3723,19 +3711,19 @@ describe( "Caching with the memory model" , function() {
 					'000000000000000000000002' ,
 					'000000000000000000000003'
 				] ;
-				
-				users.multiGet( ids , { cache: mem } , function( error , batch ) {
+
+				users.multiGet( ids , { cache: mem } , ( error , batch ) => {
 					var i , map = {} ;
 					//console.log( 'Error:' , error ) ;
-					//console.log( 'Batch:' , batch ) ; 
+					//console.log( 'Batch:' , batch ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
-					
-					batch.sort( function( a , b ) {
+					expect( batch.$ ).to.be.a( rootsDb.Batch ) ;
+
+					batch.sort( ( a , b ) => {
 						return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
 					} ) ;
-					
-					expect( batch ).to.eql( [
+
+					expect( batch ).to.equal( [
 						{
 							_id: someUsers[ 0 ]._id ,
 							firstName: 'John1' ,
@@ -3752,18 +3740,18 @@ describe( "Caching with the memory model" , function() {
 							lastName: 'McGregor'
 						}
 					] ) ;
-					
+
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "should multiGet some document from a Memory Model cache (partial cache hit)" , function( done ) {
-		
+
+	it( "should multiGet some document from a Memory Model cache (partial cache hit)" , ( done ) => {
+
 		var mem = world.createMemoryModel() ;
-		
+
 		var someUsers = [
 			{
 				_id: '000000000000000000000001' ,
@@ -3781,17 +3769,17 @@ describe( "Caching with the memory model" , function() {
 				lastName: 'McGregor'
 			}
 		] ;
-		
+
 		mem.add( 'users' , someUsers[ 0 ] ) ;
 		mem.add( 'users' , someUsers[ 1 ] ) ;
 		mem.add( 'users' , someUsers[ 2 ] ) ;
-		
+
 		var anotherOne = users.createDocument( {
 			_id: '000000000000000000000004' ,
 			firstName: 'John4' ,
 			lastName: 'McGregor'
 		} ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				anotherOne.$.save( callback ) ;
@@ -3802,19 +3790,19 @@ describe( "Caching with the memory model" , function() {
 					'000000000000000000000002' ,
 					'000000000000000000000004'
 				] ;
-				
-				users.multiGet( ids , { cache: mem } , function( error , batch ) {
+
+				users.multiGet( ids , { cache: mem } , ( error , batch ) => {
 					var i , map = {} ;
 					//console.log( 'Error:' , error ) ;
-					//console.log( 'Batch:' , batch ) ; 
+					//console.log( 'Batch:' , batch ) ;
 					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
-					
-					batch.sort( function( a , b ) {
+					expect( batch.$ ).to.be.a( rootsDb.Batch ) ;
+
+					batch.sort( ( a , b ) => {
 						return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
 					} ) ;
-					
-					expect( batch ).to.eql( [
+
+					expect( batch ).to.equal( [
 						{
 							_id: someUsers[ 0 ]._id ,
 							firstName: 'John1' ,
@@ -3832,186 +3820,45 @@ describe( "Caching with the memory model" , function() {
 							memberSid: 'John4 McGregor'
 						}
 					] ) ;
-					
+
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-} ) ;
 
-	
-
-describe( "Locks" , function() {
-	
-	beforeEach( clearDB ) ;
-	
-	it( "should lock a document (create, save, lock, retrieve, lock, retrieve)" , function( done ) {
-		
-		var lockable = lockables.createDocument( {
-			data: 'something' ,
-		} ) ;
-		
-		var id = lockable._id ;
-		var lockId ;
-		
-		async.series( [
-			function( callback ) {
-				lockable.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				lockables.get( id , function( error , lockable ) {
-					expect( error ).not.to.be.ok() ;
-					expect( lockable ).to.eql( { _id: lockable._id , data: 'something' , _lockedBy: null , _lockedAt: null } ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockable.$.lock( function( error , lockId_ ) {
-					expect( error ).not.to.be.ok() ;
-					expect( lockId_ ).to.be.an( mongodb.ObjectID ) ;
-					lockId = lockId_ ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.get( id , function( error , lockable ) {
-					expect( error ).not.to.be.ok() ;
-					//log.warning( 'lockable: %J' , lockable ) ;
-					expect( lockable._lockedBy ).to.eql( lockId ) ;
-					expect( lockable._lockedAt ).to.be.ok() ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockable.$.lock( function( error , lockId_ ) {
-					expect( error ).not.to.be.ok() ;
-					expect( lockId_ ).not.to.be.ok() ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.get( id , function( error , lockable ) {
-					expect( error ).not.to.be.ok() ;
-					//log.warning( 'lockable: %J' , lockable ) ;
-					expect( lockable._lockedBy ).to.eql( lockId ) ;
-					expect( lockable._lockedAt ).to.be.ok() ;
-					callback() ;
-				} ) ;
-			} ,
-		] )
-		.exec( done ) ;
-	} ) ;
-	
-	it( "should perform a 'lockRetrieveRelease': lock, retrieve locked document, then release locks" , function( done ) {
-		
-		var lockId ;
-		
-		var docs = [
-			lockables.createDocument( { data: 'one' } ) ,
-			lockables.createDocument( { data: 'two' } ) ,
-			lockables.createDocument( { data: 'three' } ) ,
-			lockables.createDocument( { data: 'four' } ) ,
-			lockables.createDocument( { data: 'five' } ) ,
-			lockables.createDocument( { data: 'six' } )
-		] ;
-		
-		var mapper = function( element ) {
-			return element.data ;
-		} ;
-		
-		async.series( [
-			function( callback ) {
-				rootsDb.bulk( 'save' , docs , callback ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' ] } } , function( error , batch ) {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch ).to.have.length( 2 ) ;
-					var keys = batch.map( mapper ) ;
-					expect( keys ).to.contain( 'one' ) ;
-					expect( keys ).to.contain( 'two' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , function( error , batch ) {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch ).to.have.length( 1 ) ;
-					expect( batch[ 0 ].data ).to.be( 'three' ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , function( error , batch ) {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch ).to.have.length( 0 ) ;
-					setTimeout( callback , 50 ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , function( error , batch , releaseFn ) {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch ).to.have.length( 3 ) ;
-					var keys = batch.map( mapper ) ;
-					expect( keys ).to.contain( 'one' ) ;
-					expect( keys ).to.contain( 'two' ) ;
-					expect( keys ).to.contain( 'three' ) ;
-					releaseFn().callback( callback ) ;
-				} ) ;
-			} ,
-			function( callback ) {
-				lockables.lockRetrieveRelease( { data: { $in: [ 'one' , 'two' , 'three' ] } } , function( error , batch , releaseFn ) {
-					expect( error ).not.to.be.ok() ;
-					//console.log( batch ) ;
-					expect( batch.length ).to.be( 3 ) ;
-					var keys = batch.map( mapper ) ;
-					expect( keys ).to.contain( 'one' ) ;
-					expect( keys ).to.contain( 'two' ) ;
-					expect( keys ).to.contain( 'three' ) ;
-					callback() ;
-				} ) ;
-			} ,
-		] )
-		.exec( done ) ;
-	} ) ;
 } ) ;
 
 
 
-describe( "Extended DocumentWrapper" , function() {
-	
+describe( "Extended Document" , () => {
+
 	beforeEach( clearDB ) ;
-	
-	it( "should call a method of the extended Document wrapper at creation and after retrieving it from DB" , function( done ) {
-		
+
+	it( "should call a method of the extended Document wrapper at creation and after retrieving it from DB" , ( done ) => {
+
 		var ext = extendables.createDocument( {
 			data: 'sOmeDaTa'
 		} ) ;
-		
-		expect( ext.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+
+		expect( ext.$ ).to.be.an( rootsDb.Document ) ;
 		expect( ext.$ ).to.be.an( Extended ) ;
-		
+
 		expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
-		
+
 		var id = ext._id ;
-		
+
 		async.series( [
 			function( callback ) {
 				ext.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				extendables.get( id , function( error , ext ) {
+				extendables.get( id , ( error , ext ) => {
 					expect( error ).not.to.be.ok() ;
-					expect( ext.$ ).to.be.an( rootsDb.DocumentWrapper ) ;
+					expect( ext.$ ).to.be.an( rootsDb.Document ) ;
 					expect( ext.$ ).to.be.an( Extended ) ;
-					expect( ext ).to.eql( { _id: ext._id , data: 'sOmeDaTa' } ) ;
+					expect( ext ).to.equal( { _id: ext._id , data: 'sOmeDaTa' } ) ;
 					expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
 					ext.data = 'mOreVespEnEGaS' ;
 					expect( ext.$.getNormalized() ).to.be( 'morevespenegas' ) ;
@@ -4019,79 +3866,79 @@ describe( "Extended DocumentWrapper" , function() {
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "should call a method of the extended Batch wrapper at creation and after retrieving it from DB" , function( done ) {
-		
+
+	it( "should call a method of the extended Batch wrapper at creation and after retrieving it from DB" , ( done ) => {
+
 		var ext1 = extendables.createDocument( { data: 'oNe' } ) ;
 		var ext2 = extendables.createDocument( { data: 'twO' } ) ;
 		var ext3 = extendables.createDocument( { data: 'THRee' } ) ;
-		
+
 		var id1 = ext1._id ;
 		var id2 = ext2._id ;
 		var id3 = ext3._id ;
-		
+
 		async.series( [
 			function( callback ) { ext1.$.save( callback ) ; } ,
 			function( callback ) { ext2.$.save( callback ) ; } ,
 			function( callback ) { ext3.$.save( callback ) ; } ,
 			function( callback ) {
-				extendables.collect( {} , function( error , exts ) {
+				extendables.collect( {} , ( error , exts ) => {
 					expect( error ).not.to.be.ok() ;
-					expect( exts.$ ).to.be.an( rootsDb.BatchWrapper ) ;
+					expect( exts.$ ).to.be.an( rootsDb.Batch ) ;
 					expect( exts.$ ).to.be.an( ExtendedBatch ) ;
 					expect( exts.$.concat() ).to.be( 'oNetwOTHRee' ) ;
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
 } ) ;
 
 
 
-describe( "Memory model" , function() {
-	
+describe( "Memory model" , () => {
+
 	beforeEach( clearDB ) ;
-	
-	it( "should create a memoryModel, retrieve documents with 'populate' on 'link' and 'back-link', with the 'memory' options and effectively save them in the memoryModel" , function( done ) {
-		
+
+	it( "should create a memoryModel, retrieve documents with 'populate' on 'link' and 'back-link', with the 'memory' options and effectively save them in the memoryModel" , ( done ) => {
+
 		var options ;
-		
+
 		var memory = world.createMemoryModel() ;
-		
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		var user2 = users.createDocument( {
 			firstName: 'Pat' ,
 			lastName: 'Mulligan'
 		} ) ;
-		
+
 		var user3 = users.createDocument( {
 			firstName: 'Bill' ,
 			lastName: 'Baroud'
 		} ) ;
-		
+
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		var job2 = jobs.createDocument( {
 			title: 'adventurer' ,
 			salary: 200000
 		} ) ;
-		
+
 		// Link the documents!
 		user.$.setLink( 'job' , job ) ;
 		user2.$.setLink( 'job' , job ) ;
 		user3.$.setLink( 'job' , job2 ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				job.$.save( callback ) ;
@@ -4110,240 +3957,240 @@ describe( "Memory model" , function() {
 			} ,
 			function( callback ) {
 				options = { memory: memory , populate: 'job' } ;
-				
-				users.collect( {} , options , function( error , users_ ) {
-					
+
+				users.collect( {} , options , ( error , users_ ) => {
+
 					var doc ;
-					
+
 					expect( memory.collections ).to.have.keys( 'users' , 'jobs' ) ;
-					
+
 					expect( memory.collections.users.documents ).to.have.keys(
 						user._id.toString() ,
 						user2._id.toString() ,
 						user3._id.toString()
 					) ;
-					
+
 					expect( memory.collections.jobs.documents ).to.have.keys(
 						job._id.toString() ,
 						job2._id.toString()
 					) ;
-					
+
 					doc = memory.collections.users.documents[ user._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson',
-						memberSid: 'Jilbert Polson',
+					expect( doc ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson' ,
 						job: {
-							_id: job._id,
-							title: 'developer',
-							salary: 60000,
-							users: [],
+							_id: job._id ,
+							title: 'developer' ,
+							salary: 60000 ,
+							users: [] ,
 							schools: []
 						}
 					} ) ;
-					
+
 					doc = memory.collections.users.documents[ user2._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: user2._id,
-						firstName: 'Pat',
-						lastName: 'Mulligan',
-						memberSid: 'Pat Mulligan',
+					expect( doc ).to.equal( {
+						_id: user2._id ,
+						firstName: 'Pat' ,
+						lastName: 'Mulligan' ,
+						memberSid: 'Pat Mulligan' ,
 						job: {
-							_id: job._id,
-							title: 'developer',
-							salary: 60000,
-							users: [],
+							_id: job._id ,
+							title: 'developer' ,
+							salary: 60000 ,
+							users: [] ,
 							schools: []
 						}
 					} ) ;
-					
+
 					doc = memory.collections.users.documents[ user3._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: user3._id,
-						firstName: 'Bill',
-						lastName: 'Baroud',
-						memberSid: 'Bill Baroud',
+					expect( doc ).to.equal( {
+						_id: user3._id ,
+						firstName: 'Bill' ,
+						lastName: 'Baroud' ,
+						memberSid: 'Bill Baroud' ,
 						job: {
-							_id: job2._id,
-							title: 'adventurer',
-							salary: 200000,
-							users: [],
+							_id: job2._id ,
+							title: 'adventurer' ,
+							salary: 200000 ,
+							users: [] ,
 							schools: []
 						}
 					} ) ;
-					
+
 					doc = memory.collections.jobs.documents[ job._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: job._id,
-						title: 'developer',
-						salary: 60000,
-						users: [],
+					expect( doc ).to.equal( {
+						_id: job._id ,
+						title: 'developer' ,
+						salary: 60000 ,
+						users: [] ,
 						schools: []
 					} ) ;
-					
+
 					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: job2._id,
-						title: 'adventurer',
-						salary: 200000,
-						users: [],
+					expect( doc ).to.equal( {
+						_id: job2._id ,
+						title: 'adventurer' ,
+						salary: 200000 ,
+						users: [] ,
 						schools: []
 					} ) ;
-					
+
 					//console.error( memory.collections.users.documents ) ;
 					//console.error( memory.collections.jobs.documents ) ;
-					
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
 				options = { memory: memory , populate: 'users' } ;
-				jobs.collect( {} , options , function( error , jobs_ ) {
-					
+				jobs.collect( {} , options , ( error , jobs_ ) => {
+
 					var doc ;
-					
+
 					expect( memory.collections ).to.have.keys( 'users' , 'jobs' ) ;
-					
+
 					expect( memory.collections.users.documents ).to.have.keys(
 						user._id.toString() ,
 						user2._id.toString() ,
 						user3._id.toString()
 					) ;
-					
+
 					expect( memory.collections.jobs.documents ).to.have.keys(
 						job._id.toString() ,
 						job2._id.toString()
 					) ;
-					
+
 					doc = memory.collections.users.documents[ user._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
-						lastName: 'Polson',
-						memberSid: 'Jilbert Polson',
+					expect( doc ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
+						lastName: 'Polson' ,
+						memberSid: 'Jilbert Polson' ,
 						job: memory.collections.jobs.documents[ job._id.toString() ]
 					} ) ;
-					
+
 					doc = memory.collections.users.documents[ user2._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: user2._id,
-						firstName: 'Pat',
-						lastName: 'Mulligan',
-						memberSid: 'Pat Mulligan',
+					expect( doc ).to.equal( {
+						_id: user2._id ,
+						firstName: 'Pat' ,
+						lastName: 'Mulligan' ,
+						memberSid: 'Pat Mulligan' ,
 						job: memory.collections.jobs.documents[ job._id.toString() ]
 					} ) ;
-					
+
 					doc = memory.collections.users.documents[ user3._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: user3._id,
-						firstName: 'Bill',
-						lastName: 'Baroud',
-						memberSid: 'Bill Baroud',
+					expect( doc ).to.equal( {
+						_id: user3._id ,
+						firstName: 'Bill' ,
+						lastName: 'Baroud' ,
+						memberSid: 'Bill Baroud' ,
 						job: memory.collections.jobs.documents[ job2._id.toString() ]
 					} ) ;
-					
+
 					doc = memory.collections.jobs.documents[ job._id.toString() ] ;
 					if ( doc.users[ 0 ].firstName === 'Pat' ) { doc.users = [ doc.users[ 1 ] , doc.users[ 0 ] ] ; }
-					expect( doc ).to.eql( {
-						_id: job._id,
-						title: 'developer',
-						salary: 60000,
-						schools: [],
+					expect( doc ).to.equal( {
+						_id: job._id ,
+						title: 'developer' ,
+						salary: 60000 ,
+						schools: [] ,
 						users: [
 							memory.collections.users.documents[ user._id.toString() ] ,
 							memory.collections.users.documents[ user2._id.toString() ]
 						]
 					} ) ;
-					
+
 					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: job2._id,
-						title: 'adventurer',
-						salary: 200000,
-						schools: [],
+					expect( doc ).to.equal( {
+						_id: job2._id ,
+						title: 'adventurer' ,
+						salary: 200000 ,
+						schools: [] ,
 						users: [
 							memory.collections.users.documents[ user3._id.toString() ]
 						]
 					} ) ;
-					
+
 					//console.error( memory.collections.users.documents ) ;
 					//console.error( memory.collections.jobs.documents ) ;
-					
+
 					// This is a back-link, so a DB query is mandatory here
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
 				options = { memory: memory , populate: 'job' } ;
-				
-				users.collect( {} , options , function( error , users_ ) {
+
+				users.collect( {} , options , ( error , users_ ) => {
 					// This is the same query already performed on user.
 					// We just check populate Depth and Queries here: a total cache hit should happen!
 					expect( options.populateDepth ).not.to.be.ok() ;
 					expect( options.populateDbQueries ).not.to.be.ok() ;
-					
+
 					callback() ;
 				} ) ;
-			} ,
+			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "should also works with multi-link" , function( done ) {
-		
+
+	it( "should also works with multi-link" , ( done ) => {
+
 		var options ;
-		
+
 		var memory = world.createMemoryModel() ;
-		
+
 		var school1 = schools.createDocument( {
 			title: 'Computer Science'
 		} ) ;
-		
+
 		var school1Id = school1._id ;
-		
+
 		var school2 = schools.createDocument( {
 			title: 'Web Academy'
 		} ) ;
-		
+
 		var school2Id = school2._id ;
-		
+
 		var job1 = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		var job1Id = job1.$.id ;
-		
+
 		var job2 = jobs.createDocument( {
 			title: 'sysadmin' ,
 			salary: 55000
 		} ) ;
-		
+
 		var job2Id = job2.$.id ;
-		
+
 		var job3 = jobs.createDocument( {
 			title: 'front-end developer' ,
 			salary: 54000
 		} ) ;
-		
+
 		var job4 = jobs.createDocument( {
 			title: 'designer' ,
 			salary: 56000
 		} ) ;
-		
+
 		var job4Id = job4.$.id ;
-		
+
 		// Link the documents!
 		school1.$.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
 		school2.$.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				job1.$.save( callback ) ;
@@ -4365,173 +4212,173 @@ describe( "Memory model" , function() {
 			} ,
 			function( callback ) {
 				options = { populate: 'jobs' , memory: memory } ;
-				
-				schools.collect( {} , options , function( error , schools_ ) {
-					
+
+				schools.collect( {} , options , ( error , schools_ ) => {
+
 					var doc ;
-					
+
 					expect( error ).not.to.be.ok() ;
 					expect( memory.collections ).to.have.keys( 'schools' , 'jobs' ) ;
-					
+
 					expect( memory.collections.schools.documents ).to.have.keys(
 						school1._id.toString() ,
 						school2._id.toString()
 					) ;
-					
+
 					expect( memory.collections.jobs.documents ).to.have.keys(
 						job1._id.toString() ,
 						job2._id.toString() ,
 						job3._id.toString() ,
 						job4._id.toString()
 					) ;
-					
+
 					doc = memory.collections.schools.documents[ school1._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: school1._id,
+					expect( doc ).to.equal( {
+						_id: school1._id ,
 						title: 'Computer Science' ,
 						jobs: [
 							{
-								_id: job1._id,
-								title: 'developer',
-								salary: 60000,
-								users: [],
+								_id: job1._id ,
+								title: 'developer' ,
+								salary: 60000 ,
+								users: [] ,
 								schools: []
 							} ,
 							{
-								_id: job2._id,
-								title: 'sysadmin',
-								salary: 55000,
-								users: [],
+								_id: job2._id ,
+								title: 'sysadmin' ,
+								salary: 55000 ,
+								users: [] ,
 								schools: []
 							} ,
 							{
-								_id: job3._id,
-								title: 'front-end developer',
-								salary: 54000,
-								users: [],
+								_id: job3._id ,
+								title: 'front-end developer' ,
+								salary: 54000 ,
+								users: [] ,
 								schools: []
 							}
 						]
 					} ) ;
-					
+
 					doc = memory.collections.schools.documents[ school2._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: school2._id,
+					expect( doc ).to.equal( {
+						_id: school2._id ,
 						title: 'Web Academy' ,
 						jobs: [
 							{
-								_id: job1._id,
-								title: 'developer',
-								salary: 60000,
-								users: [],
+								_id: job1._id ,
+								title: 'developer' ,
+								salary: 60000 ,
+								users: [] ,
 								schools: []
 							} ,
 							{
-								_id: job3._id,
-								title: 'front-end developer',
-								salary: 54000,
-								users: [],
+								_id: job3._id ,
+								title: 'front-end developer' ,
+								salary: 54000 ,
+								users: [] ,
 								schools: []
 							} ,
 							{
-								_id: job4._id,
-								title: 'designer',
-								salary: 56000,
-								users: [],
+								_id: job4._id ,
+								title: 'designer' ,
+								salary: 56000 ,
+								users: [] ,
 								schools: []
 							}
 						]
 					} ) ;
-					
+
 					doc = memory.collections.jobs.documents[ job1._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: job1._id,
-						title: 'developer',
-						salary: 60000,
-						users: [],
+					expect( doc ).to.equal( {
+						_id: job1._id ,
+						title: 'developer' ,
+						salary: 60000 ,
+						users: [] ,
 						schools: []
 					} ) ;
-					
+
 					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: job2._id,
-						title: 'sysadmin',
-						salary: 55000,
-						users: [],
+					expect( doc ).to.equal( {
+						_id: job2._id ,
+						title: 'sysadmin' ,
+						salary: 55000 ,
+						users: [] ,
 						schools: []
 					} ) ;
-					
+
 					doc = memory.collections.jobs.documents[ job3._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: job3._id,
-						title: 'front-end developer',
-						salary: 54000,
-						users: [],
+					expect( doc ).to.equal( {
+						_id: job3._id ,
+						title: 'front-end developer' ,
+						salary: 54000 ,
+						users: [] ,
 						schools: []
 					} ) ;
-					
+
 					doc = memory.collections.jobs.documents[ job4._id.toString() ] ;
-					expect( doc ).to.eql( {
-						_id: job4._id,
-						title: 'designer',
-						salary: 56000,
-						users: [],
+					expect( doc ).to.equal( {
+						_id: job4._id ,
+						title: 'designer' ,
+						salary: 56000 ,
+						users: [] ,
 						schools: []
 					} ) ;
-					
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
 				options = { populate: 'jobs' , memory: memory } ;
-				
-				schools.collect( {} , options , function( error , schools_ ) {
-					
+
+				schools.collect( {} , options , ( error , schools_ ) => {
+
 					// This is the same query already performed.
 					// We just check populate Depth and Queries here: a total cache hit should happen!
 					expect( options.populateDepth ).not.to.be.ok() ;
 					expect( options.populateDbQueries ).not.to.be.ok() ;
-					
+
 					callback() ;
 				} ) ;
-			} ,
+			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "incremental population should work as expected" , function( done ) {
-		
+
+	it( "incremental population should work as expected" , ( done ) => {
+
 		var options ;
-		
+
 		var memory = world.createMemoryModel() ;
-		
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		var user2 = users.createDocument( {
 			firstName: 'Robert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
-		
+
 		var deepPopulate = {
 			users: 'job' ,
 			jobs: 'users'
 		} ;
-		
+
 		// Link the documents!
 		user.$.setLink( 'job' , job ) ;
 		user2.$.setLink( 'job' , job ) ;
-		
+
 		async.series( [
 			function( callback ) {
 				job.$.save( callback ) ;
@@ -4544,14 +4391,14 @@ describe( "Memory model" , function() {
 			} ,
 			function( callback ) {
 				options = { memory: memory } ;
-				users.get( user._id , options , function( error , user_ ) {
+				users.get( user._id , options , ( error , user_ ) => {
 					expect( error ).not.to.be.ok() ;
-					expect( user_ ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
+					expect( user_ ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
 						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson',
-						job: job._id 
+						memberSid: 'Jilbert Polson' ,
+						job: job._id
 					} ) ;
 					expect( options.populateDepth ).not.to.be.ok() ;
 					expect( options.populateDbQueries ).not.to.be.ok() ;
@@ -4560,27 +4407,27 @@ describe( "Memory model" , function() {
 			} ,
 			function( callback ) {
 				options = { memory: memory , populate: 'job' } ;
-				users.get( user._id , options , function( error , user_ ) {
+				users.get( user._id , options , ( error , user_ ) => {
 					expect( error ).not.to.be.ok() ;
-					expect( user_ ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
+					expect( user_ ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
 						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson',
+						memberSid: 'Jilbert Polson' ,
 						job: {
 							_id: job._id ,
 							title: 'developer' ,
-							salary: 60000,
-							users: [],
+							salary: 60000 ,
+							users: [] ,
 							schools: []
 						}
 					} ) ;
 					expect( user_.job.$.populated.users ).not.to.be.ok() ;
-					expect( memory.collections.jobs.documents[ job._id.toString() ] ).to.eql( {
+					expect( memory.collections.jobs.documents[ job._id.toString() ] ).to.equal( {
 						_id: job._id ,
 						title: 'developer' ,
-						salary: 60000,
-						users: [],
+						salary: 60000 ,
+						users: [] ,
 						schools: []
 					} ) ;
 					expect( options.populateDepth ).to.be( 1 ) ;
@@ -4592,32 +4439,31 @@ describe( "Memory model" , function() {
 				//console.error( '\n\n>>>>>>> Increment now!!!\n\n' ) ;
 				//log.warning( 'memory users: %I' , memory.collections.users ) ;
 				//log.warning( 'memory jobs: %I' , memory.collections.jobs ) ;
-				
+
 				options = { memory: memory , deepPopulate: deepPopulate } ;
-				users.get( user._id , options , function( error , user_ ) {
+				users.get( user._id , options , ( error , user_ ) => {
 					expect( error ).not.to.be.ok() ;
 					expect( user_.$.populated.job ).to.be( true ) ;
-					
+
 					expect( user_.job.users ).to.have.length( 2 ) ;
-					
-					if ( user_.job.users[ 0 ].firstName === 'Robert' )
-					{
+
+					if ( user_.job.users[ 0 ].firstName === 'Robert' ) {
 						user_.job.users = [ user_.job.users[ 1 ] , user_.job.users[ 0 ] ] ;
 					}
-					
+
 					expect( user_.job.users[ 0 ].job ).to.be( user_.job ) ;
 					expect( user_.job.users[ 1 ].job ).to.be( user_.job ) ;
-					
-					expect( user_ ).to.eql( {
-						_id: user._id,
-						firstName: 'Jilbert',
+
+					expect( user_ ).to.equal( {
+						_id: user._id ,
+						firstName: 'Jilbert' ,
 						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson',
+						memberSid: 'Jilbert Polson' ,
 						job: {
 							_id: job._id ,
 							title: 'developer' ,
-							salary: 60000,
-							schools: [],
+							salary: 60000 ,
+							schools: [] ,
 							users: [
 								user_ ,
 								// We cannot use 'user2', expect.js is too confused with Circular references
@@ -4626,74 +4472,73 @@ describe( "Memory model" , function() {
 							]
 						}
 					} ) ;
-					
-					expect( user_.job.users[ 1 ] ).to.eql( {
-						_id: user2._id,
-						firstName: 'Robert',
+
+					expect( user_.job.users[ 1 ] ).to.equal( {
+						_id: user2._id ,
+						firstName: 'Robert' ,
 						lastName: 'Polson' ,
-						memberSid: 'Robert Polson',
+						memberSid: 'Robert Polson' ,
 						job: {
 							_id: job._id ,
 							title: 'developer' ,
-							salary: 60000,
-							schools: [],
+							salary: 60000 ,
+							schools: [] ,
 							users: [
 								user_ ,
 								user_.job.users[ 1 ]
 							]
 						}
 					} ) ;
-					
+
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
-					
+
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
+
 	it( "should also works with back-multi-link" ) ;
 } ) ;
 
 
 
-describe( "Hooks" , function() {
-	
+describe( "Hooks" , () => {
 	it( "'beforeCreateDocument'" ) ;
 	it( "'afterCreateDocument'" ) ;
 } ) ;
 
 
 
-describe( "Historical bugs" , function() {
-	
+describe( "Historical bugs" , () => {
+
 	beforeEach( clearDB ) ;
-	
-	it( "collect on empty collection with populate (was throwing uncaught error)" , function( done ) {
-		
+
+	it( "collect on empty collection with populate (was throwing uncaught error)" , ( done ) => {
+
 		async.series( [
 			function( callback ) {
-				users.collect( {} , { populate: [ 'job' , 'godfather' ] } , function( error , batch ) {
+				users.collect( {} , { populate: [ 'job' , 'godfather' ] } , ( error , batch ) => {
 					expect( error ).not.to.be.ok() ;
-					expect( batch ).to.eql( [] ) ;
+					expect( batch ).to.equal( [] ) ;
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "validation featuring sanitizers should update both locally and remotely after a document's commit()" , function( done ) {
-		
+
+	it( "validation featuring sanitizers should update both locally and remotely after a document's commit()" , ( done ) => {
+
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: "60000"
 		} ) ;
-		
+
 		var jobId = job.$.id ;
-		
+
 		var town = towns.createDocument( {
 			name: 'Paris' ,
 			meta: {
@@ -4702,12 +4547,12 @@ describe( "Historical bugs" , function() {
 				country: 'France'
 			}
 		} ) ;
-		
+
 		var townId = town.$.id ;
-		
+
 		expect( job.salary ).to.be( 60000 ) ;	// toInteger at document's creation
 		expect( town.meta.rank ).to.be( 7 ) ;	// toInteger at document's creation
-		
+
 		async.series( [
 			function( callback ) {
 				job.$.save( callback ) ;
@@ -4716,111 +4561,119 @@ describe( "Historical bugs" , function() {
 				town.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				jobs.get( jobId , function( error , job_ ) {
+				jobs.get( jobId , ( error , job_ ) => {
 					job = job_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
+					expect( job ).to.equal( {
+						_id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: []
+					} ) ;
 					expect( job.salary ).to.be( 60000 ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
 				job.$.patch( { salary: "65000" } ) ;
-				job.$.commit( function( error ) {
+				job.$.commit( ( error ) => {
 					expect( error ).not.to.be.ok() ;
-					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: [] } ) ;
+					expect( job ).to.equal( {
+						_id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: []
+					} ) ;
 					expect( job.salary ).to.be( 65000 ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: [] } ) ;
-				jobs.get( jobId , function( error , job_ ) {
+				expect( job ).to.equal( {
+					_id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: []
+				} ) ;
+				jobs.get( jobId , ( error , job_ ) => {
 					job = job_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( job ).to.eql( { _id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: [] } ) ;
+					expect( job ).to.equal( {
+						_id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: []
+					} ) ;
 					expect( job.salary ).to.be( 65000 ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				towns.get( town._id , function( error , town_ ) {
+				towns.get( town._id , ( error , town_ ) => {
 					town = town_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( town ).to.eql( { _id: town._id , name: 'Paris' , meta: { rank: 7 , population: '2200K' , country: 'France' } } ) ;
+					expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 7 , population: '2200K' , country: 'France' } } ) ;
 					expect( town.meta.rank ).to.be( 7 ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
 				town.$.patch( { "meta.rank": "8" } ) ;
-				town.$.commit( function( error ) {
+				town.$.commit( ( error ) => {
 					expect( error ).not.to.be.ok() ;
-					expect( town ).to.eql( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
+					expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
 					expect( town.meta.rank ).to.be( 8 ) ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				towns.get( town._id , function( error , town_ ) {
+				towns.get( town._id , ( error , town_ ) => {
 					town = town_ ;
 					expect( error ).not.to.be.ok() ;
-					expect( town ).to.eql( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
+					expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
 					expect( town.meta.rank ).to.be( 8 ) ;
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
-	
-	it( "setting garbage to an attachment property should abort with an error" , function( done ) {
-		
+
+	it( "setting garbage to an attachment property should abort with an error" , ( done ) => {
+
 		var user , id ;
-		
+
 		// First try: at object creation
-		expect( function() {
+		expect( () => {
 			user = users.createDocument( {
 				firstName: 'Jilbert' ,
 				lastName: 'Polson' ,
 				file: 'garbage'
 			} ) ;
 		} ).to.throwError() ;
-		
+
 		user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		id = user._id ;
-		
+
 		// Second try: using setLink
-		expect( function() { user.$.setLink( 'file' , 'garbage' ) ; } ).to.throwError() ;
+		expect( () => { user.$.setLink( 'file' , 'garbage' ) ; } ).to.throwError() ;
 		expect( user.file ).to.be( undefined ) ;
-		
+
 		// third try: by setting the property directly
 		user.file = 'garbage' ;
-		expect( function() { user.$.validate() ; } ).to.throwError() ;
-		
+		expect( () => { user.$.validate() ; } ).to.throwError() ;
+
 		// By default, a collection has the 'patchDrivenValidation' option, so we have to stage the change
 		// to trigger validation on .save()
 		user.$.stage( 'file' ) ;
-		
+
 		async.series( [
 			function( callback ) {
-				user.$.save( function( error ) {
+				user.$.save( ( error ) => {
 					expect( error ).to.be.ok() ;
 					callback() ;
 				} ) ;
 			} ,
 			function( callback ) {
-				users.get( id , function( error , user_ ) {
+				users.get( id , ( error , user_ ) => {
 					user = user_ ;
 					expect( error ).to.be.ok() ;
 					callback() ;
 				} ) ;
 			}
 		] )
-		.exec( done ) ;
+			.exec( done ) ;
 	} ) ;
 } ) ;
