@@ -1604,6 +1604,47 @@ describe( "Links" , () => {
 		await expect( () => user.getLink( "firstName" ) ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
 		await expect( () => user.getLink( "firstName.blah" ) ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
 	} ) ;
+
+	it( "direct link assignment" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var userId = user.getId() ;
+		
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var jobId = job.getId() ;
+		
+		user.job = job ;
+		expect( user ).to.equal( {
+			_id: userId ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			job: job
+		} ) ;
+		
+		// Check stringification
+		expect( JSON.stringify( user ) ).to.be( '{"firstName":"Jilbert","lastName":"Polson","_id":"' + userId.toString() + '","memberSid":"Jilbert Polson","job":{"title":"developer","salary":60000,"users":[],"schools":[],"_id":"' + jobId.toString() + '"}}' ) ;
+		expect( JSON.stringify( user.$ ) ).to.be( '{"firstName":"Jilbert","lastName":"Polson","_id":"' + userId.toString() + '","memberSid":"Jilbert Polson","job":{"_id":"' + jobId.toString() + '"}}' ) ;
+		
+		await job.save() ;
+		await user.save() ;
+		var dbUser = await users.get( userId ) ;
+
+		await expect( users.get( userId ) ).to.eventually.equal( {
+			_id: userId ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			job: { _id: jobId }
+		} ) ;
+	} ) ;
 } ) ;
 
 
@@ -1645,7 +1686,10 @@ describe( "Multi-links" , () => {
 		// First test
 
 		school.setLink( 'jobs' , [ job1 , job2 ] ) ;
-		expect( school.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
+		//expect( school.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
+		expect( school._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
+		expect( school.jobs ).to.equal( [ job1 , job2 ] ) ;
+		expect( school.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
