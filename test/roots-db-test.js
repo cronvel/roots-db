@@ -1378,7 +1378,7 @@ describe( "Links" , () => {
 		expect( user.getLinkDetails( 'job' ) ).to.equal( {
 			type: 'link' ,
 			foreignCollection: 'jobs' ,
-			//foreignId:  ,
+			foreignId: null ,
 			hostPath: 'job' ,
 			schema: {
 				collection: 'jobs' ,
@@ -1396,7 +1396,7 @@ describe( "Links" , () => {
 		expect( dbUser.getLinkDetails( 'job' ) ).to.equal( {
 			type: 'link' ,
 			foreignCollection: 'jobs' ,
-			//foreignId:  ,
+			foreignId: null ,
 			hostPath: 'job' ,
 			schema: {
 				collection: 'jobs' ,
@@ -1425,7 +1425,7 @@ describe( "Links" , () => {
 		
 		user.setLink( 'job' , job ) ;
 
-		expect( user.job ).to.equal( jobId ) ;
+		expect( user.job._id ).to.equal( jobId ) ;
 		expect( user.getLinkDetails( 'job' ) ).to.equal( {
 			type: 'link' ,
 			foreignCollection: 'jobs' ,
@@ -1446,7 +1446,7 @@ describe( "Links" , () => {
 		var dbUser = await users.get( userId ) ;
 		var dbJob = await jobs.get( jobId ) ;
 
-		expect( dbUser.job ).to.equal( jobId ) ;
+		expect( dbUser.job._id ).to.equal( jobId ) ;
 		expect( user.getLinkDetails( 'job' ) ).to.equal( {
 			type: 'link' ,
 			foreignCollection: 'jobs' ,
@@ -1483,7 +1483,7 @@ describe( "Links" , () => {
 		await job.save() ;
 		var dbUser = await users.get( userId ) ;
 
-		expect( dbUser.job ).to.equal( jobId ) ;
+		expect( dbUser.job._id ).to.equal( jobId ) ;
 		await expect( dbUser.getLink( 'job' ) ).to.eventually.equal( {
 			_id: jobId ,
 			title: "developer" ,
@@ -1519,8 +1519,8 @@ describe( "Links" , () => {
 		user.setLink( 'connection.A' , connectionA ) ;
 		user.setLink( 'connection.B' , connectionB ) ;
 
-		expect( user.connection.A ).to.equal( connectionAId ) ;
-		expect( user.connection.B ).to.equal( connectionBId ) ;
+		expect( user.connection.A._id ).to.equal( connectionAId ) ;
+		expect( user.connection.B._id ).to.equal( connectionBId ) ;
 		
 		await Promise.all( [ connectionA.save() , connectionB.save() , user.save() ] ) ;
 		
@@ -1530,8 +1530,8 @@ describe( "Links" , () => {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
 			connection: {
-				A: connectionAId ,
-				B: connectionBId
+				A: { _id: connectionAId } ,
+				B: { _id: connectionBId }
 			} ,
 			memberSid: 'Jilbert Polson'
 		} ) ;
@@ -1586,7 +1586,7 @@ describe( "Links" , () => {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
 			connection: {
-				A: connectionAId
+				A: { _id: connectionAId }
 			} ,
 			memberSid: 'Jilbert Polson'
 		} ) ;
@@ -1645,10 +1645,10 @@ describe( "Multi-links" , () => {
 		// First test
 
 		school.setLink( 'jobs' , [ job1 , job2 ] ) ;
-		expect( school.jobs ).to.equal( [ job1Id , job2Id ] ) ;
+		expect( school.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
-		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ job1Id , job2Id ] } ) ;
+		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
 		
 		batch = await school.getLink( "jobs" ) ;
 
@@ -1663,7 +1663,7 @@ describe( "Multi-links" , () => {
 		// Second test
 		
 		school.addLink( 'jobs' , job3 ) ;
-		expect( school.jobs ).to.equal( [ job1Id , job2Id , job3Id ] ) ;
+		expect( school.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ] ) ;
 		await school.save() ;
 
 		batch = await school.getLink( "jobs" ) ;
@@ -1680,7 +1680,7 @@ describe( "Multi-links" , () => {
 		// Third test
 		
 		school.removeLink( 'jobs' , job2 ) ;
-		expect( school.jobs ).to.equal( [ job1Id , job3Id ] ) ;
+		expect( school.jobs ).to.equal( [ { _id: job1Id } , { _id: job3Id } ] ) ;
 		await school.save() ;
 		
 		batch = await school.getLink( "jobs" ) ;
@@ -1707,7 +1707,7 @@ describe( "Multi-links" , () => {
 		// First test
 
 		rootDoc.setLink( 'nested.multiLink' , [ childDoc1 , childDoc2 ] ) ;
-		expect( rootDoc.nested.multiLink ).to.equal( [ childDoc1.getId() , childDoc2.getId() ] ) ;
+		expect( rootDoc.nested.multiLink ).to.equal( [ { _id: childDoc1.getId() } , { _id: childDoc2.getId() } ] ) ;
 
 		await Promise.all( [ rootDoc.save() , childDoc1.save() , childDoc2.save() , childDoc3.save() ] ) ;
 		await expect( nestedLinks.get( id ) ).to.eventually.equal( {
@@ -1716,7 +1716,7 @@ describe( "Multi-links" , () => {
 			nested: {
 				backLinkOfLink: [] ,
 				backLinkOfMultiLink: [] ,
-				multiLink: [ childDoc1.getId() , childDoc2.getId() ]
+				multiLink: [ { _id: childDoc1.getId() } , { _id: childDoc2.getId() } ]
 			}
 		} ) ;
 		
@@ -1733,7 +1733,7 @@ describe( "Multi-links" , () => {
 		// Second test
 		
 		rootDoc.addLink( 'nested.multiLink' , childDoc3 ) ;
-		expect( rootDoc.nested.multiLink ).to.equal( [ childDoc1.getId() , childDoc2.getId() , childDoc3.getId() ] ) ;
+		expect( rootDoc.nested.multiLink ).to.equal( [ { _id: childDoc1.getId() } , { _id: childDoc2.getId() } , { _id: childDoc3.getId() } ] ) ;
 		await rootDoc.save() ;
 
 		batch = await rootDoc.getLink( "nested.multiLink" ) ;
@@ -1750,7 +1750,7 @@ describe( "Multi-links" , () => {
 		// Third test
 		
 		rootDoc.removeLink( 'nested.multiLink' , childDoc2 ) ;
-		expect( rootDoc.nested.multiLink ).to.equal( [ childDoc1.getId() , childDoc3.getId() ] ) ;
+		expect( rootDoc.nested.multiLink ).to.equal( [ { _id: childDoc1.getId() } , { _id: childDoc3.getId() } ] ) ;
 		await rootDoc.save() ;
 		
 		batch = await rootDoc.getLink( "nested.multiLink" ) ;
@@ -1829,7 +1829,7 @@ describe( "Back-links" , () => {
 				firstName: 'Jilbert' ,
 				lastName: 'Polson' ,
 				memberSid: 'Jilbert Polson' ,
-				job: jobId
+				job: { _id: jobId }
 			}
 		] ) ;
 		
@@ -1843,8 +1843,8 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.firstName ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			Jilbert: { _id: id , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson' , job: jobId } ,
-			Tony: { _id: id2 , firstName: 'Tony' , lastName: 'P.' , memberSid: 'Tony P.' , job: jobId }
+			Jilbert: { _id: id , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson' , job: { _id: jobId } } ,
+			Tony: { _id: id2 , firstName: 'Tony' , lastName: 'P.' , memberSid: 'Tony P.' , job: { _id: jobId } }
 		} ) ;
 	} ) ;
 
@@ -1906,8 +1906,8 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			'Computer Science': { _id: school1Id , title: 'Computer Science' , jobs: [ job1Id , job2Id , job3Id ] } ,
-			'Web Academy': { _id: school2Id , title: 'Web Academy' , jobs: [ job1Id , job3Id , job4Id ] }
+			'Computer Science': { _id: school1Id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ] } ,
+			'Web Academy': { _id: school2Id , title: 'Web Academy' , jobs: [ { _id: job1Id } , { _id: job3Id } , { _id: job4Id } ] }
 		} ) ;
 		
 		dbJob = await jobs.get( job4Id ) ;
@@ -1919,7 +1919,7 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
 		
 		expect( batch.slice() ).to.equal( [
-			{ _id: school2Id , title: 'Web Academy' , jobs: [ job1Id , job3Id , job4Id ] }
+			{ _id: school2Id , title: 'Web Academy' , jobs: [ { _id: job1Id } , { _id: job3Id } , { _id: job4Id } ] }
 		] ) ;
 	} ) ;
 
@@ -1959,8 +1959,8 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } } ,
-			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } }
 		} ) ;
 		
 		// Second test
@@ -1973,9 +1973,9 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } } ,
-			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } } ,
-			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } }
 		} ) ;
 		
 		// Third test
@@ -1988,8 +1988,8 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } } ,
-			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: id , multiLink: [] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } }
 		} ) ;
 	} ) ;
 
@@ -2035,8 +2035,8 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() ] } } ,
-			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() , otherDoc1.getId() , otherDoc2.getId() ] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } ] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } , { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } ] } }
 		} ) ;
 		
 		// Second test
@@ -2049,9 +2049,9 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() ] } } ,
-			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() , otherDoc1.getId() , otherDoc2.getId() ] } } ,
-			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ otherDoc1.getId() , otherDoc2.getId() , rootDoc.getId() ] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } ] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } , { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } ] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
 		} ) ;
 		
 		// Third test
@@ -2064,8 +2064,8 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ rootDoc.getId() ] } } ,
-			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ otherDoc1.getId() , otherDoc2.getId() , rootDoc.getId() ] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } ] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
 		} ) ;
 	} ) ;
 } ) ;
