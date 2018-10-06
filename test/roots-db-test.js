@@ -1689,7 +1689,15 @@ describe( "Multi-links" , () => {
 		//expect( school.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
 		expect( school._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
 		expect( school.jobs ).to.equal( [ job1 , job2 ] ) ;
+		console.log( "\n--------\n" ) ;
+		var j = school.$.jobs ;
+		console.log( "+++" ) ;
+		console.log( j ) ;
+		console.log( "+++" ) ;
+		console.log( j.__debug__ ) ;
+		console.log( "\n--------\n" ) ;
 		expect( school.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
+		console.log( "+++" ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
