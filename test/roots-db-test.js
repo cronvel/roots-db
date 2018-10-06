@@ -1715,7 +1715,8 @@ describe( "Multi-links" , () => {
 		// Second test
 		
 		school.addLink( 'jobs' , job3 ) ;
-		expect( school.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ] ) ;
+		expect( school.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ] ) ;
+		expect( school.jobs ).to.equal( [ job1 , job2 , job3 ] ) ;
 		await school.save() ;
 
 		batch = await school.getLink( "jobs" ) ;
@@ -1732,7 +1733,8 @@ describe( "Multi-links" , () => {
 		// Third test
 		
 		school.removeLink( 'jobs' , job2 ) ;
-		expect( school.jobs ).to.equal( [ { _id: job1Id } , { _id: job3Id } ] ) ;
+		expect( school.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job3Id } ] ) ;
+		expect( school.jobs ).to.equal( [ job1 , job3 ] ) ;
 		await school.save() ;
 		
 		batch = await school.getLink( "jobs" ) ;
@@ -1759,7 +1761,8 @@ describe( "Multi-links" , () => {
 		// First test
 
 		rootDoc.setLink( 'nested.multiLink' , [ childDoc1 , childDoc2 ] ) ;
-		expect( rootDoc.nested.multiLink ).to.equal( [ { _id: childDoc1.getId() } , { _id: childDoc2.getId() } ] ) ;
+		expect( rootDoc.$.nested.multiLink ).to.equal( [ { _id: childDoc1.getId() } , { _id: childDoc2.getId() } ] ) ;
+		expect( rootDoc.nested.multiLink ).to.equal( [ childDoc1 , childDoc2 ] ) ;
 
 		await Promise.all( [ rootDoc.save() , childDoc1.save() , childDoc2.save() , childDoc3.save() ] ) ;
 		await expect( nestedLinks.get( id ) ).to.eventually.equal( {
@@ -1785,7 +1788,8 @@ describe( "Multi-links" , () => {
 		// Second test
 		
 		rootDoc.addLink( 'nested.multiLink' , childDoc3 ) ;
-		expect( rootDoc.nested.multiLink ).to.equal( [ { _id: childDoc1.getId() } , { _id: childDoc2.getId() } , { _id: childDoc3.getId() } ] ) ;
+		expect( rootDoc.$.nested.multiLink ).to.equal( [ { _id: childDoc1.getId() } , { _id: childDoc2.getId() } , { _id: childDoc3.getId() } ] ) ;
+		expect( rootDoc.nested.multiLink ).to.equal( [ childDoc1 , childDoc2 , childDoc3 ] ) ;
 		await rootDoc.save() ;
 
 		batch = await rootDoc.getLink( "nested.multiLink" ) ;
@@ -1802,7 +1806,8 @@ describe( "Multi-links" , () => {
 		// Third test
 		
 		rootDoc.removeLink( 'nested.multiLink' , childDoc2 ) ;
-		expect( rootDoc.nested.multiLink ).to.equal( [ { _id: childDoc1.getId() } , { _id: childDoc3.getId() } ] ) ;
+		expect( rootDoc.$.nested.multiLink ).to.equal( [ { _id: childDoc1.getId() } , { _id: childDoc3.getId() } ] ) ;
+		expect( rootDoc.nested.multiLink ).to.equal( [ childDoc1 , childDoc3 ] ) ;
 		await rootDoc.save() ;
 		
 		batch = await rootDoc.getLink( "nested.multiLink" ) ;
