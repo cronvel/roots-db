@@ -116,8 +116,8 @@ const usersDescriptor = {
 		}
 	} ,
 	indexes: [
-		{ properties: { job: 1 } } ,
-		{ properties: { job: 1 , memberSid: 1 } , unique: true }
+		{ properties: { "job._id": 1 } } ,
+		{ properties: { "job._id": 1 , memberSid: 1 } , unique: true }
 	] ,
 	hooks: {
 		afterCreateDocument: //[
@@ -375,7 +375,7 @@ describe( "Build collections' indexes" , () => {
 	beforeEach( clearDBIndexes ) ;
 
 	it.skip( "should build indexes" , async () => {
-		expect( users.uniques ).to.equal( [ [ '_id' ] , [ 'job' , 'memberSid' ] ] ) ;
+		expect( users.uniques ).to.equal( [ [ '_id' ] , [ 'job._id' , 'memberSid' ] ] ) ;
 		expect( jobs.uniques ).to.equal( [ [ '_id' ] ] ) ;
 
 		return Promise.forEach( Object.keys( world.collections ) , async ( name ) => {
@@ -906,9 +906,9 @@ describe( "Fingerprint" , () => {
 		expect( users.createFingerprint( { firstName: 'Terry' } ).unique ).to.be( false ) ;
 		expect( users.createFingerprint( { firstName: 'Terry' , lastName: 'Bogard' } ).unique ).to.be( false ) ;
 		expect( users.createFingerprint( { _id: '123456789012345678901234' , firstName: 'Terry' , lastName: 'Bogard' } ).unique ).to.be( true ) ;
-		expect( users.createFingerprint( { job: '123456789012345678901234' } ).unique ).to.be( false ) ;
+		expect( users.createFingerprint( { "job._id": '123456789012345678901234' } ).unique ).to.be( false ) ;
 		expect( users.createFingerprint( { memberSid: 'terry-bogard' } ).unique ).to.be( false ) ;
-		expect( users.createFingerprint( { job: '123456789012345678901234' , memberSid: 'terry-bogard' } ).unique ).to.be( true ) ;
+		expect( users.createFingerprint( { "job._id": '123456789012345678901234' , memberSid: 'terry-bogard' } ).unique ).to.be( true ) ;
 	} ) ;
 } ) ;
 
@@ -934,8 +934,8 @@ describe( "Get documents by unique fingerprint" , () => {
 		await user.save() ;
 		await job.save() ;
 		
-		await expect( users.getUnique( { memberSid: memberSid , job: jobId } ) ).to.eventually.equal( {
-			_id: userId , job: jobId , firstName: 'Bill' , lastName: "Cut'throat" , memberSid: "Bill Cut'throat"
+		await expect( users.getUnique( { memberSid: memberSid , "job._id": jobId } ) ).to.eventually.equal( {
+			_id: userId , job: { _id: jobId } , firstName: 'Bill' , lastName: "Cut'throat" , memberSid: "Bill Cut'throat"
 		} ) ;
 	} ) ;
 
@@ -1478,6 +1478,21 @@ describe( "Links" , () => {
 		var jobId = job.getId() ;
 		
 		user.setLink( 'job' , job ) ;
+		expect( user ).to.equal( {
+			_id: userId ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			job: job
+		} ) ;
+		
+		expect( user.$ ).to.equal( {
+			_id: userId ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			job: { _id: jobId }
+		} ) ;
 
 		await user.save() ;
 		await job.save() ;
@@ -1519,8 +1534,10 @@ describe( "Links" , () => {
 		user.setLink( 'connection.A' , connectionA ) ;
 		user.setLink( 'connection.B' , connectionB ) ;
 
-		expect( user.connection.A._id ).to.equal( connectionAId ) ;
-		expect( user.connection.B._id ).to.equal( connectionBId ) ;
+		expect( user.$.connection.A ).to.equal( { _id: connectionAId } ) ;
+		expect( user.$.connection.B ).to.equal( { _id: connectionBId } ) ;
+		expect( user.connection.A ).to.equal( connectionA ) ;
+		expect( user.connection.B ).to.equal( connectionB ) ;
 		
 		await Promise.all( [ connectionA.save() , connectionB.save() , user.save() ] ) ;
 		
@@ -1620,13 +1637,23 @@ describe( "Links" , () => {
 
 		var jobId = job.getId() ;
 		
+		// Direct assignment
 		user.job = job ;
+		
 		expect( user ).to.equal( {
 			_id: userId ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
 			memberSid: 'Jilbert Polson' ,
 			job: job
+		} ) ;
+		
+		expect( user.$ ).to.equal( {
+			_id: userId ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			job: { _id: jobId }
 		} ) ;
 		
 		// Check stringification
@@ -1654,7 +1681,7 @@ describe( "Multi-links" , () => {
 	beforeEach( clearDB ) ;
 
 	it( "should create, save, retrieve, add and remove multi-links" , async () => {
-		var map , batch ;
+		var map , batch , dbSchool ;
 
 		var school = schools.createDocument( {
 			title: 'Computer Science'
@@ -1686,18 +1713,9 @@ describe( "Multi-links" , () => {
 		// First test
 
 		school.setLink( 'jobs' , [ job1 , job2 ] ) ;
-		//expect( school.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
 		expect( school._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
-		expect( school.jobs ).to.equal( [ job1 , job2 ] ) ;
-		console.log( "\n--------\n" ) ;
-		var j = school.$.jobs ;
-		console.log( "+++" ) ;
-		console.log( j ) ;
-		console.log( "+++" ) ;
-		console.log( j.__debug__ ) ;
-		console.log( "\n--------\n" ) ;
 		expect( school.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
-		console.log( "+++" ) ;
+		expect( school.jobs ).to.equal( [ job1 , job2 ] ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
@@ -1711,12 +1729,29 @@ describe( "Multi-links" , () => {
 			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ,
 			sysadmin: { _id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: [] }
 		} ) ;
+
+		// Test auto-populate on .getLink()
+		dbSchool = await schools.get( id ) ;
+		
+		batch = await dbSchool.getLink( "jobs" ) ;
+		expect( dbSchool.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
+		expect( dbSchool.jobs ).to.equal( [ job1 , job2 ] ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ,
+			sysadmin: { _id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: [] }
+		} ) ;
 		
 		// Second test
 		
 		school.addLink( 'jobs' , job3 ) ;
+		expect( school._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ] ) ;
 		expect( school.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ] ) ;
 		expect( school.jobs ).to.equal( [ job1 , job2 , job3 ] ) ;
+		
 		await school.save() ;
 
 		batch = await school.getLink( "jobs" ) ;
@@ -1735,6 +1770,7 @@ describe( "Multi-links" , () => {
 		school.removeLink( 'jobs' , job2 ) ;
 		expect( school.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job3Id } ] ) ;
 		expect( school.jobs ).to.equal( [ job1 , job3 ] ) ;
+
 		await school.save() ;
 		
 		batch = await school.getLink( "jobs" ) ;
@@ -1749,7 +1785,7 @@ describe( "Multi-links" , () => {
 	} ) ;
 
 	it( "should create, save, retrieve, add and remove deep (nested) multi-links" , async () => {
-		var map , batch ;
+		var map , batch , dbRootDoc ;
 
 		var rootDoc = nestedLinks.createDocument( { name: 'root' } ) ;
 		var id = rootDoc.getId() ;
@@ -1785,6 +1821,21 @@ describe( "Multi-links" , () => {
 			child2: { _id: childDoc2.getId() , name: "child2" , nested: {} }
 		} ) ;
 		
+		// Test auto-populate on .getLink()
+		dbRootDoc = await nestedLinks.get( id ) ;
+		
+		batch = await dbRootDoc.getLink( "nested.multiLink" ) ;
+		expect( dbRootDoc.$.nested.multiLink ).to.equal( [ { _id: childDoc1.getId() } , { _id: childDoc2.getId() } ] ) ;
+		expect( dbRootDoc.nested.multiLink ).to.equal( [ childDoc1 , childDoc2 ] ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
+		
+		expect( map ).to.equal( {
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: {} } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: {} }
+		} ) ;
+
 		// Second test
 		
 		rootDoc.addLink( 'nested.multiLink' , childDoc3 ) ;
