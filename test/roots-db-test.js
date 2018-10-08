@@ -1930,7 +1930,7 @@ describe( "Back-links" , () => {
 		} ) ;
 		
 		batch = await job.getLink( "users" ) ;
-		expect( batch.slice() ).to.equal( [
+		expect( batch ).to.be.like( [
 			{
 				_id: id ,
 				firstName: 'Jilbert' ,
@@ -1940,22 +1940,32 @@ describe( "Back-links" , () => {
 			}
 		] ) ;
 		
-		expect( job.users.slice() ).to.equal( [
-			{
-				_id: id ,
-				firstName: 'Jilbert' ,
-				lastName: 'Polson' ,
-				memberSid: 'Jilbert Polson' ,
-				job: { _id: jobId }
-			}
-		] ) ;
+		expect( job ).to.be.like( {
+			_id: jobId ,
+			title: 'developer' ,
+			salary: 60000 ,
+			users: [
+				{
+					_id: id ,
+					firstName: 'Jilbert' ,
+					lastName: 'Polson' ,
+					memberSid: 'Jilbert Polson' ,
+					job: { _id: jobId }
+				}
+			] ,
+			schools: {}
+		} ) ;
+		
+		expect( job.$ ).to.be.like( {
+			_id: jobId ,
+			title: 'developer' ,
+			salary: 60000 ,
+			users: {} ,
+			schools: {}
+		} ) ;
 		
 		expect( job.$.users ).to.equal( {} ) ;
 
-//------------------------------------------------------- HERE --------------------------------------------------------------------
-		
-		expect( JSON.stringify( job ) ).to.be( '{"title":"developer","salary":60000,"users":[{"_id":"'+id.toString()+'","firstName":"Jilbert","lastName":"Polson","memberSid":"Jilbert Polson","job":{"_id":"'+jobId.toString()+'"}}],"schools":{},"_id":"'+jobId.toString()+'"}' ) ;
-		
 		user2.setLink( 'job' , job ) ;
 		await user2.save() ;
 		
@@ -1967,6 +1977,37 @@ describe( "Back-links" , () => {
 		expect( map ).to.equal( {
 			Jilbert: { _id: id , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson' , job: { _id: jobId } } ,
 			Tony: { _id: id2 , firstName: 'Tony' , lastName: 'P.' , memberSid: 'Tony P.' , job: { _id: jobId } }
+		} ) ;
+		
+		expect( job ).to.be.like( {
+			_id: jobId ,
+			title: 'developer' ,
+			salary: 60000 ,
+			users: [
+				{
+					_id: id ,
+					firstName: 'Jilbert' ,
+					lastName: 'Polson' ,
+					memberSid: 'Jilbert Polson' ,
+					job: { _id: jobId }
+				} ,
+				{
+					_id: id2 ,
+					firstName: 'Tony' ,
+					lastName: 'P.' ,
+					memberSid: 'Tony P.' ,
+					job: { _id: jobId }
+				}
+			] ,
+			schools: {}
+		} ) ;
+		
+		expect( job.$ ).to.be.like( {
+			_id: jobId ,
+			title: 'developer' ,
+			salary: 60000 ,
+			users: {} ,
+			schools: {}
 		} ) ;
 	} ) ;
 
@@ -2032,6 +2073,25 @@ describe( "Back-links" , () => {
 			'Web Academy': { _id: school2Id , title: 'Web Academy' , jobs: [ { _id: job1Id } , { _id: job3Id } , { _id: job4Id } ] }
 		} ) ;
 		
+		expect( dbJob ).to.be.like( {
+			_id: job1Id ,
+			title: 'developer' ,
+			salary: 60000 ,
+			users: {} ,
+			schools: [
+				{ _id: school1Id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ] } ,
+				{ _id: school2Id , title: 'Web Academy' , jobs: [ { _id: job1Id } , { _id: job3Id } , { _id: job4Id } ] }
+			]
+		} ) ;
+		
+		expect( dbJob.$ ).to.be.like( {
+			_id: job1Id ,
+			title: 'developer' ,
+			salary: 60000 ,
+			users: {} ,
+			schools: {}
+		} ) ;
+
 		dbJob = await jobs.get( job4Id ) ;
 		expect( dbJob ).to.equal( { _id: job4Id , title: 'designer' , salary: 56000 , users: {} , schools: {} } ) ;
 		
@@ -2040,7 +2100,7 @@ describe( "Back-links" , () => {
 		map = {} ;
 		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
 		
-		expect( batch.slice() ).to.equal( [
+		expect( batch ).to.be.like( [
 			{ _id: school2Id , title: 'Web Academy' , jobs: [ { _id: job1Id } , { _id: job3Id } , { _id: job4Id } ] }
 		] ) ;
 	} ) ;
@@ -2112,6 +2172,23 @@ describe( "Back-links" , () => {
 		expect( map ).to.equal( {
 			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: [] } } ,
 			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: [] } }
+		} ) ;
+
+		expect( rootDoc ).to.be.like( {
+			_id: id ,
+			name: "root" ,
+			nested: {
+				backLinkOfLink: [
+					{ _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: [] } } ,
+					{ _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: [] } }
+				]
+			}
+		} ) ;
+
+		expect( rootDoc.$ ).to.be.like( {
+			_id: id ,
+			name: "root" ,
+			nested: { backLinkOfLink: {} }
 		} ) ;
 	} ) ;
 
@@ -2188,6 +2265,23 @@ describe( "Back-links" , () => {
 		expect( map ).to.equal( {
 			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } ] } } ,
 			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
+		} ) ;
+
+		expect( rootDoc ).to.be.like( {
+			_id: id ,
+			name: "root" ,
+			nested: {
+				backLinkOfMultiLink: [
+					{ _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } ] } } ,
+					{ _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
+				]
+			}
+		} ) ;
+
+		expect( rootDoc.$ ).to.be.like( {
+			_id: id ,
+			name: "root" ,
+			nested: { backLinkOfMultiLink: {} }
 		} ) ;
 	} ) ;
 } ) ;
