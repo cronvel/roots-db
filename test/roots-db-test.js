@@ -1503,8 +1503,8 @@ describe( "Links" , () => {
 			_id: jobId ,
 			title: "developer" ,
 			salary: 60000 ,
-			users: [] ,
-			schools: []
+			users: {} ,
+			schools: {}
 		} ) ;
 	} ) ;
 
@@ -1657,7 +1657,7 @@ describe( "Links" , () => {
 		} ) ;
 		
 		// Check stringification
-		expect( JSON.stringify( user ) ).to.be( '{"firstName":"Jilbert","lastName":"Polson","_id":"' + userId.toString() + '","memberSid":"Jilbert Polson","job":{"title":"developer","salary":60000,"users":[],"schools":[],"_id":"' + jobId.toString() + '"}}' ) ;
+		expect( JSON.stringify( user ) ).to.be( '{"firstName":"Jilbert","lastName":"Polson","_id":"' + userId.toString() + '","memberSid":"Jilbert Polson","job":{"title":"developer","salary":60000,"users":{},"schools":{},"_id":"' + jobId.toString() + '"}}' ) ;
 		expect( JSON.stringify( user.$ ) ).to.be( '{"firstName":"Jilbert","lastName":"Polson","_id":"' + userId.toString() + '","memberSid":"Jilbert Polson","job":{"_id":"' + jobId.toString() + '"}}' ) ;
 		
 		await job.save() ;
@@ -1726,8 +1726,8 @@ describe( "Multi-links" , () => {
 		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ,
-			sysadmin: { _id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: [] }
+			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {} } ,
+			sysadmin: { _id: job2Id , title: 'sysadmin' , salary: 55000 , users: {} , schools: {} }
 		} ) ;
 
 		// Test auto-populate on .getLink()
@@ -1741,8 +1741,8 @@ describe( "Multi-links" , () => {
 		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ,
-			sysadmin: { _id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: [] }
+			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {} } ,
+			sysadmin: { _id: job2Id , title: 'sysadmin' , salary: 55000 , users: {} , schools: {} }
 		} ) ;
 		
 		// Second test
@@ -1760,9 +1760,9 @@ describe( "Multi-links" , () => {
 		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ,
-			sysadmin: { _id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: [] } ,
-			"front-end developer": { _id: job3Id , title: 'front-end developer' , salary: 54000 , users: [] , schools: [] }
+			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {} } ,
+			sysadmin: { _id: job2Id , title: 'sysadmin' , salary: 55000 , users: {} , schools: {} } ,
+			"front-end developer": { _id: job3Id , title: 'front-end developer' , salary: 54000 , users: {} , schools: {} }
 		} ) ;
 		
 		// Third test
@@ -1779,8 +1779,8 @@ describe( "Multi-links" , () => {
 		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ,
-			"front-end developer": { _id: job3Id , title: 'front-end developer' , salary: 54000 , users: [] , schools: [] }
+			developer: { _id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {} } ,
+			"front-end developer": { _id: job3Id , title: 'front-end developer' , salary: 54000 , users: {} , schools: {} }
 		} ) ;
 	} ) ;
 
@@ -1805,8 +1805,8 @@ describe( "Multi-links" , () => {
 			_id: id ,
 			name: 'root' ,
 			nested: {
-				backLinkOfLink: [] ,
-				backLinkOfMultiLink: [] ,
+				backLinkOfLink: {} ,
+				backLinkOfMultiLink: {} ,
 				multiLink: [ { _id: childDoc1.getId() } , { _id: childDoc2.getId() } ]
 			}
 		} ) ;
@@ -1911,7 +1911,7 @@ describe( "Back-links" , () => {
 
 		var dbJob = await jobs.get( jobId ) ;
 		expect( dbJob ).to.equal( {
-			_id: jobId , title: 'developer' , salary: 60000 , users: [] , schools: []
+			_id: jobId , title: 'developer' , salary: 60000 , users: {} , schools: {}
 		} ) ;
 		
 		expect( dbJob.getLinkDetails( "users" ) ).to.equal( {
@@ -1930,7 +1930,6 @@ describe( "Back-links" , () => {
 		} ) ;
 		
 		batch = await job.getLink( "users" ) ;
-		
 		expect( batch.slice() ).to.equal( [
 			{
 				_id: id ,
@@ -1941,6 +1940,21 @@ describe( "Back-links" , () => {
 			}
 		] ) ;
 		
+		expect( job.users.slice() ).to.equal( [
+			{
+				_id: id ,
+				firstName: 'Jilbert' ,
+				lastName: 'Polson' ,
+				memberSid: 'Jilbert Polson' ,
+				job: { _id: jobId }
+			}
+		] ) ;
+		
+		expect( job.$.users ).to.equal( {} ) ;
+
+//------------------------------------------------------- HERE --------------------------------------------------------------------
+		
+		expect( JSON.stringify( job ) ).to.be( '{"title":"developer","salary":60000,"users":[{"_id":"'+id.toString()+'","firstName":"Jilbert","lastName":"Polson","memberSid":"Jilbert Polson","job":{"_id":"'+jobId.toString()+'"}}],"schools":{},"_id":"'+jobId.toString()+'"}' ) ;
 		
 		user2.setLink( 'job' , job ) ;
 		await user2.save() ;
@@ -2006,7 +2020,7 @@ describe( "Back-links" , () => {
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , job4.save() , school1.save() , school2.save() ] ) ;
 		
 		var dbJob = await jobs.get( job1Id ) ;
-		expect( dbJob ).to.equal( { _id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: [] } ) ;
+		expect( dbJob ).to.equal( { _id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {} } ) ;
 		
 		batch = await dbJob.getLink( 'schools' ) ;
 
@@ -2019,7 +2033,7 @@ describe( "Back-links" , () => {
 		} ) ;
 		
 		dbJob = await jobs.get( job4Id ) ;
-		expect( dbJob ).to.equal( { _id: job4Id , title: 'designer' , salary: 56000 , users: [] , schools: [] } ) ;
+		expect( dbJob ).to.equal( { _id: job4Id , title: 'designer' , salary: 56000 , users: {} , schools: {} } ) ;
 		
 		batch = await dbJob.getLink( 'schools' ) ;
 
@@ -2067,8 +2081,8 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } } ,
-			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: [] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: [] } }
 		} ) ;
 		
 		// Second test
@@ -2081,9 +2095,9 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } } ,
-			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } } ,
-			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: [] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: [] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: [] } }
 		} ) ;
 		
 		// Third test
@@ -2096,8 +2110,8 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } } ,
-			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: [] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: [] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: [] } }
 		} ) ;
 	} ) ;
 
@@ -2143,8 +2157,8 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } ] } } ,
-			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } , { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } ] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } ] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } , { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } ] } }
 		} ) ;
 		
 		// Second test
@@ -2157,9 +2171,9 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } ] } } ,
-			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } , { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } ] } } ,
-			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } ] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } , { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } ] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
 		} ) ;
 		
 		// Third test
@@ -2172,8 +2186,8 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 		
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } ] } } ,
-			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } ] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
 		} ) ;
 	} ) ;
 } ) ;
@@ -3001,8 +3015,8 @@ describe( "Populate links" , () => {
 							job: {
 								title: 'developer' ,
 								salary: 60000 ,
-								users: [] ,
-								schools: [] ,
+								users: {} ,
+								schools: {} ,
 								_id: job._id
 							} ,
 							godfather: {
@@ -3214,8 +3228,8 @@ describe( "Populate links" , () => {
 							job: {
 								title: 'developer' ,
 								salary: 60000 ,
-								users: [] ,
-								schools: [] ,
+								users: {} ,
+								schools: {} ,
 								_id: job._id
 							} ,
 							godfather: {
@@ -3447,7 +3461,7 @@ describe( "Populate links" , () => {
 						title: 'developer' ,
 						salary: 60000 ,
 						users: [ user1 , user2 ] ,
-						schools: []
+						schools: {}
 					} ) ;
 
 					expect( options.populateDepth ).to.be( 1 ) ;
@@ -3474,7 +3488,7 @@ describe( "Populate links" , () => {
 						title: 'developer' ,
 						salary: 60000 ,
 						users: [ user1 , user2 ] ,
-						schools: []
+						schools: {}
 					} ) ;
 
 					expect( jobs_[ 1 ].users ).to.have.length( 2 ) ;
@@ -3486,7 +3500,7 @@ describe( "Populate links" , () => {
 						title: 'star developer' ,
 						salary: 200000 ,
 						users: [ user3 , user4 ] ,
-						schools: []
+						schools: {}
 					} ) ;
 
 					expect( options.populateDepth ).to.be( 1 ) ;
@@ -3584,7 +3598,7 @@ describe( "Populate links" , () => {
 						_id: job1._id ,
 						title: 'developer' ,
 						salary: 60000 ,
-						users: [] ,
+						users: {} ,
 						schools: [
 							{
 								_id: school1._id ,
@@ -3620,7 +3634,7 @@ describe( "Populate links" , () => {
 						_id: job4._id ,
 						title: 'designer' ,
 						salary: 56000 ,
-						users: [] ,
+						users: {} ,
 						schools: [
 							{
 								_id: school2._id ,
@@ -3712,7 +3726,7 @@ describe( "Deep populate links" , () => {
 							_id: job._id ,
 							title: 'developer' ,
 							salary: 60000 ,
-							schools: [] ,
+							schools: {} ,
 							users: [
 								user_ ,
 								// We cannot use 'user2', expect.js is too confused with Circular references
@@ -3731,7 +3745,7 @@ describe( "Deep populate links" , () => {
 							_id: job._id ,
 							title: 'developer' ,
 							salary: 60000 ,
-							schools: [] ,
+							schools: {} ,
 							users: [
 								user_ ,
 								user_.job.users[ 1 ]
@@ -4093,8 +4107,8 @@ describe( "Memory model" , () => {
 							_id: job._id ,
 							title: 'developer' ,
 							salary: 60000 ,
-							users: [] ,
-							schools: []
+							users: {} ,
+							schools: {}
 						}
 					} ) ;
 
@@ -4108,8 +4122,8 @@ describe( "Memory model" , () => {
 							_id: job._id ,
 							title: 'developer' ,
 							salary: 60000 ,
-							users: [] ,
-							schools: []
+							users: {} ,
+							schools: {}
 						}
 					} ) ;
 
@@ -4123,8 +4137,8 @@ describe( "Memory model" , () => {
 							_id: job2._id ,
 							title: 'adventurer' ,
 							salary: 200000 ,
-							users: [] ,
-							schools: []
+							users: {} ,
+							schools: {}
 						}
 					} ) ;
 
@@ -4133,8 +4147,8 @@ describe( "Memory model" , () => {
 						_id: job._id ,
 						title: 'developer' ,
 						salary: 60000 ,
-						users: [] ,
-						schools: []
+						users: {} ,
+						schools: {}
 					} ) ;
 
 					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
@@ -4142,8 +4156,8 @@ describe( "Memory model" , () => {
 						_id: job2._id ,
 						title: 'adventurer' ,
 						salary: 200000 ,
-						users: [] ,
-						schools: []
+						users: {} ,
+						schools: {}
 					} ) ;
 
 					//console.error( memory.collections.users.documents ) ;
@@ -4207,7 +4221,7 @@ describe( "Memory model" , () => {
 						_id: job._id ,
 						title: 'developer' ,
 						salary: 60000 ,
-						schools: [] ,
+						schools: {} ,
 						users: [
 							memory.collections.users.documents[ user._id.toString() ] ,
 							memory.collections.users.documents[ user2._id.toString() ]
@@ -4219,7 +4233,7 @@ describe( "Memory model" , () => {
 						_id: job2._id ,
 						title: 'adventurer' ,
 						salary: 200000 ,
-						schools: [] ,
+						schools: {} ,
 						users: [
 							memory.collections.users.documents[ user3._id.toString() ]
 						]
@@ -4349,22 +4363,22 @@ describe( "Memory model" , () => {
 								_id: job1._id ,
 								title: 'developer' ,
 								salary: 60000 ,
-								users: [] ,
-								schools: []
+								users: {} ,
+								schools: {}
 							} ,
 							{
 								_id: job2._id ,
 								title: 'sysadmin' ,
 								salary: 55000 ,
-								users: [] ,
-								schools: []
+								users: {} ,
+								schools: {}
 							} ,
 							{
 								_id: job3._id ,
 								title: 'front-end developer' ,
 								salary: 54000 ,
-								users: [] ,
-								schools: []
+								users: {} ,
+								schools: {}
 							}
 						]
 					} ) ;
@@ -4378,22 +4392,22 @@ describe( "Memory model" , () => {
 								_id: job1._id ,
 								title: 'developer' ,
 								salary: 60000 ,
-								users: [] ,
-								schools: []
+								users: {} ,
+								schools: {}
 							} ,
 							{
 								_id: job3._id ,
 								title: 'front-end developer' ,
 								salary: 54000 ,
-								users: [] ,
-								schools: []
+								users: {} ,
+								schools: {}
 							} ,
 							{
 								_id: job4._id ,
 								title: 'designer' ,
 								salary: 56000 ,
-								users: [] ,
-								schools: []
+								users: {} ,
+								schools: {}
 							}
 						]
 					} ) ;
@@ -4403,8 +4417,8 @@ describe( "Memory model" , () => {
 						_id: job1._id ,
 						title: 'developer' ,
 						salary: 60000 ,
-						users: [] ,
-						schools: []
+						users: {} ,
+						schools: {}
 					} ) ;
 
 					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
@@ -4412,8 +4426,8 @@ describe( "Memory model" , () => {
 						_id: job2._id ,
 						title: 'sysadmin' ,
 						salary: 55000 ,
-						users: [] ,
-						schools: []
+						users: {} ,
+						schools: {}
 					} ) ;
 
 					doc = memory.collections.jobs.documents[ job3._id.toString() ] ;
@@ -4421,8 +4435,8 @@ describe( "Memory model" , () => {
 						_id: job3._id ,
 						title: 'front-end developer' ,
 						salary: 54000 ,
-						users: [] ,
-						schools: []
+						users: {} ,
+						schools: {}
 					} ) ;
 
 					doc = memory.collections.jobs.documents[ job4._id.toString() ] ;
@@ -4430,8 +4444,8 @@ describe( "Memory model" , () => {
 						_id: job4._id ,
 						title: 'designer' ,
 						salary: 56000 ,
-						users: [] ,
-						schools: []
+						users: {} ,
+						schools: {}
 					} ) ;
 
 					expect( options.populateDepth ).to.be( 1 ) ;
@@ -4526,8 +4540,8 @@ describe( "Memory model" , () => {
 							_id: job._id ,
 							title: 'developer' ,
 							salary: 60000 ,
-							users: [] ,
-							schools: []
+							users: {} ,
+							schools: {}
 						}
 					} ) ;
 					expect( user_.job.$.populated.users ).not.to.be.ok() ;
@@ -4535,8 +4549,8 @@ describe( "Memory model" , () => {
 						_id: job._id ,
 						title: 'developer' ,
 						salary: 60000 ,
-						users: [] ,
-						schools: []
+						users: {} ,
+						schools: {}
 					} ) ;
 					expect( options.populateDepth ).to.be( 1 ) ;
 					expect( options.populateDbQueries ).to.be( 1 ) ;
@@ -4571,7 +4585,7 @@ describe( "Memory model" , () => {
 							_id: job._id ,
 							title: 'developer' ,
 							salary: 60000 ,
-							schools: [] ,
+							schools: {} ,
 							users: [
 								user_ ,
 								// We cannot use 'user2', expect.js is too confused with Circular references
@@ -4590,7 +4604,7 @@ describe( "Memory model" , () => {
 							_id: job._id ,
 							title: 'developer' ,
 							salary: 60000 ,
-							schools: [] ,
+							schools: {} ,
 							users: [
 								user_ ,
 								user_.job.users[ 1 ]
@@ -4673,7 +4687,7 @@ describe( "Historical bugs" , () => {
 					job = job_ ;
 					expect( error ).not.to.be.ok() ;
 					expect( job ).to.equal( {
-						_id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: []
+						_id: job._id , title: 'developer' , salary: 60000 , users: {} , schools: {}
 					} ) ;
 					expect( job.salary ).to.be( 60000 ) ;
 					callback() ;
@@ -4684,7 +4698,7 @@ describe( "Historical bugs" , () => {
 				job.$.commit( ( error ) => {
 					expect( error ).not.to.be.ok() ;
 					expect( job ).to.equal( {
-						_id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: []
+						_id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {}
 					} ) ;
 					expect( job.salary ).to.be( 65000 ) ;
 					callback() ;
@@ -4692,13 +4706,13 @@ describe( "Historical bugs" , () => {
 			} ,
 			function( callback ) {
 				expect( job ).to.equal( {
-					_id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: []
+					_id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {}
 				} ) ;
 				jobs.get( jobId , ( error , job_ ) => {
 					job = job_ ;
 					expect( error ).not.to.be.ok() ;
 					expect( job ).to.equal( {
-						_id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: []
+						_id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {}
 					} ) ;
 					expect( job.salary ).to.be( 65000 ) ;
 					callback() ;
