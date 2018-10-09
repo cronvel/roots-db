@@ -2861,8 +2861,6 @@ describe( "Populate links" , () => {
 	beforeEach( clearDB ) ;
 
 	it( "link population (create both, link, save both, get with populate option)" , async () => {
-		var options ;
-
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -2883,12 +2881,14 @@ describe( "Populate links" , () => {
 		await job.save() ;
 		await user.save() ;
 		
-		options = { populate: 'job' } ;
-		var dbUser = users.get( id , options ) ;
-		expect( user ).to.equal( {
-			_id: user._id , job: job , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
+		var dbUser = await users.get( id , { populate: 'job' } ) ;
+		
+		expect( dbUser ).to.equal( {
+			_id: id , job: job , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
 		} ) ;
+		
 		expect( options.populateDepth ).to.be( 1 ) ;
+		
 		expect( options.populateDbQueries ).to.be( 1 ) ;
 	} ) ;
 	return ;
