@@ -565,6 +565,25 @@ describe( "Get documents" , () => {
 		expect( dbUser ).to.equal( {
 			_id: dbUser._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor'
 		} ) ;
+	} ) ;
+
+	it( "when trying to get an unexistant document, an ErrorStatus (type: notFound) should be issued" , async () => {
+		// Unexistant ID
+		var id = new mongodb.ObjectID() ;
+
+		await expect( () => users.get( id ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
+		await expect( () => users.get( id , { raw: true } ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
+	} ) ;
+
+	it( "should get an existing document in raw mode" , async () => {
+		var user = users.createDocument( {
+			firstName: 'John' ,
+			lastName: 'McGregor'
+		} ) ;
+
+		var id = user.getId() ;
+
+		await user.save() ;
 		
 		var rawDbUser = await users.get( id , { raw: true } ) ;
 		
@@ -574,14 +593,6 @@ describe( "Get documents" , () => {
 		expect( rawDbUser ).to.equal( {
 			_id: rawDbUser._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor'
 		} ) ;
-	} ) ;
-
-	it( "when trying to get an unexistant document, an ErrorStatus (type: notFound) should be issued" , async () => {
-		// Unexistant ID
-		var id = new mongodb.ObjectID() ;
-
-		await expect( () => users.get( id ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
-		await expect( () => users.get( id , { raw: true } ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
 	} ) ;
 } ) ;
 
