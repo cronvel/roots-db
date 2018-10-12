@@ -2892,22 +2892,18 @@ describe( "Populate links" , () => {
 		await job.save() ;
 		await user.save() ;
 		
-		var dbUser = await users.get( id , { populate: 'job' } ) ;
+		var stats = {} ;
+		var dbUser = await users.get( id , { populate: 'job' , stats } ) ;
 		
 		expect( dbUser ).to.equal( {
 			_id: id , job: job , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
 		} ) ;
 		
-		expect( options.populateDepth ).to.be( 1 ) ;
-		
-		expect( options.populateDbQueries ).to.be( 1 ) ;
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
-	return ;
 
-	it( "multiple link population (create, link, save, get with populate option)" , ( done ) => {
-
-		var options ;
-
+	it( "multiple link population (create, link, save, get with populate option)" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -2918,7 +2914,7 @@ describe( "Populate links" , () => {
 			lastName: 'GODFATHER'
 		} ) ;
 
-		var id = user._id ;
+		var id = user.getId() ;
 
 		var job = jobs.createDocument( {
 			title: 'developer' ,
@@ -2926,58 +2922,31 @@ describe( "Populate links" , () => {
 		} ) ;
 
 		// Link the documents!
-		user.$.setLink( 'job' , job ) ;
-		user.$.setLink( 'godfather' , godfather ) ;
+		user.setLink( 'job' , job ) ;
+		user.setLink( 'godfather' , godfather ) ;
 
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				godfather.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				options = { populate: [ 'job' , 'godfather' ] } ;
-				users.get( id , options , ( error , user_ ) => {
-					user = user_ ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.Document ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user ).to.equal( {
-						_id: user._id ,
-						job: job ,
-						godfather: godfather ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson'
-					} ) ;
+		await job.save() ;
+		await godfather.save() ;
+		await user.save() ;
+		
+		var stats = {} ;
+		var dbUser = await users.get( id , { populate: [ 'job' , 'godfather' ] , stats } ) ;
+		
+		expect( dbUser ).to.equal( {
+			_id: id , job: job , godfather: godfather , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
+		} ) ;
 
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 2 ) ;
-
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 2 ) ;
 	} ) ;
 
-	it( "multiple link population having same and circular target" , ( done ) => {
-
-		var options ;
-
+	it( "multiple link population having same and circular target" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
 
-		var id = user._id ;
+		var id = user.getId() ;
 
 		var connection = users.createDocument( {
 			firstName: 'John' ,
@@ -2985,49 +2954,35 @@ describe( "Populate links" , () => {
 		} ) ;
 
 		// Link the documents!
-		user.$.setLink( 'connection.A' , connection ) ;
-		user.$.setLink( 'connection.B' , connection ) ;
-		user.$.setLink( 'connection.C' , user ) ;
+		user.setLink( 'connection.A' , connection ) ;
+		user.setLink( 'connection.B' , connection ) ;
+		user.setLink( 'connection.C' , user ) ;
 
-		expect( user.connection.A ).to.equal( connection.$.id ) ;
-		expect( user.connection.B ).to.equal( connection.$.id ) ;
-		expect( user.connection.C ).to.equal( user.$.id ) ;
+		await connection.save() ;
+		await user.save() ;
+		
+		var stats = {} ;
+		var dbUser = await users.get( id , { populate: [ 'connection.A' , 'connection.B' , 'connection.C' ] , stats } ) ;
+		
+		console.log( "dbUser:" , dbUser ) ;
 
-		async.series( [
-			function( callback ) {
-				connection.$.save( callback ) ;
+		expect( dbUser.connection.A ).to.be( dbUser.connection.B ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			connection: {
+				A: connection ,
+				B: connection ,
+				C: user
 			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				options = { populate: [ 'connection.A' , 'connection.B' , 'connection.C' ] } ;
-				users.get( id , options , ( error , user ) => {
-					expect( user.$ ).to.be.an( rootsDb.Document ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user._id ).to.equal( id ) ;
-					expect( user.connection.A ).to.be( user.connection.B ) ;
-					expect( user ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						connection: {
-							A: connection ,
-							B: connection ,
-							C: user
-						} ,
-						memberSid: 'Jilbert Polson'
-					} ) ;
+			memberSid: 'Jilbert Polson'
+		} ) ;
 
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
+	return ;
 
 	it( "collect batch with multiple link population (create, link, save, collect with populate option)" , ( done ) => {
 
