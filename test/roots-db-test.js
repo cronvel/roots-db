@@ -48,7 +48,11 @@ ErrorStatus.alwaysCapture = true ;
 const doormen = require( 'doormen' ) ;
 
 const logfella = require( 'logfella' ) ;
-logfella.global.setGlobalConfig( { minLevel: process.argv.includes( '--debug' ) ? 'debug' : 'warning' } ) ;
+
+if ( global.teaTime ) {
+	logfella.global.setGlobalConfig( { minLevel: teaTime.cliManager.parsedArgs.log } ) ;
+}
+
 const log = logfella.global.use( 'unit-test' ) ;
 
 
@@ -2964,9 +2968,8 @@ describe( "Populate links" , () => {
 		var stats = {} ;
 		var dbUser = await users.get( id , { populate: [ 'connection.A' , 'connection.B' , 'connection.C' ] , stats } ) ;
 		
-		console.log( "dbUser:" , dbUser ) ;
-
 		expect( dbUser.connection.A ).to.be( dbUser.connection.B ) ;
+		expect( dbUser.connection.C ).to.be( dbUser ) ;
 		expect( dbUser ).to.equal( {
 			_id: id ,
 			firstName: 'Jilbert' ,
@@ -2974,7 +2977,7 @@ describe( "Populate links" , () => {
 			connection: {
 				A: connection ,
 				B: connection ,
-				C: user
+				C: dbUser
 			} ,
 			memberSid: 'Jilbert Polson'
 		} ) ;
@@ -2982,349 +2985,309 @@ describe( "Populate links" , () => {
 		expect( stats.population.depth ).to.be( 1 ) ;
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
+
+	it( "collect batch with multiple link population (create, link, save, collect with populate option)" , async () => {
+		var user1 = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var user2 = users.createDocument( {
+			firstName: 'Thomas' ,
+			lastName: 'Campbell'
+		} ) ;
+
+		var user3 = users.createDocument( {
+			firstName: 'Harry' ,
+			lastName: 'Campbell'
+		} ) ;
+
+		var godfather = users.createDocument( {
+			firstName: 'DA' ,
+			lastName: 'GODFATHER'
+		} ) ;
+
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		// Link the documents!
+		user1.setLink( 'job' , job ) ;
+		user1.setLink( 'godfather' , godfather ) ;
+		user3.setLink( 'godfather' , godfather ) ;
+
+		await Promise.all( [ job.save() , godfather.save() , user1.save() , user2.save() , user3.save() ] ) ;
+		
+		var stats = {} ;
+		var dbUserBatch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] , stats } ) ;
+
+		// Sort that first...
+		dbUserBatch.sort( ( a , b ) => a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ) ;
+		
+		expect( dbUserBatch ).to.be.like( [
+			{
+				firstName: 'DA' ,
+				lastName: 'GODFATHER' ,
+				_id: dbUserBatch[ 0 ]._id ,
+				memberSid: 'DA GODFATHER'
+			} ,
+			{
+				firstName: 'Harry' ,
+				lastName: 'Campbell' ,
+				_id: dbUserBatch[ 1 ]._id ,
+				memberSid: 'Harry Campbell' ,
+				godfather: {
+					firstName: 'DA' ,
+					lastName: 'GODFATHER' ,
+					_id: dbUserBatch[ 0 ]._id ,
+					memberSid: 'DA GODFATHER'
+				}
+			} ,
+			{
+				firstName: 'Jilbert' ,
+				lastName: 'Polson' ,
+				_id: dbUserBatch[ 2 ]._id ,
+				memberSid: 'Jilbert Polson' ,
+				job: {
+					title: 'developer' ,
+					salary: 60000 ,
+					users: {} ,
+					schools: {} ,
+					_id: job._id
+				} ,
+				godfather: {
+					firstName: 'DA' ,
+					lastName: 'GODFATHER' ,
+					_id: dbUserBatch[ 0 ]._id ,
+					memberSid: 'DA GODFATHER'
+				}
+			} ,
+			{
+				firstName: 'Thomas' ,
+				lastName: 'Campbell' ,
+				_id: dbUserBatch[ 3 ]._id ,
+				memberSid: 'Thomas Campbell'
+			}
+		] ) ;
+
+		expect( stats.population.depth ).to.be( 1 ) ;
+		// Only one DB query, since the godfather is a user and all users have been collected before the populate pass
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
+	} ) ;
+
+	it( "collect batch with multiple link population and circular references" , async () => {
+		var user1 = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var user2 = users.createDocument( {
+			firstName: 'Thomas' ,
+			lastName: 'Campbell'
+		} ) ;
+
+		var user3 = users.createDocument( {
+			firstName: 'Harry' ,
+			lastName: 'Campbell'
+		} ) ;
+
+		var godfather = users.createDocument( {
+			firstName: 'DA' ,
+			lastName: 'GODFATHER'
+		} ) ;
+
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		// Link the documents!
+		user1.setLink( 'job' , job ) ;
+		user1.setLink( 'godfather' , godfather ) ;
+		user3.setLink( 'godfather' , godfather ) ;
+		godfather.setLink( 'godfather' , godfather ) ;
+
+		await Promise.all( [ job.save() , godfather.save() , user1.save() , user2.save() , user3.save() ] ) ;
+		
+		var stats = {} ;
+		var dbUserBatch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] , stats } ) ;
+		
+		// Sort that first...
+		dbUserBatch.sort( ( a , b ) => a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ) ;
+		
+		// References are painful to test...
+		// Here we need to recreate the circular part in the 'expected' variable
+		var expected = [
+			{
+				firstName: 'DA' ,
+				lastName: 'GODFATHER' ,
+				_id: dbUserBatch[ 0 ]._id ,
+				memberSid: 'DA GODFATHER' ,
+			} ,
+			{
+				firstName: 'Harry' ,
+				lastName: 'Campbell' ,
+				_id: dbUserBatch[ 1 ]._id ,
+				memberSid: 'Harry Campbell' ,
+				godfather: {
+					firstName: 'DA' ,
+					lastName: 'GODFATHER' ,
+					_id: dbUserBatch[ 0 ]._id ,
+					memberSid: 'DA GODFATHER'
+				}
+			} ,
+			{
+				firstName: 'Jilbert' ,
+				lastName: 'Polson' ,
+				_id: dbUserBatch[ 2 ]._id ,
+				memberSid: 'Jilbert Polson' ,
+				job: {
+					title: 'developer' ,
+					salary: 60000 ,
+					users: {} ,
+					schools: {} ,
+					_id: job._id
+				} ,
+				godfather: {
+					firstName: 'DA' ,
+					lastName: 'GODFATHER' ,
+					_id: dbUserBatch[ 0 ]._id ,
+					memberSid: 'DA GODFATHER'
+				}
+			} ,
+			{
+				firstName: 'Thomas' ,
+				lastName: 'Campbell' ,
+				_id: dbUserBatch[ 3 ]._id ,
+				memberSid: 'Thomas Campbell'
+			}
+		] ;
+		expected[ 0 ].godfather = expected[ 0 ] ;
+		expect( dbUserBatch ).to.be.like( expected ) ;
+		
+		// Alternative checks, to be sure to not rely on a complex doormen feature
+		expect( dbUserBatch[ 0 ].godfather ).to.be( dbUserBatch[ 0 ] ) ;
+		expect( dbUserBatch[ 1 ].godfather ).to.be( dbUserBatch[ 0 ] ) ;
+		expect( dbUserBatch[ 2 ].godfather ).to.be( dbUserBatch[ 0 ] ) ;
+		
+		// JSON.stringify() should throw, because of circular references
+		expect( () => { JSON.stringify( dbUserBatch ) ; } ).to.throw() ;
+		
+		expect( stats.population.depth ).to.be( 1 ) ;
+		// Only one DB query, since the godfather is a user and all users have been collected before the populate pass
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
+	} ) ;
+
+	it( "collect batch with multiple link population and circular references: using noReference" , async () => {
+		var user1 = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var user2 = users.createDocument( {
+			firstName: 'Thomas' ,
+			lastName: 'Campbell'
+		} ) ;
+
+		var user3 = users.createDocument( {
+			firstName: 'Harry' ,
+			lastName: 'Campbell'
+		} ) ;
+
+		var godfather = users.createDocument( {
+			firstName: 'DA' ,
+			lastName: 'GODFATHER'
+		} ) ;
+
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		// Link the documents!
+		user1.setLink( 'job' , job ) ;
+		user1.setLink( 'godfather' , godfather ) ;
+		user3.setLink( 'godfather' , godfather ) ;
+		godfather.setLink( 'godfather' , godfather ) ;
+
+		await Promise.all( [ job.save() , godfather.save() , user1.save() , user2.save() , user3.save() ] ) ;
+		
+		var stats = {} ;
+		var dbUserBatch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] , noReference: true , stats } ) ;
+		
+		// Sort that first...
+		dbUserBatch.sort( ( a , b ) => a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ) ;
+		
+		expect( dbUserBatch ).to.be.like( [
+			{
+				firstName: 'DA' ,
+				lastName: 'GODFATHER' ,
+				_id: dbUserBatch[ 0 ]._id ,
+				memberSid: 'DA GODFATHER' ,
+				godfather: {
+					firstName: 'DA' ,
+					lastName: 'GODFATHER' ,
+					_id: dbUserBatch[ 0 ]._id ,
+					memberSid: 'DA GODFATHER' ,
+					godfather: { _id: dbUserBatch[ 0 ]._id }
+				}
+			} ,
+			{
+				firstName: 'Harry' ,
+				lastName: 'Campbell' ,
+				_id: dbUserBatch[ 1 ]._id ,
+				memberSid: 'Harry Campbell' ,
+				godfather: {
+					firstName: 'DA' ,
+					lastName: 'GODFATHER' ,
+					_id: dbUserBatch[ 0 ]._id ,
+					memberSid: 'DA GODFATHER' ,
+					godfather: { _id: dbUserBatch[ 0 ]._id }
+				}
+			} ,
+			{
+				firstName: 'Jilbert' ,
+				lastName: 'Polson' ,
+				_id: dbUserBatch[ 2 ]._id ,
+				memberSid: 'Jilbert Polson' ,
+				job: {
+					title: 'developer' ,
+					salary: 60000 ,
+					users: {} ,
+					schools: {} ,
+					_id: job._id
+				} ,
+				godfather: {
+					firstName: 'DA' ,
+					lastName: 'GODFATHER' ,
+					_id: dbUserBatch[ 0 ]._id ,
+					memberSid: 'DA GODFATHER' ,
+					godfather: { _id: dbUserBatch[ 0 ]._id }
+				}
+			} ,
+			{
+				firstName: 'Thomas' ,
+				lastName: 'Campbell' ,
+				_id: dbUserBatch[ 3 ]._id ,
+				memberSid: 'Thomas Campbell'
+			}
+		] ) ;
+		
+		// Alternative checks
+		expect( dbUserBatch[ 0 ].godfather ).not.to.be( dbUserBatch[ 0 ] ) ;
+		expect( dbUserBatch[ 1 ].godfather ).not.to.be( dbUserBatch[ 0 ] ) ;
+		expect( dbUserBatch[ 2 ].godfather ).not.to.be( dbUserBatch[ 0 ] ) ;
+		
+		// JSON.stringify() should not throw anymore
+		expect( () => { JSON.stringify( dbUserBatch ) ; } ).not.to.throw() ;
+		
+		expect( stats.population.depth ).to.be( 1 ) ;
+		// Only one DB query, since the godfather is a user and all users have been collected before the populate pass
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
+	} ) ;
+
 	return ;
-
-	it( "collect batch with multiple link population (create, link, save, collect with populate option)" , ( done ) => {
-
-		var options ;
-
-		var user1 = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var user2 = users.createDocument( {
-			firstName: 'Thomas' ,
-			lastName: 'Campbell'
-		} ) ;
-
-		var user3 = users.createDocument( {
-			firstName: 'Harry' ,
-			lastName: 'Campbell'
-		} ) ;
-
-		var godfather = users.createDocument( {
-			firstName: 'DA' ,
-			lastName: 'GODFATHER'
-		} ) ;
-
-		var job = jobs.createDocument( {
-			title: 'developer' ,
-			salary: 60000
-		} ) ;
-
-		// Link the documents!
-		user1.$.setLink( 'job' , job ) ;
-		user1.$.setLink( 'godfather' , godfather ) ;
-		user3.$.setLink( 'godfather' , godfather ) ;
-
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				godfather.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user3.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				options = { populate: [ 'job' , 'godfather' ] } ;
-				users.collect( {} , options , ( error , batch ) => {
-					expect( error ).not.to.be.ok() ;
-
-					// Sort that first...
-					batch.sort( ( a , b ) => {
-						return a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ;
-					} ) ;
-
-					expect( batch ).to.equal( [
-						{
-							firstName: 'DA' ,
-							lastName: 'GODFATHER' ,
-							_id: batch[ 0 ]._id ,
-							memberSid: 'DA GODFATHER'
-							//, job: null, godfather: null
-							//, job: undefined, godfather: undefined
-						} ,
-						{
-							firstName: 'Harry' ,
-							lastName: 'Campbell' ,
-							_id: batch[ 1 ]._id ,
-							memberSid: 'Harry Campbell' ,
-							godfather: {
-								firstName: 'DA' ,
-								lastName: 'GODFATHER' ,
-								_id: batch[ 0 ]._id ,
-								memberSid: 'DA GODFATHER'
-							}
-							//, job: null
-							//, job: undefined
-						} ,
-						{
-							firstName: 'Jilbert' ,
-							lastName: 'Polson' ,
-							_id: batch[ 2 ]._id ,
-							memberSid: 'Jilbert Polson' ,
-							job: {
-								title: 'developer' ,
-								salary: 60000 ,
-								users: {} ,
-								schools: {} ,
-								_id: job._id
-							} ,
-							godfather: {
-								firstName: 'DA' ,
-								lastName: 'GODFATHER' ,
-								_id: batch[ 0 ]._id ,
-								memberSid: 'DA GODFATHER'
-							}
-						} ,
-						{
-							firstName: 'Thomas' ,
-							lastName: 'Campbell' ,
-							_id: batch[ 3 ]._id ,
-							memberSid: 'Thomas Campbell'
-							//, job: null, godfather: null
-							//, job: undefined, godfather: undefined
-						}
-					] ) ;
-
-					expect( options.populateDepth ).to.be( 1 ) ;
-					// Only one DB query, since the godfather is a user and all users have been collected before the populate pass
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-
-	it( "collect batch with multiple link population and circular references" , ( done ) => {
-
-		var options ;
-
-		var user1 = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var user2 = users.createDocument( {
-			firstName: 'Thomas' ,
-			lastName: 'Campbell'
-		} ) ;
-
-		var user3 = users.createDocument( {
-			firstName: 'Harry' ,
-			lastName: 'Campbell'
-		} ) ;
-
-		var godfather = users.createDocument( {
-			firstName: 'DA' ,
-			lastName: 'GODFATHER'
-		} ) ;
-
-		var job = jobs.createDocument( {
-			title: 'developer' ,
-			salary: 60000
-		} ) ;
-
-		// Link the documents!
-		user1.$.setLink( 'job' , job ) ;
-		user1.$.setLink( 'godfather' , godfather ) ;
-		user3.$.setLink( 'godfather' , godfather ) ;
-		godfather.$.setLink( 'godfather' , godfather ) ;
-
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				godfather.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user3.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				options = { populate: [ 'job' , 'godfather' ] } ;
-				users.collect( {} , options , ( error , batch ) => {
-					expect( error ).not.to.be.ok() ;
-
-					// Sort that first...
-					batch.sort( ( a , b ) => {
-						return a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ;
-					} ) ;
-
-					// References are painful to test...
-					// More tests covering references are done in the memory model section
-					//log.warning( 'incomplete test for populate + reference' ) ;
-
-					expect( batch[ 0 ].godfather ).to.be( batch[ 0 ] ) ;
-					//expect( batch[ 1 ].godfather ).to.be( batch[ 0 ] ) ;
-					expect( batch[ 2 ].godfather ).to.be( batch[ 0 ] ) ;
-
-					// JSON.stringify() should throw
-					expect( () => { JSON.stringify( batch ) ; } ).to.throwException() ;
-
-					expect( options.populateDepth ).to.be( 1 ) ;
-					// Only one DB query, since the godfather is a user and all users have been collected before the populate pass
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-
-	it( "collect batch with multiple link population and circular references: using noReference" , ( done ) => {
-
-		var options ;
-
-		var user1 = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var user2 = users.createDocument( {
-			firstName: 'Thomas' ,
-			lastName: 'Campbell'
-		} ) ;
-
-		var user3 = users.createDocument( {
-			firstName: 'Harry' ,
-			lastName: 'Campbell'
-		} ) ;
-
-		var godfather = users.createDocument( {
-			firstName: 'DA' ,
-			lastName: 'GODFATHER'
-		} ) ;
-
-		var job = jobs.createDocument( {
-			title: 'developer' ,
-			salary: 60000
-		} ) ;
-
-		// Link the documents!
-		user1.$.setLink( 'job' , job ) ;
-		user1.$.setLink( 'godfather' , godfather ) ;
-		user3.$.setLink( 'godfather' , godfather ) ;
-		godfather.$.setLink( 'godfather' , godfather ) ;
-
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				godfather.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user3.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				options = { populate: [ 'job' , 'godfather' ] , noReference: true } ;
-				users.collect( {} , options , ( error , batch ) => {
-					expect( error ).not.to.be.ok() ;
-
-					// Sort that first...
-					batch.sort( ( a , b ) => {
-						return a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ;
-					} ) ;
-
-					expect( batch ).to.equal( [
-						{
-							firstName: 'DA' ,
-							lastName: 'GODFATHER' ,
-							_id: batch[ 0 ]._id ,
-							memberSid: 'DA GODFATHER' ,
-							godfather: {
-								firstName: 'DA' ,
-								lastName: 'GODFATHER' ,
-								_id: batch[ 0 ]._id ,
-								memberSid: 'DA GODFATHER' ,
-								godfather: batch[ 0 ]._id
-							}
-						} ,
-						{
-							firstName: 'Harry' ,
-							lastName: 'Campbell' ,
-							_id: batch[ 1 ]._id ,
-							memberSid: 'Harry Campbell' ,
-							godfather: {
-								firstName: 'DA' ,
-								lastName: 'GODFATHER' ,
-								_id: batch[ 0 ]._id ,
-								memberSid: 'DA GODFATHER' ,
-								godfather: batch[ 0 ]._id
-							}
-							//, job: null
-							//, job: undefined
-						} ,
-						{
-							firstName: 'Jilbert' ,
-							lastName: 'Polson' ,
-							_id: batch[ 2 ]._id ,
-							memberSid: 'Jilbert Polson' ,
-							job: {
-								title: 'developer' ,
-								salary: 60000 ,
-								users: {} ,
-								schools: {} ,
-								_id: job._id
-							} ,
-							godfather: {
-								firstName: 'DA' ,
-								lastName: 'GODFATHER' ,
-								_id: batch[ 0 ]._id ,
-								memberSid: 'DA GODFATHER' ,
-								godfather: batch[ 0 ]._id
-							}
-						} ,
-						{
-							firstName: 'Thomas' ,
-							lastName: 'Campbell' ,
-							_id: batch[ 3 ]._id ,
-							memberSid: 'Thomas Campbell'
-							//, job: null, godfather: null
-							//, job: undefined, godfather: undefined
-						}
-					] ) ;
-
-					//console.log( batch ) ;
-
-					// JSON.stringify() should not throw
-					expect( () => { JSON.stringify( batch ) ; } ).not.to.throwException() ;
-
-					expect( options.populateDepth ).to.be( 1 ) ;
-					// Only one DB query, since the godfather is a user and all users have been collected before the populate pass
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
 
 	it( "'multi-link' population (create both, link, save both, get with populate option)" , ( done ) => {
 
