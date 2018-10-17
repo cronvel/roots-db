@@ -3358,12 +3358,8 @@ describe( "Populate links" , () => {
 		expect( stats.population.depth ).to.be( 1 ) ;
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
-	return ;
 
-	it( "'back-link' population (create both, link, save both, get with populate option)" , ( done ) => {
-
-		var options ;
-
+	it( "'back-link' population (create both, link, save both, get with populate option)" , async () => {
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3394,99 +3390,127 @@ describe( "Populate links" , () => {
 			salary: 200000
 		} ) ;
 
-		//console.log( job1 ) ;
-		var job1Id = job1.$.id ;
+		var job3 = jobs.createDocument( {
+			title: 'zero' ,
+			salary: 0
+		} ) ;
 
 		// Link the documents!
-		user1.$.setLink( 'job' , job1 ) ;
-		user2.$.setLink( 'job' , job1 ) ;
-		user3.$.setLink( 'job' , job2 ) ;
-		user4.$.setLink( 'job' , job2 ) ;
+		user1.setLink( 'job' , job1 ) ;
+		user2.setLink( 'job' , job1 ) ;
+		user3.setLink( 'job' , job2 ) ;
+		user4.setLink( 'job' , job2 ) ;
 
-		async.series( [
-			function( callback ) {
-				job1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user3.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user4.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				options = { populate: 'users' } ;
-				jobs.get( job1Id , options , ( error , job_ ) => {
-					//console.error( job_.users ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( job_.users ).to.have.length( 2 ) ;
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , user1.save() , user2.save() , user3.save() , user4.save() ] ) ;
+		
+		var stats = {} ;
+		var dbJob = await jobs.get( job1._id , { populate: 'users' , stats } ) ;
+		
+		// Just swap in case it arrives in the wrong order
+		if ( dbJob.users[ 0 ].firstName === 'Tony' ) { dbJob.users = [ dbJob.users[ 1 ] , dbJob.users[ 0 ] ] ; }
+		
+		expect( dbJob ).to.be.like( {
+			_id: job1._id ,
+			title: 'developer' ,
+			salary: 60000 ,
+			users: [
+				{
+					_id: user1._id ,
+					firstName: 'Jilbert' ,
+					lastName: 'Polson' ,
+					memberSid: 'Jilbert Polson' ,
+					job: { _id: job1._id }
+				} ,
+				{
+					_id: user2._id ,
+					firstName: 'Tony' ,
+					lastName: 'P.' ,
+					memberSid: 'Tony P.' ,
+					job: { _id: job1._id }
+				}
+			] ,
+			schools: {}
+		} ) ;
+		
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
+		
+		// Again, with batch
+		
+		stats = {} ;
+		var batch = await jobs.collect( {} , { populate: 'users' , stats } ) ;
+		
+		// Sort that first...
+		batch.sort( ( a , b ) => a.title.charCodeAt( 0 ) - b.title.charCodeAt( 0 ) ) ;
+		
+		expect( batch[ 0 ].users ).to.have.length( 2 ) ;
+		
+		// Just swap in case it arrives in the wrong order
+		if ( batch[ 0 ].users[ 0 ].firstName === 'Tony' ) { batch[ 0 ].users = [ batch[ 0 ].users[ 1 ] , batch[ 0 ].users[ 0 ] ] ; }
+		
+		expect( batch[ 0 ] ).to.be.like( {
+			_id: job1._id ,
+			title: 'developer' ,
+			salary: 60000 ,
+			users: [
+				{
+					_id: user1._id ,
+					firstName: 'Jilbert' ,
+					lastName: 'Polson' ,
+					memberSid: 'Jilbert Polson' ,
+					job: { _id: job1._id }
+				} ,
+				{
+					_id: user2._id ,
+					firstName: 'Tony' ,
+					lastName: 'P.' ,
+					memberSid: 'Tony P.' ,
+					job: { _id: job1._id }
+				}
+			] ,
+			schools: {}
+		} ) ;
 
-					if ( job_.users[ 0 ].firstName === 'Tony' ) { job_.users = [ job_.users[ 1 ] , job_.users[ 0 ] ] ; }
+		expect( batch[ 1 ].users ).to.have.length( 2 ) ;
 
-					expect( job_ ).to.equal( {
-						_id: job1._id ,
-						title: 'developer' ,
-						salary: 60000 ,
-						users: [ user1 , user2 ] ,
-						schools: {}
-					} ) ;
+		// Just swap in case it arrives in the wrong order
+		if ( batch[ 1 ].users[ 0 ].firstName === 'Richard' ) { batch[ 1 ].users = [ batch[ 1 ].users[ 1 ] , batch[ 1 ].users[ 0 ] ] ; }
 
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
+		expect( batch[ 1 ] ).to.be.like( {
+			_id: job2._id ,
+			title: 'star developer' ,
+			salary: 200000 ,
+			users: [
+				{
+					_id: user3._id ,
+					firstName: 'John' ,
+					lastName: 'C.' ,
+					memberSid: 'John C.' ,
+					job: { _id: job2._id }
+				} ,
+				{
+					_id: user4._id ,
+					firstName: 'Richard' ,
+					lastName: 'S.' ,
+					memberSid: 'Richard S.' ,
+					job: { _id: job2._id }
+				}
+			] ,
+			schools: {}
+		} ) ;
 
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				options = { populate: 'users' } ;
-				jobs.collect( {} , options , ( error , jobs_ ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( jobs_ ).to.have.length( 2 ) ;
+		expect( batch[ 2 ] ).to.be.like( {
+			_id: job3._id ,
+			title: 'zero' ,
+			salary: 0 ,
+			users: {} ,
+			schools: {}
+		} ) ;
 
-					//console.error( "\n\n\n\njobs:" , jobs_ ) ;
-					if ( jobs_[ 0 ].title === 'star developer' ) { jobs_ = [ jobs_[ 1 ] , jobs_[ 0 ] ] ; }
-
-					expect( jobs_[ 0 ].users ).to.have.length( 2 ) ;
-
-					if ( jobs_[ 0 ].users[ 0 ].firstName === 'Tony' ) { jobs_[ 0 ].users = [ jobs_[ 0 ].users[ 1 ] , jobs_[ 0 ].users[ 0 ] ] ; }
-
-					expect( jobs_[ 0 ] ).to.equal( {
-						_id: job1._id ,
-						title: 'developer' ,
-						salary: 60000 ,
-						users: [ user1 , user2 ] ,
-						schools: {}
-					} ) ;
-
-					expect( jobs_[ 1 ].users ).to.have.length( 2 ) ;
-
-					if ( jobs_[ 1 ].users[ 0 ].firstName === 'Richard' ) { jobs_[ 1 ].users = [ jobs_[ 1 ].users[ 1 ] , jobs_[ 1 ].users[ 0 ] ] ; }
-
-					expect( jobs_[ 1 ] ).to.equal( {
-						_id: job2._id ,
-						title: 'star developer' ,
-						salary: 200000 ,
-						users: [ user3 , user4 ] ,
-						schools: {}
-					} ) ;
-
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
+	return ;
 
 	it( "'back-link' of multi-link population" , ( done ) => {
 
