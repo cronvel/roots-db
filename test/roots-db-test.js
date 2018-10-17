@@ -3287,39 +3287,24 @@ describe( "Populate links" , () => {
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
 
-	return ;
-
-	it( "'multi-link' population (create both, link, save both, get with populate option)" , ( done ) => {
-
-		var options ;
-
-		var school ;
-
+	it( "'multi-link' population (create both, link, save both, get with populate option)" , async () => {
 		var school1 = schools.createDocument( {
 			title: 'Computer Science'
 		} ) ;
 
-		var school1Id = school1._id ;
-
 		var school2 = schools.createDocument( {
 			title: 'Web Academy'
 		} ) ;
-
-		var school2Id = school2._id ;
 
 		var job1 = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
 
-		var job1Id = job1.$.id ;
-
 		var job2 = jobs.createDocument( {
 			title: 'sysadmin' ,
 			salary: 55000
 		} ) ;
-
-		var job2Id = job2.$.id ;
 
 		var job3 = jobs.createDocument( {
 			title: 'front-end developer' ,
@@ -3331,82 +3316,49 @@ describe( "Populate links" , () => {
 			salary: 56000
 		} ) ;
 
-		var job4Id = job4.$.id ;
-
 		// Link the documents!
-		school1.$.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
-		school2.$.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
+		school1.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
+		school2.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
+		
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , job4.save() , school1.save() , school2.save() ] ) ;
 
-		async.series( [
-			function( callback ) {
-				job1.$.save( callback ) ;
+		var stats = {} ;
+		var dbSchool = await schools.get( school1._id , { populate: 'jobs' , stats } ) ;
+		
+		expect( dbSchool ).to.equal( {
+			_id: school1._id ,
+			title: 'Computer Science' ,
+			jobs: [ job1 , job2 , job3 ]
+		} ) ;
+		
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
+		
+		// Again, with batch
+		
+		stats = {} ;
+		var batch = await schools.collect( {} , { populate: 'jobs' , stats } ) ;
+		
+		// Just swap in case it arrives in the wrong order
+		if ( batch[ 0 ].title !== 'Computer Science' ) { batch = [ batch[ 1 ] , batch[ 0 ] ] ; }
+
+		expect( batch ).to.be.like( [
+			{
+				_id: school1._id ,
+				title: 'Computer Science' ,
+				jobs: [ job1 , job2 , job3 ]
 			} ,
-			function( callback ) {
-				job2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job3.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job4.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				options = { populate: 'jobs' } ;
-				schools.get( school1Id , options , ( error , school_ ) => {
-					school = school_ ;
-					//console.log( '>>>>>>>>>>>\nSchool:' , school ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( school.$ ).to.be.an( rootsDb.Document ) ;
-					expect( school._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( school._id ).to.equal( school1Id ) ;
-					expect( school ).to.equal( {
-						_id: school1._id ,
-						title: 'Computer Science' ,
-						jobs: [ job1 , job2 , job3 ]
-					} ) ;
-
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				options = { populate: 'jobs' } ;
-				schools.collect( {} , options , ( error , schools_ ) => {
-
-					expect( error ).not.to.be.ok() ;
-
-					if ( schools_[ 0 ].title !== 'Computer Science' ) { schools_ = [ schools_[ 1 ] , schools_[ 0 ] ] ; }
-
-					expect( schools_ ).to.equal( [
-						{
-							_id: school1._id ,
-							title: 'Computer Science' ,
-							jobs: [ job1 , job2 , job3 ]
-						} ,
-						{
-							_id: school2._id ,
-							title: 'Web Academy' ,
-							jobs: [ job1 , job3 , job4 ]
-						}
-					] ) ;
-
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-
-					callback() ;
-				} ) ;
+			{
+				_id: school2._id ,
+				title: 'Web Academy' ,
+				jobs: [ job1 , job3 , job4 ]
 			}
-		] )
-			.exec( done ) ;
+		] ) ;
+
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
+	return ;
 
 	it( "'back-link' population (create both, link, save both, get with populate option)" , ( done ) => {
 
