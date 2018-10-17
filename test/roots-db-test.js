@@ -3510,147 +3510,97 @@ describe( "Populate links" , () => {
 		expect( stats.population.depth ).to.be( 1 ) ;
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
-	return ;
 
-	it( "'back-link' of multi-link population" , ( done ) => {
-
-		var options ;
-
+	it( "'back-link' of multi-link population" , async () => {
 		var school1 = schools.createDocument( {
 			title: 'Computer Science'
 		} ) ;
 
-		var school1Id = school1._id ;
-
 		var school2 = schools.createDocument( {
 			title: 'Web Academy'
 		} ) ;
-
-		var school2Id = school2._id ;
 
 		var job1 = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
 
-		var job1Id = job1.$.id ;
-
 		var job2 = jobs.createDocument( {
 			title: 'sysadmin' ,
 			salary: 55000
 		} ) ;
-
-		var job2Id = job2.$.id ;
 
 		var job3 = jobs.createDocument( {
 			title: 'front-end developer' ,
 			salary: 54000
 		} ) ;
 
-		var job3Id = job3.$.id ;
-
 		var job4 = jobs.createDocument( {
 			title: 'designer' ,
 			salary: 56000
 		} ) ;
 
-		var job4Id = job4.$.id ;
-
 		// Link the documents!
-		school1.$.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
-		school2.$.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
+		school1.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
+		school2.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
 
-		async.series( [
-			function( callback ) {
-				job1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job3.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job4.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school1.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				school2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				options = { populate: 'schools' } ;
-				jobs.get( job1Id , options , ( error , job ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( job._id ).to.equal( job1Id ) ;
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , job4.save() , school1.save() , school2.save() ] ) ;
 
-					expect( job.schools ).to.have.length( 2 ) ;
+		var stats = {} ;
+		var dbJob = await jobs.get( job1._id , { populate: 'schools' , stats } ) ;
+		
+		expect( dbJob.schools ).to.have.length( 2 ) ;
 
-					job.schools.sort( ( a , b ) => { return b.title - a.title ; } ) ;
+		dbJob.schools.sort( ( a , b ) => b.title - a.title ) ;
 
-					// Order by id
-					job.schools[ 0 ].jobs.sort( ( a , b ) => { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
-					job.schools[ 1 ].jobs.sort( ( a , b ) => { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
+		// Order by id
+		dbJob.schools[ 0 ].jobs.sort( ( a , b ) => a.toString() > b.toString() ? 1 : -1 ) ;
+		dbJob.schools[ 1 ].jobs.sort( ( a , b ) => a.toString() > b.toString() ? 1 : -1 ) ;
 
-					expect( job ).to.equal( {
-						_id: job1._id ,
-						title: 'developer' ,
-						salary: 60000 ,
-						users: {} ,
-						schools: [
-							{
-								_id: school1._id ,
-								title: 'Computer Science' ,
-								jobs: [ job1Id , job2Id , job3Id ]
-							} ,
-							{
-								_id: school2._id ,
-								title: 'Web Academy' ,
-								jobs: [ job1Id , job3Id , job4Id ]
-							}
-						]
-					} ) ;
+		expect( dbJob ).to.be.like( {
+			_id: job1._id ,
+			title: 'developer' ,
+			salary: 60000 ,
+			users: {} ,
+			schools: [
+				{
+					_id: school1._id ,
+					title: 'Computer Science' ,
+					jobs: [ { _id: job1._id } , { _id: job2._id } , { _id: job3._id } ]
+				} ,
+				{
+					_id: school2._id ,
+					title: 'Web Academy' ,
+					jobs: [ { _id: job1._id } , { _id: job3._id } , { _id: job4._id } ]
+				}
+			]
+		} ) ;
 
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
 
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				options = { populate: 'schools' } ;
-				jobs.get( job4Id , options , ( error , job ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( job._id ).to.equal( job4Id ) ;
+		stats = {} ;
+		var dbJob = await jobs.get( job4._id , { populate: 'schools' , stats } ) ;
+		
+		// Order by id
+		dbJob.schools[ 0 ].jobs.sort( ( a , b ) => a.toString() > b.toString() ? 1 : -1 ) ;
 
-					expect( job.schools ).to.have.length( 1 ) ;
+		expect( dbJob ).to.be.like( {
+			_id: job4._id ,
+			title: 'designer' ,
+			salary: 56000 ,
+			users: {} ,
+			schools: [
+				{
+					_id: school2._id ,
+					title: 'Web Academy' ,
+					jobs: [ { _id: job1._id } , { _id: job3._id } , { _id: job4._id } ]
+				}
+			]
+		} ) ;
 
-					// Order by id
-					job.schools[ 0 ].jobs.sort( ( a , b ) => { return a.toString() > b.toString() ? 1 : -1 ; } ) ;
-
-					expect( job ).to.equal( {
-						_id: job4._id ,
-						title: 'designer' ,
-						salary: 56000 ,
-						users: {} ,
-						schools: [
-							{
-								_id: school2._id ,
-								title: 'Web Academy' ,
-								jobs: [ job1Id , job3Id , job4Id ]
-							}
-						]
-					} ) ;
-
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
 
 } ) ;
