@@ -3611,7 +3611,7 @@ describe( "Deep populate links" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "deep population (links then back-link)" , async () => {
+	it( "deep population (links and back-link)" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3679,7 +3679,113 @@ describe( "Deep populate links" , () => {
 	it( "more deep population tests" ) ;
 } ) ;
 
+
+
+describe( "Hooks" , () => {
+	it( "'beforeCreateDocument'" ) ;
+	it( "'afterCreateDocument'" ) ;
+} ) ;
+
+
+
+describe( "Historical bugs" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "collect on empty collection with populate (was throwing uncaught error)" , async () => {
+		var batch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] } ) ;
+		expect( batch ).to.be.like( [] ) ;
+	} ) ;
+
+	it( "validation featuring sanitizers should update both locally and remotely after a document's commit()" , async () => {
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: "60000"
+		} ) ;
+
+		var town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				rank: "7" ,
+				population: '2200K' ,
+				country: 'France'
+			}
+		} ) ;
+
+		expect( job.salary ).to.be( 60000 ) ;	// toInteger at document's creation
+		expect( town.meta.rank ).to.be( 7 ) ;	// toInteger at document's creation
+
+		await job.save() ;
+		await town.save() ;
+		
+		var dbJob = await jobs.get( job._id ) ;
+		
+		expect( dbJob ).to.equal( {
+			_id: job._id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+		} ) ;
+		
+		job.patch( { salary: "65000" } ) ;
+		// Before sanitizing: it's a string
+		expect( job ).to.equal( { _id: job._id , title: 'developer' , salary: "65000" , users: {} , schools: {} } ) ;
+		
+		await job.commit() ;
+		// After commit/sanitizing: now a number
+		expect( job ).to.equal( { _id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {} } ) ;
+		
+		dbJob = await jobs.get( job._id ) ;
+		expect( dbJob ).to.equal( { _id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {} } ) ;
+		
+		var dbTown = await towns.get( town._id ) ;
+		expect( dbTown ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 7 , population: '2200K' , country: 'France' } } ) ;
+		
+		town.patch( { "meta.rank": "8" } ) ;
+		// Before sanitizing: it's a string
+		expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: "8" , population: '2200K' , country: 'France' } } ) ;
+		await town.commit() ;
+		
+		// After commit/sanitizing: now a number
+		expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
+					
+		dbTown = await towns.get( town._id ) ;
+		expect( dbTown ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
+	} ) ;
+
+	it( "setting garbage to an attachment property should abort with an error" , async () => {
+		var user ;
+
+		// First try: at object creation
+		expect( () => {
+			user = users.createDocument( {
+				firstName: 'Jilbert' ,
+				lastName: 'Polson' ,
+				file: 'garbage'
+			} ) ;
+		} ).to.throw() ;
+
+		user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		
+		// Second try: using setLink
+		expect( () => { user.$.setLink( 'file' , 'garbage' ) ; } ).to.throw() ;
+		expect( user.file ).to.be( undefined ) ;
+
+		// third try: by setting the property directly
+		user.file = 'garbage' ;
+		expect( () => { user.validate() ; } ).to.throw() ;
+
+		// By default, a collection has the 'patchDrivenValidation' option, so we have to stage the change
+		// to trigger validation on .save()
+		user.stage( 'file' ) ;
+		
+		await expect( () => user.save() ).to.reject() ;
+        await expect( () => users.get( user._id ) ).to.reject() ;
+	} ) ;
+} ) ;
 return ;
+
 
 
 describe( "Caching with the memory model" , () => {
@@ -4539,177 +4645,3 @@ describe( "Memory model" , () => {
 	it( "should also works with back-multi-link" ) ;
 } ) ;
 
-
-
-describe( "Hooks" , () => {
-	it( "'beforeCreateDocument'" ) ;
-	it( "'afterCreateDocument'" ) ;
-} ) ;
-
-
-
-describe( "Historical bugs" , () => {
-
-	beforeEach( clearDB ) ;
-
-	it( "collect on empty collection with populate (was throwing uncaught error)" , ( done ) => {
-
-		async.series( [
-			function( callback ) {
-				users.collect( {} , { populate: [ 'job' , 'godfather' ] } , ( error , batch ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( batch ).to.equal( [] ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-
-	it( "validation featuring sanitizers should update both locally and remotely after a document's commit()" , ( done ) => {
-
-		var job = jobs.createDocument( {
-			title: 'developer' ,
-			salary: "60000"
-		} ) ;
-
-		var jobId = job.$.id ;
-
-		var town = towns.createDocument( {
-			name: 'Paris' ,
-			meta: {
-				rank: "7" ,
-				population: '2200K' ,
-				country: 'France'
-			}
-		} ) ;
-
-		var townId = town.$.id ;
-
-		expect( job.salary ).to.be( 60000 ) ;	// toInteger at document's creation
-		expect( town.meta.rank ).to.be( 7 ) ;	// toInteger at document's creation
-
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				town.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				jobs.get( jobId , ( error , job_ ) => {
-					job = job_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( job ).to.equal( {
-						_id: job._id , title: 'developer' , salary: 60000 , users: {} , schools: {}
-					} ) ;
-					expect( job.salary ).to.be( 60000 ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				job.$.patch( { salary: "65000" } ) ;
-				job.$.commit( ( error ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( job ).to.equal( {
-						_id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {}
-					} ) ;
-					expect( job.salary ).to.be( 65000 ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				expect( job ).to.equal( {
-					_id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {}
-				} ) ;
-				jobs.get( jobId , ( error , job_ ) => {
-					job = job_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( job ).to.equal( {
-						_id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {}
-					} ) ;
-					expect( job.salary ).to.be( 65000 ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				towns.get( town._id , ( error , town_ ) => {
-					town = town_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 7 , population: '2200K' , country: 'France' } } ) ;
-					expect( town.meta.rank ).to.be( 7 ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				town.$.patch( { "meta.rank": "8" } ) ;
-				town.$.commit( ( error ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
-					expect( town.meta.rank ).to.be( 8 ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				towns.get( town._id , ( error , town_ ) => {
-					town = town_ ;
-					expect( error ).not.to.be.ok() ;
-					expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
-					expect( town.meta.rank ).to.be( 8 ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-
-	it( "setting garbage to an attachment property should abort with an error" , ( done ) => {
-
-		var user , id ;
-
-		// First try: at object creation
-		expect( () => {
-			user = users.createDocument( {
-				firstName: 'Jilbert' ,
-				lastName: 'Polson' ,
-				file: 'garbage'
-			} ) ;
-		} ).to.throwError() ;
-
-		user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		id = user._id ;
-
-		// Second try: using setLink
-		expect( () => { user.$.setLink( 'file' , 'garbage' ) ; } ).to.throwError() ;
-		expect( user.file ).to.be( undefined ) ;
-
-		// third try: by setting the property directly
-		user.file = 'garbage' ;
-		expect( () => { user.$.validate() ; } ).to.throwError() ;
-
-		// By default, a collection has the 'patchDrivenValidation' option, so we have to stage the change
-		// to trigger validation on .save()
-		user.$.stage( 'file' ) ;
-
-		async.series( [
-			function( callback ) {
-				user.$.save( ( error ) => {
-					expect( error ).to.be.ok() ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				users.get( id , ( error , user_ ) => {
-					user = user_ ;
-					expect( error ).to.be.ok() ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-} ) ;
