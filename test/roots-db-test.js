@@ -3017,7 +3017,8 @@ describe( "Populate links" , () => {
 		user1.setLink( 'godfather' , godfather ) ;
 		user3.setLink( 'godfather' , godfather ) ;
 
-		await Promise.all( [ job.save() , godfather.save() , user1.save() , user2.save() , user3.save() ] ) ;
+		await Promise.all( [ job.save() , godfather.save() ] ) ;
+		await Promise.all( [ user1.save() , user2.save() , user3.save() ] ) ;
 		
 		var stats = {} ;
 		var dbUserBatch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] , stats } ) ;
@@ -3602,10 +3603,7 @@ describe( "Populate links" , () => {
 		expect( stats.population.depth ).to.be( 1 ) ;
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
-
 } ) ;
-
-return ;
 
 
 
@@ -3613,10 +3611,7 @@ describe( "Deep populate links" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "deep population (links then back-link)" , ( done ) => {
-
-		var options ;
-
+	it( "deep population (links then back-link)" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3632,89 +3627,59 @@ describe( "Deep populate links" , () => {
 			salary: 60000
 		} ) ;
 
-		var deepPopulate = {
-			users: 'job' ,
-			jobs: 'users'
-		} ;
-
 		// Link the documents!
-		user.$.setLink( 'job' , job ) ;
-		user2.$.setLink( 'job' , job ) ;
+		user.setLink( 'job' , job ) ;
+		user2.setLink( 'job' , job ) ;
+		
+		await job.save() ;
+		await user.save() ;
+		await user2.save() ;
 
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				options = { deepPopulate: deepPopulate } ;
-				users.get( user._id , options , ( error , user_ ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( user_.$.populated.job ).to.be( true ) ;
+		var stats = {} ;
+		var dbUser = await users.get( user._id , { deepPopulate: { users: 'job' , jobs: 'users' } , stats } ) ;
+		
+		expect( dbUser.job.users ).to.have.length( 2 ) ;
+		
+		// Just swap in case it arrives in the wrong order
+		if ( dbUser.job.users[ 0 ].firstName === 'Robert' ) {
+			dbUser.job.users = [ dbUser.job.users[ 1 ] , dbUser.job.users[ 0 ] ] ;
+		}
 
-					expect( user_.job.users ).to.have.length( 2 ) ;
+		expect( dbUser.job.users[ 0 ].job ).to.be( dbUser.job ) ;
+		expect( dbUser.job.users[ 1 ].job ).to.be( dbUser.job ) ;
 
-					if ( user_.job.users[ 0 ].firstName === 'Robert' ) {
-						user_.job.users = [ user_.job.users[ 1 ] , user_.job.users[ 0 ] ] ;
-					}
-
-					expect( user_.job.users[ 0 ].job ).to.be( user_.job ) ;
-					expect( user_.job.users[ 1 ].job ).to.be( user_.job ) ;
-
-					expect( user_ ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						job: {
-							_id: job._id ,
-							title: 'developer' ,
-							salary: 60000 ,
-							schools: {} ,
-							users: [
-								user_ ,
-								// We cannot use 'user2', expect.js is too confused with Circular references
-								// We have to perform a second check for that
-								user_.job.users[ 1 ]
-							]
-						}
-					} ) ;
-
-					expect( user_.job.users[ 1 ] ).to.equal( {
-						_id: user2._id ,
-						firstName: 'Robert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Robert Polson' ,
-						job: {
-							_id: job._id ,
-							title: 'developer' ,
-							salary: 60000 ,
-							schools: {} ,
-							users: [
-								user_ ,
-								user_.job.users[ 1 ]
-							]
-						}
-					} ) ;
-
-					expect( options.populateDepth ).to.be( 2 ) ;
-					expect( options.populateDbQueries ).to.be( 2 ) ;
-
-					callback() ;
-				} ) ;
+		// Circular references... so boring to test...
+		var expected = {
+			_id: user._id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			job: {
+				_id: job._id ,
+				title: 'developer' ,
+				salary: 60000 ,
+				schools: {} ,
+				users: []
 			}
-		] )
-			.exec( done ) ;
+		} ;
+		expected.job.users[ 0 ] = expected ;
+		expected.job.users[ 1 ] = {
+			_id: user2._id ,
+			firstName: "Robert" ,
+			lastName: "Polson" ,
+			memberSid: "Robert Polson" ,
+			job: expected.job
+		} ;
+		expect( dbUser ).to.be.like( expected ) ;
+
+		expect( stats.population.depth ).to.be( 2 ) ;
+		expect( stats.population.dbQueries ).to.be( 2 ) ;
 	} ) ;
 
 	it( "more deep population tests" ) ;
 } ) ;
 
+return ;
 
 
 describe( "Caching with the memory model" , () => {
