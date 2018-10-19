@@ -3784,7 +3784,6 @@ describe( "Historical bugs" , () => {
         await expect( () => users.get( user._id ) ).to.reject() ;
 	} ) ;
 } ) ;
-return ;
 
 
 
@@ -3792,8 +3791,7 @@ describe( "Caching with the memory model" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should get a document from a Memory Model cache" , ( done ) => {
-
+	it( "should get a document from a Memory Model cache" , async () => {
 		var mem = world.createMemoryModel() ;
 
 		var rawUser = {
@@ -3802,26 +3800,16 @@ describe( "Caching with the memory model" , () => {
 			lastName: 'McGregor'
 		} ;
 
-		mem.add( 'users' , rawUser ) ;
+		mem.addRaw( 'users' , rawUser ) ;
+		expect( mem.getRaw( 'users' , rawUser._id ) ).to.equal( { _id: '123456789012345678901234' , firstName: 'John' , lastName: 'McGregor' } ) ;
 
-		async.series( [
-			function( callback ) {
-				users.get( rawUser._id , { cache: mem } , ( error , user ) => {
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'User:' , user ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( user.$ ).to.be.an( rootsDb.Document ) ;
-					expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-					expect( user ).to.equal( { _id: rawUser._id , firstName: 'John' , lastName: 'McGregor' } ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		var user = await users.get( rawUser._id , { cache: mem } ) ;
+		expect( user ).to.equal( { _id: rawUser._id , firstName: 'John' , lastName: 'McGregor' } ) ;
+		
+		expect( mem.getProxy( 'users' , rawUser._id ) ).to.be.partially.like( { firstName: 'John' , lastName: 'McGregor' } ) ;
 	} ) ;
 
-	it( "should multiGet all documents from a Memory Model cache (complete cache hit)" , ( done ) => {
-
+	it( "should multiGet all documents from a Memory Model cache (complete cache hit)" , async () => {
 		var mem = world.createMemoryModel() ;
 
 		var someUsers = [
@@ -3842,56 +3830,43 @@ describe( "Caching with the memory model" , () => {
 			}
 		] ;
 
-		mem.add( 'users' , someUsers[ 0 ] ) ;
-		mem.add( 'users' , someUsers[ 1 ] ) ;
-		mem.add( 'users' , someUsers[ 2 ] ) ;
+		mem.addRaw( 'users' , someUsers[ 0 ] ) ;
+		mem.addRaw( 'users' , someUsers[ 1 ] ) ;
+		mem.addRaw( 'users' , someUsers[ 2 ] ) ;
 
-		async.series( [
-			function( callback ) {
-				var ids = [
-					'000000000000000000000001' ,
-					'000000000000000000000002' ,
-					'000000000000000000000003'
-				] ;
+		var ids = [
+			'000000000000000000000001' ,
+			'000000000000000000000002' ,
+			'000000000000000000000003'
+		] ;
 
-				users.multiGet( ids , { cache: mem } , ( error , batch ) => {
-					var i , map = {} ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Batch:' , batch ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.a( rootsDb.Batch ) ;
+		var batch = await users.multiGet( ids , { cache: mem } ) ;
+		var i , map = {} ;
 
-					batch.sort( ( a , b ) => {
-						return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
-					} ) ;
+		batch.sort( ( a , b ) => {
+			return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
+		} ) ;
 
-					expect( batch ).to.equal( [
-						{
-							_id: someUsers[ 0 ]._id ,
-							firstName: 'John1' ,
-							lastName: 'McGregor'
-						} ,
-						{
-							_id: someUsers[ 1 ]._id ,
-							firstName: 'John2' ,
-							lastName: 'McGregor'
-						} ,
-						{
-							_id: someUsers[ 2 ]._id ,
-							firstName: 'John3' ,
-							lastName: 'McGregor'
-						}
-					] ) ;
-
-					callback() ;
-				} ) ;
+		expect( batch ).to.be.like( [
+			{
+				_id: someUsers[ 0 ]._id ,
+				firstName: 'John1' ,
+				lastName: 'McGregor'
+			} ,
+			{
+				_id: someUsers[ 1 ]._id ,
+				firstName: 'John2' ,
+				lastName: 'McGregor'
+			} ,
+			{
+				_id: someUsers[ 2 ]._id ,
+				firstName: 'John3' ,
+				lastName: 'McGregor'
 			}
-		] )
-			.exec( done ) ;
+		] ) ;
 	} ) ;
 
-	it( "should multiGet some document from a Memory Model cache (partial cache hit)" , ( done ) => {
-
+	it( "should multiGet some document from a Memory Model cache (partial cache hit)" , async () => {
 		var mem = world.createMemoryModel() ;
 
 		var someUsers = [
@@ -3912,9 +3887,9 @@ describe( "Caching with the memory model" , () => {
 			}
 		] ;
 
-		mem.add( 'users' , someUsers[ 0 ] ) ;
-		mem.add( 'users' , someUsers[ 1 ] ) ;
-		mem.add( 'users' , someUsers[ 2 ] ) ;
+		mem.addRaw( 'users' , someUsers[ 0 ] ) ;
+		mem.addRaw( 'users' , someUsers[ 1 ] ) ;
+		mem.addRaw( 'users' , someUsers[ 2 ] ) ;
 
 		var anotherOne = users.createDocument( {
 			_id: '000000000000000000000004' ,
@@ -3922,123 +3897,44 @@ describe( "Caching with the memory model" , () => {
 			lastName: 'McGregor'
 		} ) ;
 
-		async.series( [
-			function( callback ) {
-				anotherOne.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				var ids = [
-					'000000000000000000000001' ,
-					'000000000000000000000002' ,
-					'000000000000000000000004'
-				] ;
+		await anotherOne.save() ;
+		
+		var ids = [
+			'000000000000000000000001' ,
+			'000000000000000000000002' ,
+			'000000000000000000000004'
+		] ;
+		
+		var batch = await users.multiGet( ids , { cache: mem } ) ;
+		var i , map = {} ;
 
-				users.multiGet( ids , { cache: mem } , ( error , batch ) => {
-					var i , map = {} ;
-					//console.log( 'Error:' , error ) ;
-					//console.log( 'Batch:' , batch ) ;
-					expect( error ).not.to.be.ok() ;
-					expect( batch.$ ).to.be.a( rootsDb.Batch ) ;
-
-					batch.sort( ( a , b ) => {
-						return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
-					} ) ;
-
-					expect( batch ).to.equal( [
-						{
-							_id: someUsers[ 0 ]._id ,
-							firstName: 'John1' ,
-							lastName: 'McGregor'
-						} ,
-						{
-							_id: someUsers[ 1 ]._id ,
-							firstName: 'John2' ,
-							lastName: 'McGregor'
-						} ,
-						{
-							_id: anotherOne._id ,
-							firstName: 'John4' ,
-							lastName: 'McGregor' ,
-							memberSid: 'John4 McGregor'
-						}
-					] ) ;
-
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
-
-} ) ;
-
-
-
-describe( "Extended Document" , () => {
-
-	beforeEach( clearDB ) ;
-
-	it( "should call a method of the extended Document wrapper at creation and after retrieving it from DB" , ( done ) => {
-
-		var ext = extendables.createDocument( {
-			data: 'sOmeDaTa'
+		batch.sort( ( a , b ) => {
+			return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
 		} ) ;
 
-		expect( ext.$ ).to.be.an( rootsDb.Document ) ;
-		expect( ext.$ ).to.be.an( Extended ) ;
-
-		expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
-
-		var id = ext._id ;
-
-		async.series( [
-			function( callback ) {
-				ext.$.save( callback ) ;
+		expect( batch ).to.be.like( [
+			{
+				_id: someUsers[ 0 ]._id ,
+				firstName: 'John1' ,
+				lastName: 'McGregor'
 			} ,
-			function( callback ) {
-				extendables.get( id , ( error , ext ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( ext.$ ).to.be.an( rootsDb.Document ) ;
-					expect( ext.$ ).to.be.an( Extended ) ;
-					expect( ext ).to.equal( { _id: ext._id , data: 'sOmeDaTa' } ) ;
-					expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
-					ext.data = 'mOreVespEnEGaS' ;
-					expect( ext.$.getNormalized() ).to.be( 'morevespenegas' ) ;
-					callback() ;
-				} ) ;
+			{
+				_id: someUsers[ 1 ]._id ,
+				firstName: 'John2' ,
+				lastName: 'McGregor'
+			} ,
+			{
+				_id: anotherOne._id ,
+				firstName: 'John4' ,
+				lastName: 'McGregor' ,
+				memberSid: 'John4 McGregor'
 			}
-		] )
-			.exec( done ) ;
+		] ) ;
 	} ) ;
 
-	it( "should call a method of the extended Batch wrapper at creation and after retrieving it from DB" , ( done ) => {
-
-		var ext1 = extendables.createDocument( { data: 'oNe' } ) ;
-		var ext2 = extendables.createDocument( { data: 'twO' } ) ;
-		var ext3 = extendables.createDocument( { data: 'THRee' } ) ;
-
-		var id1 = ext1._id ;
-		var id2 = ext2._id ;
-		var id3 = ext3._id ;
-
-		async.series( [
-			function( callback ) { ext1.$.save( callback ) ; } ,
-			function( callback ) { ext2.$.save( callback ) ; } ,
-			function( callback ) { ext3.$.save( callback ) ; } ,
-			function( callback ) {
-				extendables.collect( {} , ( error , exts ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( exts.$ ).to.be.an( rootsDb.Batch ) ;
-					expect( exts.$ ).to.be.an( ExtendedBatch ) ;
-					expect( exts.$.concat() ).to.be( 'oNetwOTHRee' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
-	} ) ;
 } ) ;
 
+return ;
 
 
 describe( "Memory model" , () => {
@@ -4644,4 +4540,74 @@ describe( "Memory model" , () => {
 
 	it( "should also works with back-multi-link" ) ;
 } ) ;
+
+return ;
+
+
+describe( "Extended Document" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should call a method of the extended Document wrapper at creation and after retrieving it from DB" , ( done ) => {
+
+		var ext = extendables.createDocument( {
+			data: 'sOmeDaTa'
+		} ) ;
+
+		expect( ext.$ ).to.be.an( rootsDb.Document ) ;
+		expect( ext.$ ).to.be.an( Extended ) ;
+
+		expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
+
+		var id = ext._id ;
+
+		async.series( [
+			function( callback ) {
+				ext.$.save( callback ) ;
+			} ,
+			function( callback ) {
+				extendables.get( id , ( error , ext ) => {
+					expect( error ).not.to.be.ok() ;
+					expect( ext.$ ).to.be.an( rootsDb.Document ) ;
+					expect( ext.$ ).to.be.an( Extended ) ;
+					expect( ext ).to.equal( { _id: ext._id , data: 'sOmeDaTa' } ) ;
+					expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
+					ext.data = 'mOreVespEnEGaS' ;
+					expect( ext.$.getNormalized() ).to.be( 'morevespenegas' ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+			.exec( done ) ;
+	} ) ;
+
+	it( "should call a method of the extended Batch wrapper at creation and after retrieving it from DB" , ( done ) => {
+
+		var ext1 = extendables.createDocument( { data: 'oNe' } ) ;
+		var ext2 = extendables.createDocument( { data: 'twO' } ) ;
+		var ext3 = extendables.createDocument( { data: 'THRee' } ) ;
+
+		var id1 = ext1._id ;
+		var id2 = ext2._id ;
+		var id3 = ext3._id ;
+
+		async.series( [
+			function( callback ) { ext1.$.save( callback ) ; } ,
+			function( callback ) { ext2.$.save( callback ) ; } ,
+			function( callback ) { ext3.$.save( callback ) ; } ,
+			function( callback ) {
+				extendables.collect( {} , ( error , exts ) => {
+					expect( error ).not.to.be.ok() ;
+					expect( exts.$ ).to.be.an( rootsDb.Batch ) ;
+					expect( exts.$ ).to.be.an( ExtendedBatch ) ;
+					expect( exts.$.concat() ).to.be( 'oNetwOTHRee' ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+			.exec( done ) ;
+	} ) ;
+} ) ;
+
+
 
