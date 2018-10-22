@@ -3934,17 +3934,13 @@ describe( "Caching with the memory model" , () => {
 
 } ) ;
 
-return ;
 
 
 describe( "Memory model" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should create a memoryModel, retrieve documents with 'populate' on 'link' and 'back-link', with the 'memory' options and effectively save them in the memoryModel" , ( done ) => {
-
-		var options ;
-
+	it( "should create a memoryModel, retrieve documents with 'populate' on 'link' and 'back-link', with the 'memory' options and effectively save them in the memoryModel" , async () => {
 		var memory = world.createMemoryModel() ;
 
 		var user = users.createDocument( {
@@ -3973,213 +3969,132 @@ describe( "Memory model" , () => {
 		} ) ;
 
 		// Link the documents!
-		user.$.setLink( 'job' , job ) ;
-		user2.$.setLink( 'job' , job ) ;
-		user3.$.setLink( 'job' , job2 ) ;
+		user.setLink( 'job' , job ) ;
+		user2.setLink( 'job' , job ) ;
+		user3.setLink( 'job' , job2 ) ;
 
-		async.series( [
-			function( callback ) {
-				job.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				job2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user2.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				user3.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				options = { memory: memory , populate: 'job' } ;
+		await Promise.all( [ job.save() , job2.save() ] ) ;
+		await Promise.all( [ user.save() , user2.save() , user3.save() ] ) ;
+		
+		var stats = {} ;
+		var dbUser = await users.collect( {} , { cache: memory , populate: 'job' , stats } ) ;
 
-				users.collect( {} , options , ( error , users_ ) => {
+		expect( memory.collections ).to.have.keys( 'users' , 'jobs' ) ;
+		expect( memory.collections.users.rawDocuments ).to.have.keys( '' + user._id , '' + user2._id , '' + user3._id ) ;
+		expect( memory.collections.jobs.rawDocuments ).to.have.keys( '' + job._id , '' + job2._id ) ;
+		
+		expect( memory.collections.users.rawDocuments[ user._id ] ).to.equal( {
+			_id: user._id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			job: { _id: job._id }
+		} ) ;
 
-					var doc ;
+		expect( memory.collections.users.rawDocuments[ user2._id ] ).to.equal( {
+			_id: user2._id ,
+			firstName: 'Pat' ,
+			lastName: 'Mulligan' ,
+			memberSid: 'Pat Mulligan' ,
+			job: { _id: job._id }
+		} ) ;
 
-					expect( memory.collections ).to.have.keys( 'users' , 'jobs' ) ;
+		expect( memory.collections.users.rawDocuments[ user3._id ] ).to.equal( {
+			_id: user3._id ,
+			firstName: 'Bill' ,
+			lastName: 'Baroud' ,
+			memberSid: 'Bill Baroud' ,
+			job: { _id: job2._id }
+		} ) ;
 
-					expect( memory.collections.users.documents ).to.have.keys(
-						user._id.toString() ,
-						user2._id.toString() ,
-						user3._id.toString()
-					) ;
+		expect( memory.collections.jobs.rawDocuments[ job._id ] ).to.equal( {
+			_id: job._id ,
+			title: 'developer' ,
+			salary: 60000 ,
+			users: {} ,
+			schools: {}
+		} ) ;
 
-					expect( memory.collections.jobs.documents ).to.have.keys(
-						job._id.toString() ,
-						job2._id.toString()
-					) ;
+		expect( memory.collections.jobs.rawDocuments[ job2._id ] ).to.equal( {
+			_id: job2._id ,
+			title: 'adventurer' ,
+			salary: 200000 ,
+			users: {} ,
+			schools: {}
+		} ) ;
 
-					doc = memory.collections.users.documents[ user._id.toString() ] ;
-					expect( doc ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						job: {
-							_id: job._id ,
-							title: 'developer' ,
-							salary: 60000 ,
-							users: {} ,
-							schools: {}
-						}
-					} ) ;
+		//console.error( memory.collections.users.rawDocuments ) ;
+		//console.error( memory.collections.jobs.rawDocuments ) ;
 
-					doc = memory.collections.users.documents[ user2._id.toString() ] ;
-					expect( doc ).to.equal( {
-						_id: user2._id ,
-						firstName: 'Pat' ,
-						lastName: 'Mulligan' ,
-						memberSid: 'Pat Mulligan' ,
-						job: {
-							_id: job._id ,
-							title: 'developer' ,
-							salary: 60000 ,
-							users: {} ,
-							schools: {}
-						}
-					} ) ;
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
+		
+		
+		stats = {} ;
+		var dbJob = await jobs.collect( {} , { cache: memory , populate: 'users' , stats } ) ;
+		
+		expect( memory.collections ).to.have.keys( 'users' , 'jobs' ) ;
+		
+		expect( memory.collections.users.rawDocuments ).to.have.keys( '' + user._id , user2._id , user3._id ) ;
+		expect( memory.collections.jobs.rawDocuments ).to.have.keys( '' + job._id , job2._id ) ;
+		
+		expect( memory.collections.users.rawDocuments[ user._id ] ).to.equal( {
+			_id: user._id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			job: { _id: job._id }
+		} ) ;
 
-					doc = memory.collections.users.documents[ user3._id.toString() ] ;
-					expect( doc ).to.equal( {
-						_id: user3._id ,
-						firstName: 'Bill' ,
-						lastName: 'Baroud' ,
-						memberSid: 'Bill Baroud' ,
-						job: {
-							_id: job2._id ,
-							title: 'adventurer' ,
-							salary: 200000 ,
-							users: {} ,
-							schools: {}
-						}
-					} ) ;
+		expect( memory.collections.users.rawDocuments[ user2._id ] ).to.equal( {
+			_id: user2._id ,
+			firstName: 'Pat' ,
+			lastName: 'Mulligan' ,
+			memberSid: 'Pat Mulligan' ,
+			job: { _id: job._id }
+		} ) ;
 
-					doc = memory.collections.jobs.documents[ job._id.toString() ] ;
-					expect( doc ).to.equal( {
-						_id: job._id ,
-						title: 'developer' ,
-						salary: 60000 ,
-						users: {} ,
-						schools: {}
-					} ) ;
+		expect( memory.collections.users.rawDocuments[ user3._id ] ).to.equal( {
+			_id: user3._id ,
+			firstName: 'Bill' ,
+			lastName: 'Baroud' ,
+			memberSid: 'Bill Baroud' ,
+			job: { _id: job2._id }
+		} ) ;
 
-					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
-					expect( doc ).to.equal( {
-						_id: job2._id ,
-						title: 'adventurer' ,
-						salary: 200000 ,
-						users: {} ,
-						schools: {}
-					} ) ;
+		expect( memory.collections.jobs.rawDocuments[ job._id ] ).to.equal( {
+			_id: job._id ,
+			title: 'developer' ,
+			salary: 60000 ,
+			schools: {} ,
+			users: {}
+		} ) ;
 
-					//console.error( memory.collections.users.documents ) ;
-					//console.error( memory.collections.jobs.documents ) ;
+		expect( memory.collections.jobs.rawDocuments[ job2._id ] ).to.equal( {
+			_id: job2._id ,
+			title: 'adventurer' ,
+			salary: 200000 ,
+			schools: {} ,
+			users: {}
+		} ) ;
 
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
+		//console.error( memory.collections.users.rawDocuments ) ;
+		//console.error( memory.collections.jobs.rawDocuments ) ;
 
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				options = { memory: memory , populate: 'users' } ;
-				jobs.collect( {} , options , ( error , jobs_ ) => {
-
-					var doc ;
-
-					expect( memory.collections ).to.have.keys( 'users' , 'jobs' ) ;
-
-					expect( memory.collections.users.documents ).to.have.keys(
-						user._id.toString() ,
-						user2._id.toString() ,
-						user3._id.toString()
-					) ;
-
-					expect( memory.collections.jobs.documents ).to.have.keys(
-						job._id.toString() ,
-						job2._id.toString()
-					) ;
-
-					doc = memory.collections.users.documents[ user._id.toString() ] ;
-					expect( doc ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						job: memory.collections.jobs.documents[ job._id.toString() ]
-					} ) ;
-
-					doc = memory.collections.users.documents[ user2._id.toString() ] ;
-					expect( doc ).to.equal( {
-						_id: user2._id ,
-						firstName: 'Pat' ,
-						lastName: 'Mulligan' ,
-						memberSid: 'Pat Mulligan' ,
-						job: memory.collections.jobs.documents[ job._id.toString() ]
-					} ) ;
-
-					doc = memory.collections.users.documents[ user3._id.toString() ] ;
-					expect( doc ).to.equal( {
-						_id: user3._id ,
-						firstName: 'Bill' ,
-						lastName: 'Baroud' ,
-						memberSid: 'Bill Baroud' ,
-						job: memory.collections.jobs.documents[ job2._id.toString() ]
-					} ) ;
-
-					doc = memory.collections.jobs.documents[ job._id.toString() ] ;
-					if ( doc.users[ 0 ].firstName === 'Pat' ) { doc.users = [ doc.users[ 1 ] , doc.users[ 0 ] ] ; }
-					expect( doc ).to.equal( {
-						_id: job._id ,
-						title: 'developer' ,
-						salary: 60000 ,
-						schools: {} ,
-						users: [
-							memory.collections.users.documents[ user._id.toString() ] ,
-							memory.collections.users.documents[ user2._id.toString() ]
-						]
-					} ) ;
-
-					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
-					expect( doc ).to.equal( {
-						_id: job2._id ,
-						title: 'adventurer' ,
-						salary: 200000 ,
-						schools: {} ,
-						users: [
-							memory.collections.users.documents[ user3._id.toString() ]
-						]
-					} ) ;
-
-					//console.error( memory.collections.users.documents ) ;
-					//console.error( memory.collections.jobs.documents ) ;
-
-					// This is a back-link, so a DB query is mandatory here
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				options = { memory: memory , populate: 'job' } ;
-
-				users.collect( {} , options , ( error , users_ ) => {
-					// This is the same query already performed on user.
-					// We just check populate Depth and Queries here: a total cache hit should happen!
-					expect( options.populateDepth ).not.to.be.ok() ;
-					expect( options.populateDbQueries ).not.to.be.ok() ;
-
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		// This is a back-link, so a DB query is mandatory here
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
+		
+		
+		stats = {} ;
+		dbUser = await users.collect( {} , { cache: memory , populate: 'job' , stats } ) ;
+		
+		// This is the same query already performed on user.
+		// We just check populate Depth and Queries here: a total cache hit should happen!
+		expect( stats.population.depth ).to.be( 0 ) ;
+		expect( stats.population.dbQueries ).to.be( 0 ) ;
 	} ) ;
+	return ;
 
 	it( "should also works with multi-link" , ( done ) => {
 
@@ -4249,29 +4164,29 @@ describe( "Memory model" , () => {
 				school2.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				options = { populate: 'jobs' , memory: memory } ;
+				options = { populate: 'jobs' , cache: memory } ;
 
 				schools.collect( {} , options , ( error , schools_ ) => {
 
-					var doc ;
+					var cacheDoc ;
 
 					expect( error ).not.to.be.ok() ;
 					expect( memory.collections ).to.have.keys( 'schools' , 'jobs' ) ;
 
-					expect( memory.collections.schools.documents ).to.have.keys(
+					expect( memory.collections.schools.rawDocuments ).to.have.keys(
 						school1._id.toString() ,
 						school2._id.toString()
 					) ;
 
-					expect( memory.collections.jobs.documents ).to.have.keys(
+					expect( memory.collections.jobs.rawDocuments ).to.have.keys(
 						job1._id.toString() ,
 						job2._id.toString() ,
 						job3._id.toString() ,
 						job4._id.toString()
 					) ;
 
-					doc = memory.collections.schools.documents[ school1._id.toString() ] ;
-					expect( doc ).to.equal( {
+					cacheDoc = memory.collections.schools.rawDocuments[ school1._id.toString() ] ;
+					expect( cacheDoc ).to.equal( {
 						_id: school1._id ,
 						title: 'Computer Science' ,
 						jobs: [
@@ -4299,8 +4214,8 @@ describe( "Memory model" , () => {
 						]
 					} ) ;
 
-					doc = memory.collections.schools.documents[ school2._id.toString() ] ;
-					expect( doc ).to.equal( {
+					cacheDoc = memory.collections.schools.rawDocuments[ school2._id.toString() ] ;
+					expect( cacheDoc ).to.equal( {
 						_id: school2._id ,
 						title: 'Web Academy' ,
 						jobs: [
@@ -4328,8 +4243,8 @@ describe( "Memory model" , () => {
 						]
 					} ) ;
 
-					doc = memory.collections.jobs.documents[ job1._id.toString() ] ;
-					expect( doc ).to.equal( {
+					cacheDoc = memory.collections.jobs.rawDocuments[ job1._id.toString() ] ;
+					expect( cacheDoc ).to.equal( {
 						_id: job1._id ,
 						title: 'developer' ,
 						salary: 60000 ,
@@ -4337,8 +4252,8 @@ describe( "Memory model" , () => {
 						schools: {}
 					} ) ;
 
-					doc = memory.collections.jobs.documents[ job2._id.toString() ] ;
-					expect( doc ).to.equal( {
+					cacheDoc = memory.collections.jobs.rawDocuments[ job2._id.toString() ] ;
+					expect( cacheDoc ).to.equal( {
 						_id: job2._id ,
 						title: 'sysadmin' ,
 						salary: 55000 ,
@@ -4346,8 +4261,8 @@ describe( "Memory model" , () => {
 						schools: {}
 					} ) ;
 
-					doc = memory.collections.jobs.documents[ job3._id.toString() ] ;
-					expect( doc ).to.equal( {
+					cacheDoc = memory.collections.jobs.rawDocuments[ job3._id.toString() ] ;
+					expect( cacheDoc ).to.equal( {
 						_id: job3._id ,
 						title: 'front-end developer' ,
 						salary: 54000 ,
@@ -4355,8 +4270,8 @@ describe( "Memory model" , () => {
 						schools: {}
 					} ) ;
 
-					doc = memory.collections.jobs.documents[ job4._id.toString() ] ;
-					expect( doc ).to.equal( {
+					cacheDoc = memory.collections.jobs.rawDocuments[ job4._id.toString() ] ;
+					expect( cacheDoc ).to.equal( {
 						_id: job4._id ,
 						title: 'designer' ,
 						salary: 56000 ,
@@ -4371,7 +4286,7 @@ describe( "Memory model" , () => {
 				} ) ;
 			} ,
 			function( callback ) {
-				options = { populate: 'jobs' , memory: memory } ;
+				options = { populate: 'jobs' , cache: memory } ;
 
 				schools.collect( {} , options , ( error , schools_ ) => {
 
@@ -4428,7 +4343,7 @@ describe( "Memory model" , () => {
 				user2.$.save( callback ) ;
 			} ,
 			function( callback ) {
-				options = { memory: memory } ;
+				options = { cache: memory } ;
 				users.get( user._id , options , ( error , user_ ) => {
 					expect( error ).not.to.be.ok() ;
 					expect( user_ ).to.equal( {
@@ -4444,7 +4359,7 @@ describe( "Memory model" , () => {
 				} ) ;
 			} ,
 			function( callback ) {
-				options = { memory: memory , populate: 'job' } ;
+				options = { cache: memory , populate: 'job' } ;
 				users.get( user._id , options , ( error , user_ ) => {
 					expect( error ).not.to.be.ok() ;
 					expect( user_ ).to.equal( {
@@ -4461,7 +4376,7 @@ describe( "Memory model" , () => {
 						}
 					} ) ;
 					expect( user_.job.$.populated.users ).not.to.be.ok() ;
-					expect( memory.collections.jobs.documents[ job._id.toString() ] ).to.equal( {
+					expect( memory.collections.jobs.rawDocuments[ job._id.toString() ] ).to.equal( {
 						_id: job._id ,
 						title: 'developer' ,
 						salary: 60000 ,
@@ -4478,7 +4393,7 @@ describe( "Memory model" , () => {
 				//log.warning( 'memory users: %I' , memory.collections.users ) ;
 				//log.warning( 'memory jobs: %I' , memory.collections.jobs ) ;
 
-				options = { memory: memory , deepPopulate: deepPopulate } ;
+				options = { cache: memory , deepPopulate: deepPopulate } ;
 				users.get( user._id , options , ( error , user_ ) => {
 					expect( error ).not.to.be.ok() ;
 					expect( user_.$.populated.job ).to.be( true ) ;
