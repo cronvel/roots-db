@@ -235,27 +235,31 @@ const nestedLinksDescriptor = {
 
 function Extended( collection , rawDoc , options ) {
 	rootsDb.Document.call( this , collection , rawDoc , options ) ;
+	this.addProxyMethodNames( 'getNormalized' ) ;
 }
 
 Extended.prototype = Object.create( rootsDb.Document.prototype ) ;
 Extended.prototype.constructor = Extended ;
 
 Extended.prototype.getNormalized = function() {
-	return this.document.data.toLowerCase() ;
+	return this.proxy.data.toLowerCase() ;
 } ;
 
-function ExtendedBatch( collection , rawDoc , options ) {
-	rootsDb.Batch.call( this , collection , rawDoc , options ) ;
+
+
+// Batch *MUST* be extended using the 'extends' keyword
+class ExtendedBatch extends rootsDb.Batch {
+	constructor( collection , rawDoc , options ) {
+		super( collection , rawDoc , options ) ;
+	}
+
+	foo() {
+		var str = '' ;
+		this.forEach( item => str += item.data ) ;
+		return str ;
+	}
 }
 
-ExtendedBatch.prototype = Object.create( rootsDb.Batch.prototype ) ;
-ExtendedBatch.prototype.constructor = ExtendedBatch ;
-
-ExtendedBatch.prototype.concat = function() {
-	var i , iMax , str = '' ;
-	for ( i = 0 , iMax = this.batch.length ; i < iMax ; i ++ ) { str += this.batch[ i ].data ; }
-	return str ;
-} ;
 
 
 
@@ -3681,112 +3685,6 @@ describe( "Deep populate links" , () => {
 
 
 
-describe( "Hooks" , () => {
-	it( "'beforeCreateDocument'" ) ;
-	it( "'afterCreateDocument'" ) ;
-} ) ;
-
-
-
-describe( "Historical bugs" , () => {
-
-	beforeEach( clearDB ) ;
-
-	it( "collect on empty collection with populate (was throwing uncaught error)" , async () => {
-		var batch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] } ) ;
-		expect( batch ).to.be.like( [] ) ;
-	} ) ;
-
-	it( "validation featuring sanitizers should update both locally and remotely after a document's commit()" , async () => {
-		var job = jobs.createDocument( {
-			title: 'developer' ,
-			salary: "60000"
-		} ) ;
-
-		var town = towns.createDocument( {
-			name: 'Paris' ,
-			meta: {
-				rank: "7" ,
-				population: '2200K' ,
-				country: 'France'
-			}
-		} ) ;
-
-		expect( job.salary ).to.be( 60000 ) ;	// toInteger at document's creation
-		expect( town.meta.rank ).to.be( 7 ) ;	// toInteger at document's creation
-
-		await job.save() ;
-		await town.save() ;
-		
-		var dbJob = await jobs.get( job._id ) ;
-		
-		expect( dbJob ).to.equal( {
-			_id: job._id , title: 'developer' , salary: 60000 , users: {} , schools: {}
-		} ) ;
-		
-		job.patch( { salary: "65000" } ) ;
-		// Before sanitizing: it's a string
-		expect( job ).to.equal( { _id: job._id , title: 'developer' , salary: "65000" , users: {} , schools: {} } ) ;
-		
-		await job.commit() ;
-		// After commit/sanitizing: now a number
-		expect( job ).to.equal( { _id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {} } ) ;
-		
-		dbJob = await jobs.get( job._id ) ;
-		expect( dbJob ).to.equal( { _id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {} } ) ;
-		
-		var dbTown = await towns.get( town._id ) ;
-		expect( dbTown ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 7 , population: '2200K' , country: 'France' } } ) ;
-		
-		town.patch( { "meta.rank": "8" } ) ;
-		// Before sanitizing: it's a string
-		expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: "8" , population: '2200K' , country: 'France' } } ) ;
-		await town.commit() ;
-		
-		// After commit/sanitizing: now a number
-		expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
-					
-		dbTown = await towns.get( town._id ) ;
-		expect( dbTown ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
-	} ) ;
-
-	it( "setting garbage to an attachment property should abort with an error" , async () => {
-		var user ;
-
-		// First try: at object creation
-		expect( () => {
-			user = users.createDocument( {
-				firstName: 'Jilbert' ,
-				lastName: 'Polson' ,
-				file: 'garbage'
-			} ) ;
-		} ).to.throw() ;
-
-		user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-		
-		
-		// Second try: using setLink
-		expect( () => { user.$.setLink( 'file' , 'garbage' ) ; } ).to.throw() ;
-		expect( user.file ).to.be( undefined ) ;
-
-		// third try: by setting the property directly
-		user.file = 'garbage' ;
-		expect( () => { user.validate() ; } ).to.throw() ;
-
-		// By default, a collection has the 'patchDrivenValidation' option, so we have to stage the change
-		// to trigger validation on .save()
-		user.stage( 'file' ) ;
-		
-		await expect( () => user.save() ).to.reject() ;
-        await expect( () => users.get( user._id ) ).to.reject() ;
-	} ) ;
-} ) ;
-
-
-
 describe( "Caching with the memory model" , () => {
 
 	beforeEach( clearDB ) ;
@@ -4217,176 +4115,228 @@ describe( "Memory model" , () => {
 			job: { _id: job._id }
 		} ) ;
 		
-		expect( stats.population.depth ).to.be( 0 ) ;
-		expect( stats.population.dbQueries ).to.be( 0 ) ;
-			
-			/*
-			
-			function( callback ) {
-				options = { cache: memory , populate: 'job' } ;
-				users.get( user._id , options , ( error , user_ ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( user_ ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						job: {
-							_id: job._id ,
-							title: 'developer' ,
-							salary: 60000 ,
-							users: {} ,
-							schools: {}
-						}
-					} ) ;
-					expect( user_.job.$.populated.users ).not.to.be.ok() ;
-					expect( memory.collections.jobs.rawDocuments[ job._id.toString() ] ).to.equal( {
-						_id: job._id ,
-						title: 'developer' ,
-						salary: 60000 ,
-						users: {} ,
-						schools: {}
-					} ) ;
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-					callback() ;
-				} ) ;
-			} ,
-			function( callback ) {
-				//console.error( '\n\n>>>>>>> Increment now!!!\n\n' ) ;
-				//log.warning( 'memory users: %I' , memory.collections.users ) ;
-				//log.warning( 'memory jobs: %I' , memory.collections.jobs ) ;
-
-				options = { cache: memory , deepPopulate: deepPopulate } ;
-				users.get( user._id , options , ( error , user_ ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( user_.$.populated.job ).to.be( true ) ;
-
-					expect( user_.job.users ).to.have.length( 2 ) ;
-
-					if ( user_.job.users[ 0 ].firstName === 'Robert' ) {
-						user_.job.users = [ user_.job.users[ 1 ] , user_.job.users[ 0 ] ] ;
-					}
-
-					expect( user_.job.users[ 0 ].job ).to.be( user_.job ) ;
-					expect( user_.job.users[ 1 ].job ).to.be( user_.job ) ;
-
-					expect( user_ ).to.equal( {
-						_id: user._id ,
-						firstName: 'Jilbert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Jilbert Polson' ,
-						job: {
-							_id: job._id ,
-							title: 'developer' ,
-							salary: 60000 ,
-							schools: {} ,
-							users: [
-								user_ ,
-								// We cannot use 'user2', expect.js is too confused with Circular references
-								// We have to perform a second check for that
-								user_.job.users[ 1 ]
-							]
-						}
-					} ) ;
-
-					expect( user_.job.users[ 1 ] ).to.equal( {
-						_id: user2._id ,
-						firstName: 'Robert' ,
-						lastName: 'Polson' ,
-						memberSid: 'Robert Polson' ,
-						job: {
-							_id: job._id ,
-							title: 'developer' ,
-							salary: 60000 ,
-							schools: {} ,
-							users: [
-								user_ ,
-								user_.job.users[ 1 ]
-							]
-						}
-					} ) ;
-
-					expect( options.populateDepth ).to.be( 1 ) ;
-					expect( options.populateDbQueries ).to.be( 1 ) ;
-
-					callback() ;
-				} ) ;
+		
+		var stats = {} ;
+		var dbUser = await users.get( user._id , { cache: memory , populate: 'job' , stats } ) ;
+		expect( dbUser ).to.equal( {
+			_id: user._id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			job: {
+				_id: job._id ,
+				title: 'developer' ,
+				salary: 60000 ,
+				users: {} ,
+				schools: {}
 			}
-		] )
-			*/
+		} ) ;
+		
+		expect( memory.collections.jobs.rawDocuments[ job._id ] ).to.equal( {
+			_id: job._id ,
+			title: 'developer' ,
+			salary: 60000 ,
+			users: {} ,
+			schools: {}
+		} ) ;
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
+			
+		
+		dbUser = await users.get( user._id , { cache: memory , deepPopulate: deepPopulate , stats } ) ;
+		
+		expect( dbUser.job.users ).to.have.length( 2 ) ;
+
+		if ( dbUser.job.users[ 0 ].firstName === 'Robert' ) {
+			dbUser.job.users = [ dbUser.job.users[ 1 ] , dbUser.job.users[ 0 ] ] ;
+		}
+
+		expect( dbUser.job.users[ 0 ].job ).to.be( dbUser.job ) ;
+		expect( dbUser.job.users[ 1 ].job ).to.be( dbUser.job ) ;
+
+		var expected = {
+			_id: user._id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			job: {
+				_id: job._id ,
+				title: 'developer' ,
+				salary: 60000 ,
+				schools: {} ,
+				users: []
+			}
+		} ;
+		expected.job.users[ 0 ] = expected ;
+		expected.job.users[ 1 ] = {
+			_id: user2._id ,
+			firstName: 'Robert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Robert Polson' ,
+			job: expected.job
+		} ;
+		expect( dbUser ).to.be.like( expected ) ;
+
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
 
 	it( "should also works with back-multi-link" ) ;
 } ) ;
 
-return ;
 
 
 describe( "Extended Document" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should call a method of the extended Document wrapper at creation and after retrieving it from DB" , ( done ) => {
-
+	it( "should call a method of the extended Document wrapper at creation and after retrieving it from DB" , async () => {
 		var ext = extendables.createDocument( {
 			data: 'sOmeDaTa'
 		} ) ;
 
-		expect( ext.$ ).to.be.an( rootsDb.Document ) ;
-		expect( ext.$ ).to.be.an( Extended ) ;
+		expect( ext._ ).to.be.an( rootsDb.Document ) ;
+		expect( ext._ ).to.be.an( Extended ) ;
 
-		expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
+		expect( ext._.getNormalized() ).to.be( 'somedata' ) ;
+		
+		await ext.save() ;
+		var dbExt = await extendables.get( ext._id ) ;
+		
+		expect( dbExt._ ).to.be.an( rootsDb.Document ) ;
+		expect( dbExt._ ).to.be.an( Extended ) ;
+		
+		expect( dbExt ).to.equal( { _id: dbExt._id , data: 'sOmeDaTa' } ) ;
+		expect( dbExt._.getNormalized() ).to.be( 'somedata' ) ;
+		
+		expect( dbExt.getNormalized() ).to.be( 'somedata' ) ;
+		
+		dbExt.data = 'mOreVespEnEGaS' ;
+		
+		expect( dbExt._.getNormalized() ).to.be( 'morevespenegas' ) ;
 
-		var id = ext._id ;
-
-		async.series( [
-			function( callback ) {
-				ext.$.save( callback ) ;
-			} ,
-			function( callback ) {
-				extendables.get( id , ( error , ext ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( ext.$ ).to.be.an( rootsDb.Document ) ;
-					expect( ext.$ ).to.be.an( Extended ) ;
-					expect( ext ).to.equal( { _id: ext._id , data: 'sOmeDaTa' } ) ;
-					expect( ext.$.getNormalized() ).to.be( 'somedata' ) ;
-					ext.data = 'mOreVespEnEGaS' ;
-					expect( ext.$.getNormalized() ).to.be( 'morevespenegas' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		// Check direct method usage (through proxy)
+		expect( dbExt.getNormalized() ).to.be( 'morevespenegas' ) ;
 	} ) ;
 
-	it( "should call a method of the extended Batch wrapper at creation and after retrieving it from DB" , ( done ) => {
-
+	it( "should call a method of the extended Batch wrapper at creation and after retrieving it from DB" , async () => {
 		var ext1 = extendables.createDocument( { data: 'oNe' } ) ;
 		var ext2 = extendables.createDocument( { data: 'twO' } ) ;
 		var ext3 = extendables.createDocument( { data: 'THRee' } ) ;
 
-		var id1 = ext1._id ;
-		var id2 = ext2._id ;
-		var id3 = ext3._id ;
-
-		async.series( [
-			function( callback ) { ext1.$.save( callback ) ; } ,
-			function( callback ) { ext2.$.save( callback ) ; } ,
-			function( callback ) { ext3.$.save( callback ) ; } ,
-			function( callback ) {
-				extendables.collect( {} , ( error , exts ) => {
-					expect( error ).not.to.be.ok() ;
-					expect( exts.$ ).to.be.an( rootsDb.Batch ) ;
-					expect( exts.$ ).to.be.an( ExtendedBatch ) ;
-					expect( exts.$.concat() ).to.be( 'oNetwOTHRee' ) ;
-					callback() ;
-				} ) ;
-			}
-		] )
-			.exec( done ) ;
+		await Promise.all( [ ext1.save() , ext2.save() , ext3.save() ] ) ;
+		var dbBatch = await extendables.collect( {} ) ;
+		
+		expect( dbBatch ).to.be.an( rootsDb.Batch ) ;
+		expect( dbBatch ).to.be.an( ExtendedBatch ) ;
+		expect( dbBatch ).to.be.an( Array ) ;
+		expect( dbBatch.foo() ).to.be( 'oNetwOTHRee' ) ;
 	} ) ;
 } ) ;
 
 
+
+describe( "Hooks" , () => {
+	it( "'beforeCreateDocument'" ) ;
+	it( "'afterCreateDocument'" ) ;
+} ) ;
+
+
+
+describe( "Historical bugs" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "collect on empty collection with populate (was throwing uncaught error)" , async () => {
+		var batch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] } ) ;
+		expect( batch ).to.be.like( [] ) ;
+	} ) ;
+
+	it( "validation featuring sanitizers should update both locally and remotely after a document's commit()" , async () => {
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: "60000"
+		} ) ;
+
+		var town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				rank: "7" ,
+				population: '2200K' ,
+				country: 'France'
+			}
+		} ) ;
+
+		expect( job.salary ).to.be( 60000 ) ;	// toInteger at document's creation
+		expect( town.meta.rank ).to.be( 7 ) ;	// toInteger at document's creation
+
+		await job.save() ;
+		await town.save() ;
+		
+		var dbJob = await jobs.get( job._id ) ;
+		
+		expect( dbJob ).to.equal( {
+			_id: job._id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+		} ) ;
+		
+		job.patch( { salary: "65000" } ) ;
+		// Before sanitizing: it's a string
+		expect( job ).to.equal( { _id: job._id , title: 'developer' , salary: "65000" , users: {} , schools: {} } ) ;
+		
+		await job.commit() ;
+		// After commit/sanitizing: now a number
+		expect( job ).to.equal( { _id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {} } ) ;
+		
+		dbJob = await jobs.get( job._id ) ;
+		expect( dbJob ).to.equal( { _id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {} } ) ;
+		
+		var dbTown = await towns.get( town._id ) ;
+		expect( dbTown ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 7 , population: '2200K' , country: 'France' } } ) ;
+		
+		town.patch( { "meta.rank": "8" } ) ;
+		// Before sanitizing: it's a string
+		expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: "8" , population: '2200K' , country: 'France' } } ) ;
+		await town.commit() ;
+		
+		// After commit/sanitizing: now a number
+		expect( town ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
+					
+		dbTown = await towns.get( town._id ) ;
+		expect( dbTown ).to.equal( { _id: town._id , name: 'Paris' , meta: { rank: 8 , population: '2200K' , country: 'France' } } ) ;
+	} ) ;
+
+	it( "setting garbage to an attachment property should abort with an error" , async () => {
+		var user ;
+
+		// First try: at object creation
+		expect( () => {
+			user = users.createDocument( {
+				firstName: 'Jilbert' ,
+				lastName: 'Polson' ,
+				file: 'garbage'
+			} ) ;
+		} ).to.throw() ;
+
+		user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		
+		// Second try: using setLink
+		expect( () => { user.$.setLink( 'file' , 'garbage' ) ; } ).to.throw() ;
+		expect( user.file ).to.be( undefined ) ;
+
+		// third try: by setting the property directly
+		user.file = 'garbage' ;
+		expect( () => { user.validate() ; } ).to.throw() ;
+
+		// By default, a collection has the 'patchDrivenValidation' option, so we have to stage the change
+		// to trigger validation on .save()
+		user.stage( 'file' ) ;
+		
+		await expect( () => user.save() ).to.reject() ;
+        await expect( () => users.get( user._id ) ).to.reject() ;
+	} ) ;
+} ) ;
 
