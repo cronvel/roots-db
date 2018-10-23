@@ -3229,7 +3229,9 @@ describe( "Populate links" , () => {
 		user3.setLink( 'godfather' , godfather ) ;
 		godfather.setLink( 'godfather' , godfather ) ;
 
-		await Promise.all( [ job.save() , godfather.save() , user1.save() , user2.save() , user3.save() ] ) ;
+		await job.save() ;
+		await godfather.save() ;
+		await Promise.all( [ user1.save() , user2.save() , user3.save() ] ) ;
 
 		var stats = {} ;
 		var dbUserBatch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] , stats } ) ;
@@ -3332,7 +3334,9 @@ describe( "Populate links" , () => {
 		user3.setLink( 'godfather' , godfather ) ;
 		godfather.setLink( 'godfather' , godfather ) ;
 
-		await Promise.all( [ job.save() , godfather.save() , user1.save() , user2.save() , user3.save() ] ) ;
+		await job.save() ;
+		await godfather.save() ;
+		await Promise.all( [ user1.save() , user2.save() , user3.save() ] ) ;
 
 		var stats = {} ;
 		var dbUserBatch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] , noReference: true , stats } ) ;
