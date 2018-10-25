@@ -1162,6 +1162,60 @@ describe( "MultiGet, Collect & find batchs" , function() {
 		] )
 		.exec( done ) ;
 	} ) ;
+
+	it( "skip, limit and sort" , function( done ) {
+		
+		var marleys = [
+			users.createDocument( {
+				firstName: 'Bob' ,
+				lastName: 'Marley'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Julian' ,
+				lastName: 'Marley'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Thomas' ,
+				lastName: 'Jefferson'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Stephen' ,
+				lastName: 'Marley'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Mr' ,
+				lastName: 'X'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Ziggy' ,
+				lastName: 'Marley'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Rita' ,
+				lastName: 'Marley'
+			} )
+		] ;
+		
+		async.series( [
+			function( callback ) {
+				rootsDb.bulk( 'save' , marleys , callback ) ;
+			} ,
+			function( callback ) {
+				users.find( {} , { skip: 1 , limit: 2 , sort: { firstName: 1 } } , function( error , batch ) {
+					var i , map = {} ;
+					expect( error ).not.to.be.ok() ;
+					expect( batch.$ ).to.be.a( rootsDb.BatchWrapper ) ;
+					expect( batch ).to.have.length( 2 ) ;
+					doormen.expect( batch ).to.partially.equal( [
+						{ firstName: 'Julian', lastName: 'Marley' } ,
+						{ firstName: 'Mr', lastName: 'X'}
+					] ) ;
+					callback() ;
+				} ) ;
+			}
+		] )
+		.exec( done ) ;
+	} ) ;
 	
 } ) ;
 
