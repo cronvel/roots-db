@@ -933,6 +933,49 @@ describe( "Fingerprint" , () => {
 		expect( users.createFingerprint( { memberSid: 'terry-bogard' } ).unique ).to.be( false ) ;
 		expect( users.createFingerprint( { "job._id": '123456789012345678901234' , memberSid: 'terry-bogard' } ).unique ).to.be( true ) ;
 	} ) ;
+
+	it( "skip, limit and sort" , async () => {
+		var marleys = [
+			users.createDocument( {
+				firstName: 'Bob' ,
+				lastName: 'Marley'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Julian' ,
+				lastName: 'Marley'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Thomas' ,
+				lastName: 'Jefferson'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Stephen' ,
+				lastName: 'Marley'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Mr' ,
+				lastName: 'X'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Ziggy' ,
+				lastName: 'Marley'
+			} ) ,
+			users.createDocument( {
+				firstName: 'Rita' ,
+				lastName: 'Marley'
+			} )
+		] ;
+		
+		await Promise.map( marleys , user => user.save() ) ;
+		console.log( "bobb" ) ;
+		var dbBatch = await users.find( {} , { skip: 1 , limit: 2 , sort: { firstName: 1 } } ) ;
+		
+		expect( dbBatch ).to.have.length( 2 ) ;
+		expect( dbBatch ).to.partially.equal( [
+			{ firstName: 'Julian', lastName: 'Marley' } ,
+			{ firstName: 'Mr', lastName: 'X'}
+		] ) ;
+	} ) ;
 } ) ;
 
 
