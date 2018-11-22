@@ -280,6 +280,23 @@ const extendablesDescriptor = {
 
 
 
+// drop DB collection: drop all collections
+// This is surprisingly slow even for empty collection, so we can't use that all over the place like it should...
+function dropDBCollections() {
+	//console.log( "dropDBCollections" ) ;
+	return Promise.all( [
+		dropCollection( users ) ,
+		dropCollection( jobs ) ,
+		dropCollection( schools ) ,
+		dropCollection( towns ) ,
+		dropCollection( lockables ) ,
+		dropCollection( nestedLinks ) ,
+		dropCollection( extendables )
+	] ) ;
+}
+
+
+
 // clear DB: remove every item, so we can safely test
 function clearDB() {
 	return Promise.all( [
@@ -295,7 +312,7 @@ function clearDB() {
 
 
 
-// clear DB: remove every item, so we can safely test
+// clear DB indexes: remove all indexes
 function clearDBIndexes() {
 	return Promise.all( [
 		clearCollectionIndexes( users ) ,
@@ -306,6 +323,17 @@ function clearDBIndexes() {
 		clearCollectionIndexes( nestedLinks ) ,
 		clearCollectionIndexes( extendables )
 	] ).then( () => { log.verbose( "All indexes cleared" ) ; } ) ;
+}
+
+
+
+function dropCollection( collection ) {
+	return collection.driver.rawInit()
+		.then( () => collection.driver.raw.drop() )
+		.catch( error => {
+			if ( error.code === 26 ) { return ; }	// NS not found, nothing to drop!
+			throw error ;
+		} ) ;
 }
 
 
@@ -373,25 +401,6 @@ describe( "Collection" , () => {
 				_id: true , avatar: true , firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , publicKey: true
 			}
 		] ) ;
-	} ) ;
-} ) ;
-
-
-
-describe( "Build collections' indexes" , () => {
-
-	beforeEach( clearDBIndexes ) ;
-
-	it.skip( "should build indexes" , async () => {
-		expect( users.uniques ).to.equal( [ [ '_id' ] , [ 'job._id' , 'memberSid' ] ] ) ;
-		expect( jobs.uniques ).to.equal( [ [ '_id' ] ] ) ;
-
-		return Promise.forEach( Object.keys( world.collections ) , async ( name ) => {
-			var collection = world.collections[ name ] ;
-			await collection.buildIndexes() ;
-			log.verbose( 'Index built for collection %s' , name ) ;
-			expect( await collection.driver.getIndexes() ).to.equal( collection.indexes ) ;
-		} ) ;
 	} ) ;
 } ) ;
 
@@ -4486,6 +4495,31 @@ describe( "Historical bugs" , () => {
 
 		await expect( () => user.save() ).to.reject() ;
 		await expect( () => users.get( user._id ) ).to.reject() ;
+	} ) ;
+} ) ;
+
+
+
+// Move slow tests at the end
+describe( "Slow tests" , () => {
+	describe( "Build collections' indexes" , () => {
+
+		beforeEach( clearDBIndexes ) ;
+		//beforeEach( dropDBCollections ) ;
+
+		it( "should build indexes" , async function() {
+			//console.log( "start test" ) ;
+			this.timeout( 12000 ) ;
+			expect( users.uniques ).to.equal( [ [ '_id' ] , [ 'job._id' , 'memberSid' ] ] ) ;
+			expect( jobs.uniques ).to.equal( [ [ '_id' ] ] ) ;
+
+			return Promise.map( Object.keys( world.collections ) , async ( name ) => {
+				var collection = world.collections[ name ] ;
+				await collection.buildIndexes() ;
+				log.verbose( 'Index built for collection %s' , name ) ;
+				expect( await collection.driver.getIndexes() ).to.equal( collection.indexes ) ;
+			} ) ;
+		} ) ;
 	} ) ;
 } ) ;
 
