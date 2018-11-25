@@ -902,7 +902,7 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		} ) ;
 	} ) ;
 
-	it( "xxx testing internal local change with overwriting and depth mixing changes" , async () => {
+	it( "testing internal local change with overwriting and depth mixing changes" , async () => {
 		var town = towns.createDocument( {
 			name: 'Paris' ,
 			meta: {
@@ -940,7 +940,7 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		expect( town._.buildPatch() ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
 	} ) ;
 
-	it( "zzz overwriting and depth mixing staging" , async () => {
+	it( "overwriting and depth mixing staging" , async () => {
 		var town = towns.createDocument( {
 			name: 'Paris' ,
 			meta: {
