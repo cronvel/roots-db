@@ -960,6 +960,26 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		await dbTown.commit() ;
 		await expect( towns.get( id ) ).to.eventually.equal( { _id: id , name: 'Paris' , meta: { population: '2400K' , country: 'La France' } } ) ;
 	} ) ;
+
+	it( "delete and auto-staging" , async () => {
+		var town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				population: '2200K' ,
+				country: 'France'
+			}
+		} ) ;
+
+		var id = town.getId() ;
+
+		await town.save() ;
+		var dbTown = await towns.get( id ) ;
+		expect( dbTown ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
+
+		delete dbTown.meta.population ;
+		await dbTown.commit() ;
+		await expect( towns.get( id ) ).to.eventually.equal( { _id: id , name: 'Paris' , meta: { country: 'France' } } ) ;
+	} ) ;
 } ) ;
 
 
