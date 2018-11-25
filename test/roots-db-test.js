@@ -902,7 +902,58 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		} ) ;
 	} ) ;
 
-	it( "overwrite and depth mixing" ) ;
+	it( "xxx testing internal local change with overwriting and depth mixing changes" , async () => {
+		var town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				population: '2200K' ,
+				country: 'France'
+			}
+		} ) ;
+
+		town._.localChanges = null ;
+		town._.setLocalChanges( [ 'meta' , 'country' ] ) ;
+		expect( town._.localChanges ).to.equal( { meta: { country: null } } ) ;
+		town._.setLocalChanges( [ 'meta' ] ) ;
+		expect( town._.localChanges ).to.equal( { meta: null } ) ;
+
+		town._.localChanges = null ;
+		town._.setLocalChanges( [ 'meta' ] ) ;
+		expect( town._.localChanges ).to.equal( { meta: null } ) ;
+		town._.setLocalChanges( [ 'meta' , 'country' ] ) ;
+		expect( town._.localChanges ).to.equal( { meta: null } ) ;
+		town._.setLocalChanges( [ 'meta' , 'population' ] ) ;
+		expect( town._.localChanges ).to.equal( { meta: null } ) ;
+
+		town._.localChanges = null ;
+		town._.setLocalChanges( [ 'meta' , 'population' ] ) ;
+		town._.setLocalChanges( [ 'meta' , 'country' ] ) ;
+		expect( town._.localChanges ).to.equal( { meta: { population: null , country: null } } ) ;
+		expect( town._.buildPatch() ).to.equal( { "meta.population": null , "meta.country": null } ) ;
+		town._.setLocalChanges( [ 'meta' ] ) ;
+		expect( town._.localChanges ).to.equal( { meta: null } ) ;
+	} ) ;
+
+	it( "zzz overwriting and depth mixing staging" , async () => {
+		var town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				population: '2200K' ,
+				country: 'France'
+			}
+		} ) ;
+
+		var id = town.getId() ;
+
+		await town.save() ;
+		var dbTown = await towns.get( id ) ;
+		expect( dbTown ).to.equal( { _id: id , name: 'Paris' , meta: { population: '2200K' , country: 'France' } } ) ;
+
+		dbTown.meta.population = "2300K" ;
+		dbTown.meta = { population: "2400K" , country: "La France" } ;
+		await dbTown.commit() ;
+		await expect( towns.get( id ) ).to.eventually.equal( { _id: id , name: 'Paris' , meta: { population: '2400K' , country: 'La France' } } ) ;
+	} ) ;
 } ) ;
 
 
