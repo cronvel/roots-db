@@ -1,6 +1,6 @@
 {
   "name": "roots-db",
-  "version": "0.15.10",
+  "version": "0.15.11",
   "engines": {
     "node": ">=8.0.0"
   },

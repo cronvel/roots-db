@@ -756,7 +756,7 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		expect( dbUser ).to.equal( {
 			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
 		} ) ;
-		expect( dbUser._.buildPatch() ).to.equal( { firstName: 'Joey' } ) ;
+		expect( dbUser._.buildDbPatch().set ).to.equal( { firstName: 'Joey' } ) ;
 
 		await dbUser.commit() ;
 		await expect( users.get( id ) ).to.eventually.equal( {
@@ -768,7 +768,7 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		expect( dbUser ).to.equal( {
 			_id: id , firstName: 'Jack' , lastName: 'Smith' , memberSid: 'Johnny Starks'
 		} ) ;
-		expect( dbUser._.buildPatch() ).to.equal( { firstName: 'Jack' , lastName: 'Smith' } ) ;
+		expect( dbUser._.buildDbPatch().set ).to.equal( { firstName: 'Jack' , lastName: 'Smith' } ) ;
 
 		await dbUser.commit() ;
 		await expect( users.get( id ) ).to.eventually.equal( {
@@ -794,7 +794,7 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		expect( dbUser ).to.equal( {
 			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
 		} ) ;
-		expect( dbUser._.buildPatch() ).to.be( null ) ;
+		expect( dbUser._.buildDbPatch() ).to.be( null ) ;
 
 		// Nothing will be commited
 		await dbUser.commit() ;
@@ -828,7 +828,7 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		expect( dbUser ).to.equal( {
 			_id: id , firstName: 'Joey' , lastName: 'Starks' , memberSid: 'Johnny Starks'
 		} ) ;
-		expect( dbUser._.buildPatch() ).to.equal( { firstName: 'Joey' } ) ;
+		expect( dbUser._.buildDbPatch().set ).to.equal( { firstName: 'Joey' } ) ;
 
 		await dbUser.commit() ;
 		await expect( users.get( id ) ).to.eventually.equal( {
@@ -839,7 +839,7 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		expect( dbUser ).to.equal( {
 			_id: id , firstName: 'Jack' , lastName: 'Smith' , memberSid: 'Johnny Starks'
 		} ) ;
-		expect( dbUser._.buildPatch() ).to.equal( { firstName: 'Jack' , lastName: 'Smith' } ) ;
+		expect( dbUser._.buildDbPatch().set ).to.equal( { firstName: 'Jack' , lastName: 'Smith' } ) ;
 
 		await dbUser.commit() ;
 		await expect( users.get( id ) ).to.eventually.equal( {
@@ -867,7 +867,7 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		await expect( towns.get( id ) ).to.eventually.equal( { _id: id , name: 'Paris' , meta: { population: '2300K' , country: 'France' } } ) ;
 
 		dbTown.meta.population = "2500K" ;
-		expect( dbTown._.buildPatch() ).to.equal( { "meta.population": "2500K" } ) ;
+		expect( dbTown._.buildDbPatch().set ).to.equal( { "meta.population": "2500K" } ) ;
 		await dbTown.commit() ;
 		await expect( towns.get( id ) ).to.eventually.equal( { _id: id , name: 'Paris' , meta: { population: '2500K' , country: 'France' } } ) ;
 	} ) ;
@@ -914,30 +914,30 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		town._.localChanges = null ;
 		town._.addLocalChange( [ 'meta' , 'country' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: { country: null } } ) ;
-		expect( town._.buildPatch() ).to.equal( { "meta.country": "France" } ) ;
+		expect( town._.buildDbPatch().set ).to.equal( { "meta.country": "France" } ) ;
 		town._.addLocalChange( [ 'meta' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: null } ) ;
-		expect( town._.buildPatch() ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
+		expect( town._.buildDbPatch().set ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
 
 		town._.localChanges = null ;
 		town._.addLocalChange( [ 'meta' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: null } ) ;
-		expect( town._.buildPatch() ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
+		expect( town._.buildDbPatch().set ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
 		town._.addLocalChange( [ 'meta' , 'country' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: null } ) ;
-		expect( town._.buildPatch() ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
+		expect( town._.buildDbPatch().set ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
 		town._.addLocalChange( [ 'meta' , 'population' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: null } ) ;
-		expect( town._.buildPatch() ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
+		expect( town._.buildDbPatch().set ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
 
 		town._.localChanges = null ;
 		town._.addLocalChange( [ 'meta' , 'population' ] ) ;
 		town._.addLocalChange( [ 'meta' , 'country' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: { population: null , country: null } } ) ;
-		expect( town._.buildPatch() ).to.equal( { "meta.population": "2200K" , "meta.country": "France" } ) ;
+		expect( town._.buildDbPatch().set ).to.equal( { "meta.population": "2200K" , "meta.country": "France" } ) ;
 		town._.addLocalChange( [ 'meta' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: null } ) ;
-		expect( town._.buildPatch() ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
+		expect( town._.buildDbPatch().set ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
 	} ) ;
 
 	it( "overwriting and depth mixing staging" , async () => {
