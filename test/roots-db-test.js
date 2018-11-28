@@ -938,6 +938,16 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		town._.addLocalChange( [ 'meta' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: null } ) ;
 		expect( town._.buildDbPatch().set ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
+
+		town._.localChanges = null ;
+		town._.addLocalChange( [ 'meta' ] ) ;
+		town._.addLocalChange( [ 'meta' ] ) ;
+		expect( town._.localChanges ).to.equal( { meta: null } ) ;
+
+		town._.localChanges = null ;
+		town._.addLocalChange( [ 'meta' , 'population' ] ) ;
+		town._.addLocalChange( [ 'meta' , 'population' ] ) ;
+		expect( town._.localChanges ).to.equal( { meta: { population: null } } ) ;
 	} ) ;
 
 	it( "overwriting and depth mixing staging" , async () => {
