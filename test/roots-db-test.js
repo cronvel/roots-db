@@ -101,7 +101,8 @@ const usersDescriptor = {
 			optional: true ,
 			type: 'string' ,
 			maxLength: 30 ,
-			tier: 2
+			tier: 2 ,
+			tags: [ 'id' ]
 		} ,
 		avatar: {
 			type: 'attachment' ,
@@ -384,24 +385,7 @@ before( () => {
 
 describe( "Collection" , () => {
 
-	it( "Tier masks" , () => {
-		expect( users.tierPropertyMasks ).to.equal( [
-			{} ,
-			{ _id: true } ,
-			{
-				_id: true , firstName: true , lastName: true , memberSid: true
-			} ,
-			{
-				_id: true , avatar: true , firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , publicKey: true
-			} ,
-			{
-				_id: true , avatar: true , firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , publicKey: true
-			} ,
-			{
-				_id: true , avatar: true , firstName: true , lastName: true , godfather: true , file: true , connection: true , job: true , memberSid: true , publicKey: true
-			}
-		] ) ;
-	} ) ;
+	it( "Some collection tests" ) ;
 } ) ;
 
 
@@ -456,6 +440,44 @@ describe( "Document creation" , () => {
 			_id: user._id ,
 			firstName: 'Bobby' ,
 			lastName: 'Fischer' ,
+			memberSid: 'Bobby Fischer'
+		} ) ;
+	} ) ;
+
+	it( "should create a document and enumerate it with tag-masking" , () => {
+		var user ;
+		
+		user = users.createDocument( {
+			firstName: 'Bobby' ,
+			lastName: 'Fischer'
+		} ) ;
+
+		expect( user ).to.equal( {
+			_id: user._id ,
+			firstName: 'Bobby' ,
+			lastName: 'Fischer' ,
+			memberSid: 'Bobby Fischer'
+		} ) ;
+		
+		user._.setTagMask( [ 'id' ] ) ;
+		user._.setEnumerateMasking( true ) ;
+		expect( user ).to.equal( {
+			_id: user._id ,
+			memberSid: 'Bobby Fischer'
+		} ) ;
+
+
+		// Directly on creation
+		user = users.createDocument( {
+			firstName: 'Bobby' ,
+			lastName: 'Fischer'
+		} , {
+			tagMask: [ 'id' ] ,
+			enumerateMasking: true
+		} ) ;
+
+		expect( user ).to.equal( {
+			_id: user._id ,
 			memberSid: 'Bobby Fischer'
 		} ) ;
 	} ) ;
