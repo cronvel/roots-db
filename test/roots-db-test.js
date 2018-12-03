@@ -70,54 +70,45 @@ const usersDescriptor = {
 		firstName: {
 			type: 'string' ,
 			maxLength: 30 ,
-			default: 'Joe' ,
-			tier: 2
+			default: 'Joe'
 		} ,
 		lastName: {
 			type: 'string' ,
 			maxLength: 30 ,
-			default: 'Doe' ,
-			tier: 2
+			default: 'Doe'
 		} ,
 		godfather: {
 			type: 'link' ,
 			optional: true ,
-			collection: 'users' ,
-			tier: 3
+			collection: 'users'
 		} ,
 		connection: {
 			type: 'strictObject' ,
 			optional: true ,
-			of: { type: 'link' , collection: 'users' } ,
-			tier: 3
+			of: { type: 'link' , collection: 'users' }
 		} ,
 		job: {
 			type: 'link' ,
 			optional: true ,
-			collection: 'jobs' ,
-			tier: 3
+			collection: 'jobs'
 		} ,
 		memberSid: {
 			optional: true ,
 			type: 'string' ,
 			maxLength: 30 ,
-			tier: 2 ,
 			tags: [ 'id' ]
 		} ,
 		avatar: {
 			type: 'attachment' ,
-			optional: true ,
-			tier: 3
+			optional: true
 		} ,
 		publicKey: {
 			type: 'attachment' ,
-			optional: true ,
-			tier: 3
+			optional: true
 		} ,
 		file: {
 			type: 'attachment' ,
-			optional: true ,
-			tier: 3
+			optional: true
 		}
 	} ,
 	indexes: [
@@ -409,6 +400,48 @@ describe( "ID" , () => {
 
 describe( "Document creation" , () => {
 
+	it( "document's schema test" , () => {
+		expect( users.documentSchema ).to.equal(
+			{
+				url: "mongodb://localhost:27017/rootsDb/users" ,
+				attachmentUrl: "/home/cedric/inside/github/roots-db/test/tmp/" ,
+				properties: {
+					firstName: {
+						type: "string" , maxLength: 30 , default: "Joe" , tags: [ "content" ]
+					} ,
+					lastName: {
+						type: "string" , maxLength: 30 , default: "Doe" , tags: [ "content" ]
+					} ,
+					godfather: {
+						type: "link" , optional: true , collection: "users" , tags: [ "content" ] , sanitize: [ "toLink" ]
+					} ,
+					connection: {
+						type: "strictObject" , optional: true , of: { type: "link" , collection: "users" } , tags: [ "content" ]
+					} ,
+					job: {
+						type: "link" , optional: true , collection: "jobs" , tags: [ "content" ] , sanitize: [ "toLink" ]
+					} ,
+					memberSid: {
+						optional: true , type: "string" , maxLength: 30 , tags: [ "id" ]
+					} ,
+					avatar: { type: "attachment" , optional: true , tags: [ "content" ] } ,
+					publicKey: { type: "attachment" , optional: true , tags: [ "content" ] } ,
+					file: { type: "attachment" , optional: true , tags: [ "content" ] } ,
+					_id: {
+						optional: true , system: true , type: "objectId" , tags: [ "id" ]
+					}
+				} ,
+				indexes: [ { properties: { "job._id": 1 } } , { properties: { "job._id": 1 , memberSid: 1 } , unique: true } ] ,
+				hooks: users.documentSchema.hooks ,
+				canLock: false ,
+				lockTimeout: 1000 ,
+				Batch: users.documentSchema.Batch ,
+				Collection: users.documentSchema.Collection ,
+				Document: users.documentSchema.Document
+			}
+		) ;
+	} ) ;
+
 	it( "should create a document with default values" , () => {
 		var user = users.createDocument() ;
 
@@ -446,7 +479,7 @@ describe( "Document creation" , () => {
 
 	it( "should create a document and enumerate it with tag-masking" , () => {
 		var user ;
-		
+
 		user = users.createDocument( {
 			firstName: 'Bobby' ,
 			lastName: 'Fischer'
@@ -458,7 +491,7 @@ describe( "Document creation" , () => {
 			lastName: 'Fischer' ,
 			memberSid: 'Bobby Fischer'
 		} ) ;
-		
+
 		user._.setTagMask( [ 'id' ] ) ;
 		user._.setEnumerateMasking( true ) ;
 		expect( user ).to.equal( {
@@ -1549,14 +1582,14 @@ describe( "Find with a query object" , () => {
 			users.createDocument( { firstName: 'Ziggy' , lastName: 'Marley' } ) ,
 			users.createDocument( { firstName: 'Rita' , lastName: 'Marley' } )
 		] ;
-		
+
 		await Promise.map( marleys , user => user.save() ) ;
 		var dbBatch = await users.find( {} , { skip: 1 , limit: 2 , sort: { firstName: 1 } } ) ;
-		
+
 		expect( dbBatch ).to.have.length( 2 ) ;
 		expect( dbBatch ).to.be.partially.like( [
-			{ firstName: 'Julian', lastName: 'Marley' } ,
-			{ firstName: 'Mr', lastName: 'X'}
+			{ firstName: 'Julian' , lastName: 'Marley' } ,
+			{ firstName: 'Mr' , lastName: 'X' }
 		] ) ;
 	} ) ;
 } ) ;
@@ -1584,8 +1617,8 @@ describe( "Links" , () => {
 				collection: 'jobs' ,
 				optional: true ,
 				type: 'link' ,
-				sanitize: [ 'toLink' ] ,
-				tier: 3
+				tags: [ 'content' ] ,
+				sanitize: [ 'toLink' ]
 			}
 		} ) ;
 
@@ -1602,8 +1635,8 @@ describe( "Links" , () => {
 				collection: 'jobs' ,
 				optional: true ,
 				type: 'link' ,
-				sanitize: [ 'toLink' ] ,
-				tier: 3
+				tags: [ 'content' ] ,
+				sanitize: [ 'toLink' ]
 			}
 		} ) ;
 	} ) ;
@@ -1635,8 +1668,8 @@ describe( "Links" , () => {
 				collection: 'jobs' ,
 				optional: true ,
 				type: 'link' ,
-				sanitize: [ 'toLink' ] ,
-				tier: 3
+				tags: [ 'content' ] ,
+				sanitize: [ 'toLink' ]
 			}
 		} ) ;
 
@@ -1656,8 +1689,8 @@ describe( "Links" , () => {
 				collection: 'jobs' ,
 				optional: true ,
 				type: 'link' ,
-				sanitize: [ 'toLink' ] ,
-				tier: 3
+				tags: [ 'content' ] ,
+				sanitize: [ 'toLink' ]
 			}
 		} ) ;
 	} ) ;
@@ -2141,9 +2174,9 @@ describe( "Back-links" , () => {
 				collection: 'users' ,
 				//optional: true ,
 				type: 'backLink' ,
+				tags: [ 'content' ] ,
 				sanitize: [ 'toBackLink' ] ,
-				path: 'job' ,
-				tier: 3
+				path: 'job'
 			}
 		} ) ;
 
@@ -2346,8 +2379,8 @@ describe( "Back-links" , () => {
 				collection: 'nestedLinks' ,
 				type: 'backLink' ,
 				sanitize: [ 'toBackLink' ] ,
-				path: 'nested.link' ,
-				tier: 3
+				tags: [ 'content' ] ,
+				path: 'nested.link'
 			}
 		} ) ;
 
@@ -2469,9 +2502,9 @@ describe( "Back-links" , () => {
 			schema: {
 				collection: 'nestedLinks' ,
 				type: 'backLink' ,
+				tags: [ 'content' ] ,
 				sanitize: [ 'toBackLink' ] ,
-				path: 'nested.multiLink' ,
-				tier: 3
+				path: 'nested.multiLink'
 			}
 		} ) ;
 
@@ -2599,7 +2632,7 @@ describe( "Attachment links" , () => {
 			schema: {
 				optional: true ,
 				type: 'attachment' ,
-				tier: 3
+				tags: [ 'content' ]
 			} ,
 			attachment: {
 				id: user.file.id ,
@@ -2672,7 +2705,7 @@ describe( "Attachment links" , () => {
 			schema: {
 				optional: true ,
 				type: 'attachment' ,
-				tier: 3
+				tags: [ 'content' ]
 			} ,
 			attachment: {
 				id: user.file.id ,
@@ -2760,8 +2793,8 @@ describe( "Attachment links" , () => {
 			hostPath: 'file' ,
 			schema: {
 				optional: true ,
-				type: 'attachment' ,
-				tier: 3
+				tags: [ 'content' ] ,
+				type: 'attachment'
 			} ,
 			attachment: {
 				id: dbUser.file.id ,
