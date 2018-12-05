@@ -4631,10 +4631,7 @@ describe( "Historical bugs" , () => {
 		user.file = 'garbage' ;
 		expect( () => { user.validate() ; } ).to.throw() ;
 
-		// By default, a collection has the 'patchDrivenValidation' option, so we have to stage the change
-		// to trigger validation on .save()
-		user.stage( 'file' ) ;
-
+		// By default, a collection has the validateOnSave option, so we have to .save()
 		await expect( () => user.save() ).to.reject() ;
 		await expect( () => users.get( user._id ) ).to.reject() ;
 	} ) ;
