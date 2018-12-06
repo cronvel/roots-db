@@ -162,13 +162,16 @@ const schoolsDescriptor = {
 const townsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/towns' ,
 	properties: {
-		name: { type: 'string' } ,
+		name: { type: 'string' , tags: ['id'] } ,
 		meta: {
 			type: 'strictObject' ,
 			default: {} ,
+			tags: ['meta'] ,
+			//noSubmasking: true ,
 			extraProperties: true ,
 			properties: {
 				rank: {
+					tags: ['rank'] ,
 					optional: true ,
 					sanitize: 'toInteger'
 				}
@@ -477,7 +480,7 @@ describe( "Document creation" , () => {
 		} ) ;
 	} ) ;
 
-	it( "should create a document and enumerate it with tag-masking" , () => {
+	it( "DEPRECATED? should create a document and enumerate it with tag-masking" , () => {
 		var user ;
 
 		user = users.createDocument( {
@@ -492,8 +495,8 @@ describe( "Document creation" , () => {
 			memberSid: 'Bobby Fischer'
 		} ) ;
 
-		user._.setTagMask( [ 'id' ] ) ;
-		user._.setEnumerateMasking( true ) ;
+		user.setTagMask( [ 'id' ] ) ;
+		user.setEnumerateMasking( true ) ;
 		expect( user ).to.equal( {
 			_id: user._id ,
 			memberSid: 'Bobby Fischer'
@@ -513,6 +516,47 @@ describe( "Document creation" , () => {
 			_id: user._id ,
 			memberSid: 'Bobby Fischer'
 		} ) ;
+	} ) ;
+
+	it( "should create a document and enumerate it with tag-masking with the special __enumerate__ function" , () => {
+		var user , town ;
+
+		user = users.createDocument( {
+			firstName: 'Bobby' ,
+			lastName: 'Fischer'
+		} ) ;
+		expect( user.__enumerate__() ).to.only.contain( '_id' , 'firstName' , 'lastName' , 'memberSid' ) ;
+
+		user.setTagMask( [ 'id' ] ) ;
+		expect( user.__enumerate__() ).to.only.contain( '_id' , 'memberSid' ) ;
+
+		// Directly on creation
+		user = users.createDocument( {
+			firstName: 'Bobby' ,
+			lastName: 'Fischer'
+		} , {
+			tagMask: [ 'id' ] ,
+		} ) ;
+		expect( user.__enumerate__() ).to.only.contain( '_id' , 'memberSid' ) ;
+
+		town = towns.createDocument( {
+			name: 'Paris' ,
+			meta: {
+				rank: 1 ,
+				population: '2200K' ,
+				country: 'France'
+			}
+		} ) ;
+		expect( town.__enumerate__() ).to.only.contain( '_id' , 'name' , 'meta' ) ;
+		expect( town.meta.__enumerate__() ).to.only.contain( 'rank' , 'population' , 'country' ) ;
+
+		town.setTagMask( [ 'meta' , 'rank' ] ) ;
+		expect( town.__enumerate__() ).to.only.contain( 'meta' ) ;
+		expect( town.meta.__enumerate__() ).to.only.contain( 'rank' , 'population' , 'country' ) ;
+
+		town.setTagMask( [ 'meta' ] ) ;
+		expect( town.__enumerate__() ).to.only.contain( 'meta' ) ;
+		expect( town.meta.__enumerate__() ).to.only.contain( 'population' , 'country' ) ;
 	} ) ;
 
 	it( "should create a document and modify it" , () => {
