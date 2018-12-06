@@ -457,6 +457,12 @@ describe( "Document creation" , () => {
 
 		expect( user ).to.partially.equal( expectedDefaultUser ) ;
 		expect( user.$ ).to.partially.equal( expectedDefaultUser ) ;
+
+		
+		var town = towns.createDocument( { name: 'Paris' } ) ;
+
+		expect( town.meta ).to.be.an( Object ) ;
+		expect( town.meta._ ).to.be.undefined() ;
 	} ) ;
 
 	it( "should create a document with valid data" , () => {
