@@ -486,44 +486,6 @@ describe( "Document creation" , () => {
 		} ) ;
 	} ) ;
 
-	it( "DEPRECATED? should create a document and enumerate it with tag-masking" , () => {
-		var user ;
-
-		user = users.createDocument( {
-			firstName: 'Bobby' ,
-			lastName: 'Fischer'
-		} ) ;
-
-		expect( user ).to.equal( {
-			_id: user._id ,
-			firstName: 'Bobby' ,
-			lastName: 'Fischer' ,
-			memberSid: 'Bobby Fischer'
-		} ) ;
-
-		user.setTagMask( [ 'id' ] ) ;
-		user.setEnumerateMasking( true ) ;
-		expect( user ).to.equal( {
-			_id: user._id ,
-			memberSid: 'Bobby Fischer'
-		} ) ;
-
-
-		// Directly on creation
-		user = users.createDocument( {
-			firstName: 'Bobby' ,
-			lastName: 'Fischer'
-		} , {
-			tagMask: [ 'id' ] ,
-			enumerateMasking: true
-		} ) ;
-
-		expect( user ).to.equal( {
-			_id: user._id ,
-			memberSid: 'Bobby Fischer'
-		} ) ;
-	} ) ;
-
 	it( "should create a document and enumerate it with tag-masking with the special __enumerate__ function" , () => {
 		var user , town ;
 
