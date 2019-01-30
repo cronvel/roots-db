@@ -419,7 +419,7 @@ describe( "Document creation" , () => {
 						type: "link" , optional: true , collection: "users" , tags: [ "content" ] , sanitize: [ "toLink" ]
 					} ,
 					connection: {
-						type: "strictObject" , optional: true , of: { type: "link" , collection: "users" } , tags: [ "content" ]
+						type: "strictObject" , optional: true , of: { type: "link" , collection: "users" , sanitize: [ "toLink" ] , tags: [ "content" ] } , tags: [ "content" ]
 					} ,
 					job: {
 						type: "link" , optional: true , collection: "jobs" , tags: [ "content" ] , sanitize: [ "toLink" ]
@@ -911,6 +911,56 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		await dbUser.commit() ;
 		await expect( users.get( id ) ).to.eventually.equal( {
 			_id: id , firstName: 'Jack' , lastName: 'Smith' , memberSid: 'Johnny Starks'
+		} ) ;
+	} ) ;
+
+	it( "apply a patch with commands then commit" , async () => {
+		var school = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+
+		var id = school.getId() ;
+
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var job1Id = job1.getId() ;
+
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+
+		var job2Id = job2.getId() ;
+
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+
+		var job3Id = job3.getId() ;
+
+		school.setLink( 'jobs' , [ job1 , job2 ] ) ;
+
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
+		
+		var dbSchool = await schools.get( id ) ;
+		expect( dbSchool ).to.equal( {
+			_id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ]
+		} ) ;
+
+		dbSchool.patch( { jobs: { $push: job3Id } } , { validate: true } ) ;
+		expect( dbSchool ).to.equal( {
+			_id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ]
+		} ) ;
+		
+		await dbSchool.save() ;
+		
+		dbSchool = await schools.get( id ) ;
+		expect( dbSchool ).to.equal( {
+			_id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ]
 		} ) ;
 	} ) ;
 
