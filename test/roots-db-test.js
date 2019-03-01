@@ -410,26 +410,26 @@ describe( "Document creation" , () => {
 				attachmentUrl: "/home/cedric/inside/github/roots-db/test/tmp/" ,
 				properties: {
 					firstName: {
-						type: "string" , maxLength: 30 , default: "Joe" , tags: [ "content" ]
+						type: "string" , maxLength: 30 , default: "Joe" , tags: [ "content" ] , inputHint: "text"
 					} ,
 					lastName: {
-						type: "string" , maxLength: 30 , default: "Doe" , tags: [ "content" ]
+						type: "string" , maxLength: 30 , default: "Doe" , tags: [ "content" ] , inputHint: "text"
 					} ,
 					godfather: {
-						type: "link" , optional: true , collection: "users" , tags: [ "content" ] , sanitize: [ "toLink" ]
+						type: "link" , optional: true , collection: "users" , tags: [ "content" ] , sanitize: [ "toLink" ] , inputHint: "embedded"
 					} ,
 					connection: {
-						type: "strictObject" , optional: true , of: { type: "link" , collection: "users" , sanitize: [ "toLink" ] , tags: [ "content" ] } , tags: [ "content" ]
+						type: "strictObject" , optional: true , of: { type: "link" , collection: "users" , sanitize: [ "toLink" ] , tags: [ "content" ] , inputHint: "embedded" } , tags: [ "content" ] , inputHint: "embedded"
 					} ,
 					job: {
-						type: "link" , optional: true , collection: "jobs" , tags: [ "content" ] , sanitize: [ "toLink" ]
+						type: "link" , optional: true , collection: "jobs" , tags: [ "content" ] , sanitize: [ "toLink" ] , inputHint: "embedded"
 					} ,
 					memberSid: {
-						optional: true , type: "string" , maxLength: 30 , tags: [ "id" ]
+						optional: true , type: "string" , maxLength: 30 , tags: [ "id" ] , inputHint: "text"
 					} ,
-					avatar: { type: "attachment" , optional: true , tags: [ "content" ] } ,
-					publicKey: { type: "attachment" , optional: true , tags: [ "content" ] } ,
-					file: { type: "attachment" , optional: true , tags: [ "content" ] } ,
+					avatar: { type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file" } ,
+					publicKey: { type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file" } ,
+					file: { type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file" } ,
 					_id: {
 						optional: true , system: true , type: "objectId" , tags: [ "id" ]
 					}
@@ -1680,7 +1680,8 @@ describe( "Links" , () => {
 				optional: true ,
 				type: 'link' ,
 				tags: [ 'content' ] ,
-				sanitize: [ 'toLink' ]
+				sanitize: [ 'toLink' ] ,
+				inputHint: "embedded"
 			}
 		} ) ;
 
@@ -1698,7 +1699,8 @@ describe( "Links" , () => {
 				optional: true ,
 				type: 'link' ,
 				tags: [ 'content' ] ,
-				sanitize: [ 'toLink' ]
+				sanitize: [ 'toLink' ] ,
+				inputHint: "embedded"
 			}
 		} ) ;
 	} ) ;
@@ -1731,7 +1733,8 @@ describe( "Links" , () => {
 				optional: true ,
 				type: 'link' ,
 				tags: [ 'content' ] ,
-				sanitize: [ 'toLink' ]
+				sanitize: [ 'toLink' ] ,
+				inputHint: "embedded"
 			}
 		} ) ;
 
@@ -1752,7 +1755,8 @@ describe( "Links" , () => {
 				optional: true ,
 				type: 'link' ,
 				tags: [ 'content' ] ,
-				sanitize: [ 'toLink' ]
+				sanitize: [ 'toLink' ] ,
+				inputHint: "embedded"
 			}
 		} ) ;
 	} ) ;
@@ -2238,7 +2242,8 @@ describe( "Back-links" , () => {
 				type: 'backLink' ,
 				tags: [ 'content' ] ,
 				sanitize: [ 'toBackLink' ] ,
-				path: 'job'
+				path: 'job' ,
+				inputHint: "embedded"
 			}
 		} ) ;
 
@@ -2442,7 +2447,8 @@ describe( "Back-links" , () => {
 				type: 'backLink' ,
 				sanitize: [ 'toBackLink' ] ,
 				tags: [ 'content' ] ,
-				path: 'nested.link'
+				path: 'nested.link' ,
+				inputHint: "embedded"
 			}
 		} ) ;
 
@@ -2566,7 +2572,8 @@ describe( "Back-links" , () => {
 				type: 'backLink' ,
 				tags: [ 'content' ] ,
 				sanitize: [ 'toBackLink' ] ,
-				path: 'nested.multiLink'
+				path: 'nested.multiLink' ,
+				inputHint: "embedded"
 			}
 		} ) ;
 
@@ -2694,7 +2701,8 @@ describe( "Attachment links" , () => {
 			schema: {
 				optional: true ,
 				type: 'attachment' ,
-				tags: [ 'content' ]
+				tags: [ 'content' ] ,
+				inputHint: "file"
 			} ,
 			attachment: {
 				id: user.file.id ,
@@ -2767,7 +2775,8 @@ describe( "Attachment links" , () => {
 			schema: {
 				optional: true ,
 				type: 'attachment' ,
-				tags: [ 'content' ]
+				tags: [ 'content' ] ,
+				inputHint: "file"
 			} ,
 			attachment: {
 				id: user.file.id ,
@@ -2856,7 +2865,8 @@ describe( "Attachment links" , () => {
 			schema: {
 				optional: true ,
 				tags: [ 'content' ] ,
-				type: 'attachment'
+				type: 'attachment' ,
+				inputHint: "file"
 			} ,
 			attachment: {
 				id: dbUser.file.id ,
