@@ -1,6 +1,6 @@
 {
   "name": "roots-db",
-  "version": "0.20.0",
+  "version": "0.20.1",
   "engines": {
     "node": ">=8.0.0"
   },
@@ -15,7 +15,7 @@
     "fs-kit": "^0.3.2",
     "hash-kit": "^0.3.2",
     "logfella": "^1.1.7",
-    "mongodb": "^3.2.2",
+    "mongodb": "^3.2.3",
     "nested-proxies": "^0.1.8",
     "seventh": "^0.7.18",
     "tree-kit": "^0.6.1"
