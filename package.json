@@ -17,7 +17,7 @@
     "logfella": "^1.2.3",
     "mongodb": "^3.2.3",
     "nested-proxies": "^0.1.8",
-    "seventh": "^0.7.20",
+    "seventh": "^0.7.21",
     "tree-kit": "^0.6.1"
   },
   "devDependencies": {
