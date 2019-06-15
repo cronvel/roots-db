@@ -2191,7 +2191,7 @@ describe( "Multi-links" , () => {
 		} ) ;
 	} ) ;
 
-	it( "zzz It should enforce link uniqness" , async () => {
+	it( "It should enforce link uniqness" , async () => {
 		var map , batch , dbSchool ;
 
 		var school = schools.createDocument( {
@@ -2221,25 +2221,22 @@ describe( "Multi-links" , () => {
 
 		var job3Id = job3.getId() ;
 
-		// First test
-
+		// .setLink() and uniqness
 		school.setLink( 'jobs' , [ job1 , job2 , job1 ] ) ;
-		
-		// Sanitizing is made after saving, so we have two instance of the same link at this point
-		expect( school._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } , { _id: job1Id } ] ) ;
-		expect( school.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } , { _id: job1Id } ] ) ;
+		expect( school.jobs ).to.equal( [ job1 , job2 ] ) ;
+
+		// .addLink() and uniqness
+		school.addLink( 'jobs' , job2 ) ;
+		expect( school.jobs ).to.equal( [ job1 , job2 ] ) ;
+
+		// direct access do not enforce uniqness until validation
+		school.jobs = [ job1 , job2 , job1 ] ;
 		expect( school.jobs ).to.equal( [ job1 , job2 , job1 ] ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
 		
 		// Duplicated links should be removed now
-		/*
-		expect( school._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
-		expect( school.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
-		expect( school.jobs ).to.equal( [ job1 , job2 ] ) ;
-		*/
-		
-		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
+		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ job1 , job2 ] } ) ;
 
 		batch = await school.getLink( "jobs" ) ;
 
