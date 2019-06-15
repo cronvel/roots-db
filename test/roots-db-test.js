@@ -951,7 +951,9 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 			_id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ]
 		} ) ;
 
+		console.log( "bef" ) ;
 		dbSchool.patch( { jobs: { $push: job3Id } } , { validate: true } ) ;
+		console.log( "af" ) ;
 		expect( dbSchool ).to.equal( {
 			_id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ]
 		} ) ;
@@ -2186,6 +2188,71 @@ describe( "Multi-links" , () => {
 		expect( map ).to.equal( {
 			child1: { _id: childDoc1.getId() , name: "child1" , nested: {} } ,
 			child3: { _id: childDoc3.getId() , name: "child3" , nested: {} }
+		} ) ;
+	} ) ;
+
+	it( "zzz It should enforce link uniqness" , async () => {
+		var map , batch , dbSchool ;
+
+		var school = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+
+		var id = school.getId() ;
+
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var job1Id = job1.getId() ;
+
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+
+		var job2Id = job2.getId() ;
+
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+
+		var job3Id = job3.getId() ;
+
+		// First test
+
+		school.setLink( 'jobs' , [ job1 , job2 , job1 ] ) ;
+		
+		// Sanitizing is made after saving, so we have two instance of the same link at this point
+		expect( school._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } , { _id: job1Id } ] ) ;
+		expect( school.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } , { _id: job1Id } ] ) ;
+		expect( school.jobs ).to.equal( [ job1 , job2 , job1 ] ) ;
+
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
+		
+		// Duplicated links should be removed now
+		/*
+		expect( school._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
+		expect( school.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
+		expect( school.jobs ).to.equal( [ job1 , job2 ] ) ;
+		*/
+		
+		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
+
+		batch = await school.getLink( "jobs" ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
+
+		expect( map ).to.equal( {
+			developer: {
+				_id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+			} ,
+			sysadmin: {
+				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: {} , schools: {}
+			}
 		} ) ;
 	} ) ;
 } ) ;

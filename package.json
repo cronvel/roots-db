@@ -10,12 +10,12 @@
     "test": "test"
   },
   "dependencies": {
-    "doormen": "^0.9.4",
+    "doormen": "^0.10.2",
     "error-status": "^1.9.3",
     "fs-kit": "^0.3.2",
     "hash-kit": "^0.3.2",
     "logfella": "^1.2.4",
-    "mongodb": "^3.2.6",
+    "mongodb": "^3.2.7",
     "nested-proxies": "^0.1.8",
     "seventh": "^0.7.23",
     "tree-kit": "^0.6.1"
