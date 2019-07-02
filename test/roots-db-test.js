@@ -4673,6 +4673,14 @@ describe( "Hooks" , () => {
 
 
 
+describe( "Dead-links behavior" , () => {
+	it( "Test link and multi-link 'populate' behavior when encoutering dead-links" ) ;
+	it( "Test Document#getLink()" ) ;
+	it( "Test Document#getLink() and its dead-link repairing behavior for links and multi-links" ) ;
+} ) ;
+
+
+
 describe( "Historical bugs" , () => {
 
 	beforeEach( clearDB ) ;
