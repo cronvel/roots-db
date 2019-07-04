@@ -431,7 +431,7 @@ describe( "Document creation" , () => {
 					publicKey: { type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file" } ,
 					file: { type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file" } ,
 					_id: {
-						optional: true , system: true , type: "objectId" , tags: [ "id" ]
+						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , tags: [ "id" ]
 					}
 				} ,
 				indexes: [ { properties: { "job._id": 1 } } , { properties: { "job._id": 1 , memberSid: 1 } , unique: true } ] ,

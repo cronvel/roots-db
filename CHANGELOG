@@ -1,4 +1,10 @@
 
+v0.21.7
+-------
+
+Fix: _id now sanitize to ObjectId like it should (so Rest Query filter on _id could work)
+
+
 v0.21.6
 -------
 
