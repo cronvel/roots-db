@@ -951,9 +951,7 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 			_id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ]
 		} ) ;
 
-		console.log( "bef" ) ;
 		dbSchool.patch( { jobs: { $push: job3Id } } , { validate: true } ) ;
-		console.log( "af" ) ;
 		expect( dbSchool ).to.equal( {
 			_id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ]
 		} ) ;
@@ -4778,6 +4776,11 @@ describe( "Historical bugs" , () => {
 		// By default, a collection has the validateOnSave option, so we have to .save()
 		await expect( () => user.save() ).to.reject() ;
 		await expect( () => users.get( user._id ) ).to.reject() ;
+	} ) ;
+
+	it( "the special field _id should be taken as indexed by default, allowing queries on _id" , async () => {
+		expect( users.indexedProperties._id ).to.be.ok() ;
+		expect( users.uniques[ 0 ] ).to.equal( [ '_id' ] ) ;
 	} ) ;
 } ) ;
 
