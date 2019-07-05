@@ -257,7 +257,6 @@ class ExtendedBatch extends rootsDb.Batch {
 
 
 
-
 const extendablesDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/extendables' ,
 	Document: Extended ,
@@ -4686,6 +4685,18 @@ describe( "Historical bugs" , () => {
 	it( "collect on empty collection with populate (was throwing uncaught error)" , async () => {
 		var batch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] } ) ;
 		expect( batch ).to.be.like( [] ) ;
+	} ) ;
+
+	it( "'keyTooLargeToIndex' should provide enough information to be debugged" , async () => {
+		// This creates an index of 1119 bytes:
+		var town = towns.createDocument( {
+			name: 'Paris'.repeat( 100 ) ,
+			meta: {
+				country: 'France'.repeat( 100 )
+			}
+		} ) ;
+		
+		await expect( () => town.save() ).to.reject.with( ErrorStatus , { type: 'badRequest' , code: 'keyTooLargeToIndex' } ) ;
 	} ) ;
 
 	it( "validation featuring sanitizers should update both locally and remotely after a document's commit()" , async () => {

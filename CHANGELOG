@@ -1,4 +1,10 @@
 
+v0.21.9
+-------
+
+Better error message for 'keyTooLargeToIndex' error
+
+
 v0.21.8
 -------
 
