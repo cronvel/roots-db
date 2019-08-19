@@ -379,6 +379,71 @@ before( () => {
 describe( "Collection" , () => {
 
 	it( "Some collection tests" ) ;
+	
+	it.opt( "Test user/password in the connection string" , async () => {
+		/*
+			First, create a user in the shell with the command:
+			db.createUser( { user: 'restricted' , pwd: 'restricted-pw' , roles: [ { role: "readWrite", db: "rootsDb-restricted" } ] } )
+		*/
+		
+		var world_ = new rootsDb.World() ;
+		var descriptor = {
+			url: 'mongodb://restricted:restricted-pw@localhost:27017/rootsDb-restricted/restrictedCollection' ,
+			properties: {
+				prop1: {
+					type: 'string'
+				} ,
+				prop2: {
+					type: 'string'
+				}
+			}
+		} ;
+		
+		var restrictedCollection = world_.createCollection( 'restrictedCollection' , descriptor ) ;
+		
+		//console.log( "restrictedCollection.url:" , restrictedCollection.url ) ;
+		//console.log( "restrictedCollection.config:" , restrictedCollection.config ) ;
+		//console.log( "restrictedCollection.driver.url:" , restrictedCollection.driver.url ) ;
+
+		var doc = restrictedCollection.createDocument( {
+			prop1: 'v1' ,
+			prop2: 'v2'
+		} ) ;
+		
+		var id = doc.getId() ;
+
+		await doc.save() ;
+		var dbDoc = await restrictedCollection.get( id ) ;
+
+		expect( dbDoc ).to.be.an( Object ) ;
+		expect( dbDoc._ ).to.be.a( rootsDb.Document ) ;
+		expect( dbDoc._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( dbDoc._id ).to.equal( id ) ;
+		expect( dbDoc ).to.equal( { _id: doc._id , prop1: 'v1' , prop2: 'v2' } ) ;
+
+
+		// Check failure
+		var descriptor2 = {
+			url: 'mongodb://restricted:badpw@localhost:27017/rootsDb-restricted/restrictedCollection2' ,
+			properties: {
+				prop1: {
+					type: 'string'
+				} ,
+				prop2: {
+					type: 'string'
+				}
+			}
+		} ;
+		
+		var restrictedCollection2 = world_.createCollection( 'restrictedCollection2' , descriptor2 ) ;
+		var doc2 = restrictedCollection2.createDocument( {
+			prop1: 'v3' ,
+			prop2: 'v4'
+		} ) ;
+		var id = doc2.getId() ;
+		
+		await expect( () => doc2.save() ).to.reject() ;
+	} ) ;
 } ) ;
 
 
