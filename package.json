@@ -1,6 +1,6 @@
 {
   "name": "roots-db",
-  "version": "0.21.12",
+  "version": "0.21.13",
   "engines": {
     "node": ">=8.0.0"
   },
@@ -15,14 +15,14 @@
     "fs-kit": "^0.3.2",
     "hash-kit": "^0.3.2",
     "logfella": "^1.2.6",
-    "mongodb": "^3.2.7",
+    "mongodb": "^3.3.0",
     "nested-proxies": "^0.1.8",
-    "seventh": "^0.7.23",
+    "seventh": "^0.7.28",
     "tree-kit": "^0.6.1"
   },
   "devDependencies": {
     "stream-kit": "^0.2.7",
-    "string-kit": "^0.9.8"
+    "string-kit": "^0.9.10"
   },
   "scripts": {
     "test": "tea-time -R dot"
