@@ -382,7 +382,7 @@ describe( "Collection" , () => {
 	
 	it.opt( "Test user/password in the connection string" , async () => {
 		/*
-			First, create a user in the shell with the command:
+			First, create a user in the mongo-shell with the command:
 			db.createUser( { user: 'restricted' , pwd: 'restricted-pw' , roles: [ { role: "readWrite", db: "rootsDb-restricted" } ] } )
 		*/
 		
@@ -424,7 +424,7 @@ describe( "Collection" , () => {
 
 		// Check failure
 		var descriptor2 = {
-			url: 'mongodb://restricted:badpw@localhost:27017/rootsDb-restricted/restrictedCollection2' ,
+			url: 'mongodb://restricted:badpwé@localhost:27017/rootsDb-restricted/restrictedCollection2' ,
 			properties: {
 				prop1: {
 					type: 'string'

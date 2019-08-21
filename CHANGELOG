@@ -1,4 +1,10 @@
 
+v0.21.12
+--------
+
+Issue warning when the connection string contains percent-encoded parts
+
+
 v0.21.11
 --------
 
