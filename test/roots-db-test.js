@@ -61,7 +61,7 @@ const log = logfella.global.use( 'unit-test' ) ;
 const world = new rootsDb.World() ;
 
 // Collections...
-var users , jobs , schools , towns , lockables , nestedLinks , extendables ;
+var users , jobs , schools , towns , lockables , nestedLinks , anyCollectionLinks , extendables ;
 
 const usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
@@ -226,6 +226,35 @@ const nestedLinksDescriptor = {
 	indexes: []
 } ;
 
+const anyCollectionLinksDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/anyCollectionLinks' ,
+	properties: {
+		name: { type: 'string' } ,
+		link: {
+			type: 'link' ,
+			optional: true ,
+			anyCollection: true
+		} ,
+		/*
+		multiLink: {
+			type: 'multiLink' ,
+			collection: 'nestedLinks'
+		} ,
+		backLinkOfLink: {
+			type: 'backLink' ,
+			collection: 'nestedLinks' ,
+			path: 'nested.link'
+		} ,
+		backLinkOfMultiLink: {
+			type: 'backLink' ,
+			collection: 'nestedLinks' ,
+			path: 'nested.multiLink'
+		}
+		*/
+	} ,
+	indexes: []
+} ;
+
 
 
 function Extended( collection , rawDoc , options ) {
@@ -285,6 +314,7 @@ function dropDBCollections() {
 		dropCollection( towns ) ,
 		dropCollection( lockables ) ,
 		dropCollection( nestedLinks ) ,
+		dropCollection( anyCollectionLinks ) ,
 		dropCollection( extendables )
 	] ) ;
 }
@@ -300,6 +330,7 @@ function clearDB() {
 		clearCollection( towns ) ,
 		clearCollection( lockables ) ,
 		clearCollection( nestedLinks ) ,
+		clearCollection( anyCollectionLinks ) ,
 		clearCollection( extendables )
 	] ) ;
 }
@@ -315,6 +346,7 @@ function clearDBIndexes() {
 		clearCollectionIndexes( towns ) ,
 		clearCollectionIndexes( lockables ) ,
 		clearCollectionIndexes( nestedLinks ) ,
+		clearCollectionIndexes( anyCollectionLinks ) ,
 		clearCollectionIndexes( extendables )
 	] ).then( () => { log.verbose( "All indexes cleared" ) ; } ) ;
 }
@@ -334,14 +366,22 @@ function dropCollection( collection ) {
 
 function clearCollection( collection ) {
 	return collection.driver.rawInit()
-		.then( () => collection.driver.raw.deleteMany() ) ;
+		.then( () => collection.driver.raw.deleteMany() )
+		.catch( error => {
+			if ( error.code === 26 ) { return ; }	// NS not found, nothing to clear!
+			throw error ;
+		} ) ;
 }
 
 
 
 function clearCollectionIndexes( collection ) {
 	return collection.driver.rawInit()
-		.then( () => collection.driver.raw.dropIndexes() ) ;
+		.then( () => collection.driver.raw.dropIndexes() )
+		.catch( error => {
+			if ( error.code === 26 ) { return ; }	// NS not found, nothing to clear!
+			throw error ;
+		} ) ;
 }
 
 
@@ -369,6 +409,9 @@ before( () => {
 
 	nestedLinks = world.createCollection( 'nestedLinks' , nestedLinksDescriptor ) ;
 	expect( nestedLinks ).to.be.a( rootsDb.Collection ) ;
+
+	anyCollectionLinks = world.createCollection( 'anyCollectionLinks' , anyCollectionLinksDescriptor ) ;
+	expect( anyCollectionLinks ).to.be.a( rootsDb.Collection ) ;
 
 	extendables = world.createCollection( 'extendables' , extendablesDescriptor ) ;
 	expect( extendables ).to.be.a( rootsDb.Collection ) ;
