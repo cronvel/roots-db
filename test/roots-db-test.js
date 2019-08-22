@@ -2082,6 +2082,90 @@ describe( "Links" , () => {
 
 
 
+describe( "Any-collection links" , () => {
+
+	beforeEach( clearDB ) ;
+	
+	it( "should retrieve an any-collection link" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var userId = user.getId() ;
+
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var jobId = job.getId() ;
+
+		var doc = anyCollectionLinks.createDocument( {
+			name: 'docname'
+		} ) ;
+		
+		var docId = doc.getId() ;
+		
+		doc.setLink( 'link' , user ) ;
+		
+		expect( doc ).to.equal( {
+			_id: docId ,
+			name: 'docname' ,
+			link: user
+		} ) ;
+
+		expect( doc.$ ).to.equal( {
+			_id: docId ,
+			name: 'docname' ,
+			link: { _id: userId , _collection: 'users' }
+		} ) ;
+
+		await user.save() ;
+		await job.save() ;
+		await doc.save() ;
+		var dbDoc = await anyCollectionLinks.get( docId ) ;
+
+		expect( dbDoc.link._id ).to.equal( userId ) ;
+		expect( dbDoc.link._collection ).to.be( 'users' ) ;
+		await expect( dbDoc.getLink( 'link' ) ).to.eventually.equal( {
+			_id: userId ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson'
+		} ) ;
+		
+		doc.setLink( 'link' , job ) ;
+		
+		expect( doc ).to.equal( {
+			_id: docId ,
+			name: 'docname' ,
+			link: job
+		} ) ;
+
+		expect( doc.$ ).to.equal( {
+			_id: docId ,
+			name: 'docname' ,
+			link: { _id: jobId , _collection: 'jobs' }
+		} ) ;
+
+		await doc.save() ;
+		dbDoc = await anyCollectionLinks.get( docId ) ;
+
+		expect( dbDoc.link._id ).to.equal( jobId ) ;
+		expect( dbDoc.link._collection ).to.be( 'jobs' ) ;
+		await expect( dbDoc.getLink( 'link' ) ).to.eventually.equal( {
+			_id: jobId ,
+			title: 'developer' ,
+			salary: 60000 ,
+			schools: {} ,
+			users: {}
+		} ) ;
+	} ) ;
+} ) ;
+
+
+
 describe( "Multi-links" , () => {
 
 	beforeEach( clearDB ) ;
@@ -2357,6 +2441,12 @@ describe( "Multi-links" , () => {
 			}
 		} ) ;
 	} ) ;
+} ) ;
+
+
+
+describe( "Any-collection multi-links" , () => {
+	it( "CODE IT" ) ;
 } ) ;
 
 
@@ -2817,6 +2907,12 @@ describe( "Back-links" , () => {
 			nested: { backLinkOfMultiLink: {} }
 		} ) ;
 	} ) ;
+} ) ;
+
+
+
+describe( "Any-collection back-links" , () => {
+	it( "CODE IT" ) ;
 } ) ;
 
 
