@@ -235,22 +235,11 @@ const anyCollectionLinksDescriptor = {
 			optional: true ,
 			anyCollection: true
 		} ,
-		/*
-		multiLink: {
-			type: 'multiLink' ,
-			collection: 'nestedLinks'
-		} ,
-		backLinkOfLink: {
+		backLink: {
 			type: 'backLink' ,
-			collection: 'nestedLinks' ,
-			path: 'nested.link'
-		} ,
-		backLinkOfMultiLink: {
-			type: 'backLink' ,
-			collection: 'nestedLinks' ,
-			path: 'nested.multiLink'
+			collection: 'anyCollectionLinks' ,
+			path: 'link'
 		}
-		*/
 	} ,
 	indexes: []
 } ;
@@ -2112,18 +2101,21 @@ describe( "Any-collection links" , () => {
 		expect( doc ).to.equal( {
 			_id: docId ,
 			name: 'docname' ,
-			link: user
+			link: user ,
+			backLink: {}
 		} ) ;
 
 		expect( doc.$ ).to.equal( {
 			_id: docId ,
 			name: 'docname' ,
-			link: { _id: userId , _collection: 'users' }
+			link: { _id: userId , _collection: 'users' } ,
+			backLink: {}
 		} ) ;
 
 		await user.save() ;
 		await job.save() ;
 		await doc.save() ;
+		
 		var dbDoc = await anyCollectionLinks.get( docId ) ;
 
 		expect( dbDoc.link._id ).to.equal( userId ) ;
@@ -2140,13 +2132,15 @@ describe( "Any-collection links" , () => {
 		expect( doc ).to.equal( {
 			_id: docId ,
 			name: 'docname' ,
-			link: job
+			link: job ,
+			backLink: {}
 		} ) ;
 
 		expect( doc.$ ).to.equal( {
 			_id: docId ,
 			name: 'docname' ,
-			link: { _id: jobId , _collection: 'jobs' }
+			link: { _id: jobId , _collection: 'jobs' } ,
+			backLink: {}
 		} ) ;
 
 		await doc.save() ;
@@ -2161,6 +2155,52 @@ describe( "Any-collection links" , () => {
 			schools: {} ,
 			users: {}
 		} ) ;
+	} ) ;
+
+	it( "should retrieve back-link from any-collection links" , async () => {
+		var masterDoc = anyCollectionLinks.createDocument( { name: 'masterDoc' } ) ;
+		var masterDocId = masterDoc.getId() ;
+		
+		var doc1 = anyCollectionLinks.createDocument( { name: 'doc1' } ) ;
+		var doc1Id = doc1.getId() ;
+		
+		var doc2 = anyCollectionLinks.createDocument( { name: 'doc2' } ) ;
+		var doc2Id = doc2.getId() ;
+		
+		var doc3 = anyCollectionLinks.createDocument( { name: 'doc3' } ) ;
+		var doc3Id = doc3.getId() ;
+		
+		doc1.setLink( 'link' , masterDoc ) ;
+		doc2.setLink( 'link' , masterDoc ) ;
+		doc3.setLink( 'link' , masterDoc ) ;
+		
+		await masterDoc.save() ;
+		await doc1.save() ;
+		await doc2.save() ;
+		await doc3.save() ;
+		
+		var dbMasterDoc = await anyCollectionLinks.get( masterDocId ) ;
+		dbMasterDoc.getLink( 'backLink' , '' ) ;
+		
+		await expect( dbMasterDoc.getLink( 'backLink' ) ).to.eventually.be.partially.like( [
+			{ name: "doc1" } ,
+			{ name: "doc2" } ,
+			{ name: "doc3" }
+		] ) ;
+		
+		return ;
+		
+// ---------------------------------------------------------- HERE -------------------------------------------------------
+
+		// Add a link from another collection
+		
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		await user.save() ;
+
 	} ) ;
 } ) ;
 
@@ -2493,6 +2533,7 @@ describe( "Back-links" , () => {
 		expect( dbJob.getLinkDetails( "users" ) ).to.equal( {
 			type: 'backLink' ,
 			foreignCollection: 'users' ,
+			foreignAnyCollection: false ,
 			hostPath: 'users' ,
 			foreignPath: 'job' ,
 			schema: {
@@ -2699,6 +2740,7 @@ describe( "Back-links" , () => {
 		expect( rootDoc.getLinkDetails( "nested.backLinkOfLink" ) ).to.equal( {
 			type: 'backLink' ,
 			foreignCollection: 'nestedLinks' ,
+			foreignAnyCollection: false ,
 			hostPath: 'nested.backLinkOfLink' ,
 			foreignPath: 'nested.link' ,
 			schema: {
@@ -2824,6 +2866,7 @@ describe( "Back-links" , () => {
 		expect( rootDoc.getLinkDetails( "nested.backLinkOfMultiLink" ) ).to.equal( {
 			type: 'backLink' ,
 			foreignCollection: 'nestedLinks' ,
+			foreignAnyCollection: false ,
 			hostPath: 'nested.backLinkOfMultiLink' ,
 			foreignPath: 'nested.multiLink' ,
 			schema: {
