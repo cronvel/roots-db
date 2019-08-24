@@ -61,7 +61,12 @@ const log = logfella.global.use( 'unit-test' ) ;
 const world = new rootsDb.World() ;
 
 // Collections...
-var users , jobs , schools , towns , lockables , nestedLinks , anyCollectionLinks , extendables ;
+var versions , users , jobs , schools , towns , lockables , nestedLinks , anyCollectionLinks , versionedItems , extendables ;
+
+const versionsDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/versions' ,
+	attachmentUrl: __dirname + '/tmp/'
+} ;
 
 const usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
@@ -244,6 +249,16 @@ const anyCollectionLinksDescriptor = {
 	indexes: []
 } ;
 
+const versionedItemsDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/versionedItems' ,
+	properties: {
+		name: { type: 'string' } ,
+		p1: { type: 'string' , optional: true } ,
+		p2: { type: 'string' , optional: true } ,
+	} ,
+	indexes: []
+} ;
+
 
 
 function Extended( collection , rawDoc , options ) {
@@ -297,6 +312,7 @@ const extendablesDescriptor = {
 function dropDBCollections() {
 	//console.log( "dropDBCollections" ) ;
 	return Promise.all( [
+		dropCollection( versions ) ,
 		dropCollection( users ) ,
 		dropCollection( jobs ) ,
 		dropCollection( schools ) ,
@@ -304,6 +320,7 @@ function dropDBCollections() {
 		dropCollection( lockables ) ,
 		dropCollection( nestedLinks ) ,
 		dropCollection( anyCollectionLinks ) ,
+		dropCollection( versionedItems ) ,
 		dropCollection( extendables )
 	] ) ;
 }
@@ -313,6 +330,7 @@ function dropDBCollections() {
 // clear DB: remove every item, so we can safely test
 function clearDB() {
 	return Promise.all( [
+		clearCollection( versions ) ,
 		clearCollection( users ) ,
 		clearCollection( jobs ) ,
 		clearCollection( schools ) ,
@@ -320,6 +338,7 @@ function clearDB() {
 		clearCollection( lockables ) ,
 		clearCollection( nestedLinks ) ,
 		clearCollection( anyCollectionLinks ) ,
+		clearCollection( versionedItems ) ,
 		clearCollection( extendables )
 	] ) ;
 }
@@ -329,6 +348,7 @@ function clearDB() {
 // clear DB indexes: remove all indexes
 function clearDBIndexes() {
 	return Promise.all( [
+		clearCollectionIndexes( versions ) ,
 		clearCollectionIndexes( users ) ,
 		clearCollectionIndexes( jobs ) ,
 		clearCollectionIndexes( schools ) ,
@@ -336,6 +356,7 @@ function clearDBIndexes() {
 		clearCollectionIndexes( lockables ) ,
 		clearCollectionIndexes( nestedLinks ) ,
 		clearCollectionIndexes( anyCollectionLinks ) ,
+		clearCollectionIndexes( versionedItems ) ,
 		clearCollectionIndexes( extendables )
 	] ).then( () => { log.verbose( "All indexes cleared" ) ; } ) ;
 }
@@ -381,6 +402,9 @@ function clearCollectionIndexes( collection ) {
 
 // Force creating the collection
 before( () => {
+	versions = world.createVersionCollection( 'versions' , versionsDescriptor ) ;
+	expect( versions ).to.be.a( rootsDb.VersionCollection ) ;
+
 	users = world.createCollection( 'users' , usersDescriptor ) ;
 	expect( users ).to.be.a( rootsDb.Collection ) ;
 
@@ -401,6 +425,9 @@ before( () => {
 
 	anyCollectionLinks = world.createCollection( 'anyCollectionLinks' , anyCollectionLinksDescriptor ) ;
 	expect( anyCollectionLinks ).to.be.a( rootsDb.Collection ) ;
+
+	versionedItems = world.createCollection( 'versionedItems' , versionedItemsDescriptor ) ;
+	expect( versionedItems ).to.be.a( rootsDb.Collection ) ;
 
 	extendables = world.createCollection( 'extendables' , extendablesDescriptor ) ;
 	expect( extendables ).to.be.a( rootsDb.Collection ) ;
@@ -4882,6 +4909,29 @@ describe( "Memory model" , () => {
 	} ) ;
 
 	it( "should also works with back-multi-link" ) ;
+} ) ;
+
+
+
+describe( "Versioning" , () => {
+
+	beforeEach( clearDB ) ;
+	
+	it.next( "zzz versioned collection should save every modification in the versions collection" , async () => {
+		var versionedItem = versionedItems.createDocument( {
+			name: 'item#1' ,
+			p1: 'v1'
+		} ) ;
+
+		var versionedItemId = versionedItem.getId() ;
+
+		await versionedItem.save() ;
+		var dbVersionedItem = await versionedItems.get( versionedItemId ) ;
+
+		expect( dbVersionedItem ).to.equal( {
+			_id: versionedItemId , name: 'item#1' , p1: 'v1'
+		} ) ;
+	} ) ;
 } ) ;
 
 
