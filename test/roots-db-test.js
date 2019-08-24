@@ -1768,6 +1768,7 @@ describe( "Links" , () => {
 
 		expect( user.getLinkDetails( 'job' ) ).to.equal( {
 			type: 'link' ,
+			anyCollection: false ,
 			foreignCollection: 'jobs' ,
 			foreignId: null ,
 			hostPath: 'job' ,
@@ -1787,6 +1788,7 @@ describe( "Links" , () => {
 
 		expect( dbUser.getLinkDetails( 'job' ) ).to.equal( {
 			type: 'link' ,
+			anyCollection: false ,
 			foreignCollection: 'jobs' ,
 			foreignId: null ,
 			hostPath: 'job' ,
@@ -1821,6 +1823,7 @@ describe( "Links" , () => {
 		expect( user.job._id ).to.equal( jobId ) ;
 		expect( user.getLinkDetails( 'job' ) ).to.equal( {
 			type: 'link' ,
+			anyCollection: false ,
 			foreignCollection: 'jobs' ,
 			foreignId: jobId ,
 			hostPath: 'job' ,
@@ -1843,6 +1846,7 @@ describe( "Links" , () => {
 		expect( dbUser.job._id ).to.equal( jobId ) ;
 		expect( user.getLinkDetails( 'job' ) ).to.equal( {
 			type: 'link' ,
+			anyCollection: false ,
 			foreignCollection: 'jobs' ,
 			foreignId: jobId ,
 			hostPath: 'job' ,
@@ -2065,180 +2069,6 @@ describe( "Links" , () => {
 			lastName: 'Polson' ,
 			memberSid: 'Jilbert Polson' ,
 			job: { _id: jobId }
-		} ) ;
-	} ) ;
-} ) ;
-
-
-
-describe( "Any-collection links" , () => {
-
-	beforeEach( clearDB ) ;
-	
-	it( "should retrieve an any-collection link" , async () => {
-		var user = users.createDocument( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var userId = user.getId() ;
-
-		var job = jobs.createDocument( {
-			title: 'developer' ,
-			salary: 60000
-		} ) ;
-
-		var jobId = job.getId() ;
-
-		var doc = anyCollectionLinks.createDocument( {
-			name: 'docname'
-		} ) ;
-		
-		var docId = doc.getId() ;
-		
-		doc.setLink( 'link' , user ) ;
-		
-		expect( doc ).to.equal( {
-			_id: docId ,
-			name: 'docname' ,
-			link: user ,
-			backLink: {}
-		} ) ;
-
-		expect( doc.$ ).to.equal( {
-			_id: docId ,
-			name: 'docname' ,
-			link: { _id: userId , _collection: 'users' } ,
-			backLink: {}
-		} ) ;
-
-		await user.save() ;
-		await job.save() ;
-		await doc.save() ;
-		
-		var dbDoc = await anyCollectionLinks.get( docId ) ;
-
-		expect( dbDoc.link._id ).to.equal( userId ) ;
-		expect( dbDoc.link._collection ).to.be( 'users' ) ;
-		await expect( dbDoc.getLink( 'link' ) ).to.eventually.equal( {
-			_id: userId ,
-			firstName: 'Jilbert' ,
-			lastName: 'Polson' ,
-			memberSid: 'Jilbert Polson'
-		} ) ;
-		
-		doc.setLink( 'link' , job ) ;
-		
-		expect( doc ).to.equal( {
-			_id: docId ,
-			name: 'docname' ,
-			link: job ,
-			backLink: {}
-		} ) ;
-
-		expect( doc.$ ).to.equal( {
-			_id: docId ,
-			name: 'docname' ,
-			link: { _id: jobId , _collection: 'jobs' } ,
-			backLink: {}
-		} ) ;
-
-		await doc.save() ;
-		dbDoc = await anyCollectionLinks.get( docId ) ;
-
-		expect( dbDoc.link._id ).to.equal( jobId ) ;
-		expect( dbDoc.link._collection ).to.be( 'jobs' ) ;
-		await expect( dbDoc.getLink( 'link' ) ).to.eventually.equal( {
-			_id: jobId ,
-			title: 'developer' ,
-			salary: 60000 ,
-			schools: {} ,
-			users: {}
-		} ) ;
-
-		dbDoc = await anyCollectionLinks.get( docId , { populate: 'link' } ) ;
-
-		expect( dbDoc ).to.equal( {
-			_id: docId ,
-			name: 'docname' ,
-			link: {
-				_id: jobId ,
-				title: 'developer' ,
-				salary: 60000 ,
-				schools: {} ,
-				users: {}
-			} ,
-			backLink: {}
-		} ) ;
-	} ) ;
-
-	it( "should retrieve back-link from any-collection links" , async () => {
-		var masterDoc = anyCollectionLinks.createDocument( { name: 'masterDoc' } ) ;
-		var masterDocId = masterDoc.getId() ;
-		
-		var doc1 = anyCollectionLinks.createDocument( { name: 'doc1' } ) ;
-		var doc1Id = doc1.getId() ;
-		
-		var doc2 = anyCollectionLinks.createDocument( { name: 'doc2' } ) ;
-		var doc2Id = doc2.getId() ;
-		
-		var doc3 = anyCollectionLinks.createDocument( { name: 'doc3' } ) ;
-		var doc3Id = doc3.getId() ;
-		
-		doc1.setLink( 'link' , masterDoc ) ;
-		doc2.setLink( 'link' , masterDoc ) ;
-		doc3.setLink( 'link' , masterDoc ) ;
-		
-		await masterDoc.save() ;
-		await doc1.save() ;
-		await doc2.save() ;
-		await doc3.save() ;
-		
-		var dbMasterDoc = await anyCollectionLinks.get( masterDocId ) ;
-		
-		await expect( dbMasterDoc.getLink( 'backLink' ) ).to.eventually.be.partially.like( [
-			{ name: "doc1" } ,
-			{ name: "doc2" } ,
-			{ name: "doc3" }
-		] ) ;
-		
-		// We create a user, we force re-using the same ID to try to mess up with the back-link foreign-collection filtering
-		var user = users.createDocument( {
-			_id: masterDocId ,
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-		
-		var userId = user.getId() ;
-		expect( userId ).to.be( masterDocId ) ;
-		
-		doc3.setLink( 'link' , user ) ;
-		
-		await user.save() ;
-		await doc3.save() ;
-
-		await expect( users.get( userId ) ).to.eventually.be.partially.like( {
-			firstName: 'Jilbert' ,
-			lastName: 'Polson'
-		} ) ;
-
-		var dbMasterDoc = await anyCollectionLinks.get( masterDocId ) ;
-		
-		await expect( dbMasterDoc.getLink( 'backLink' ) ).to.eventually.be.partially.like( [
-			{ name: "doc1" } ,
-			{ name: "doc2" }
-		] ) ;
-
-		dbMasterDoc = await anyCollectionLinks.get( masterDocId , { populate: 'backLink' } ) ;
-
-		console.log( "dbMasterDoc:" , dbMasterDoc.backLink ) ;
-		expect( dbMasterDoc ).to.be.partially.like( {
-			_id: masterDocId ,
-			name: 'masterDoc' ,
-			backLink: [
-				{ name: "doc1" } ,
-				{ name: "doc2" }
-			]
 		} ) ;
 	} ) ;
 } ) ;
@@ -2520,12 +2350,6 @@ describe( "Multi-links" , () => {
 			}
 		} ) ;
 	} ) ;
-} ) ;
-
-
-
-describe( "Any-collection multi-links" , () => {
-	it( "CODE IT" ) ;
 } ) ;
 
 
@@ -2993,8 +2817,175 @@ describe( "Back-links" , () => {
 
 
 
-describe( "Any-collection back-links" , () => {
-	it( "CODE IT" ) ;
+describe( "Any-collection links" , () => {
+
+	beforeEach( clearDB ) ;
+	
+	it( "should retrieve/populate an any-collection link" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var userId = user.getId() ;
+
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var jobId = job.getId() ;
+
+		var doc = anyCollectionLinks.createDocument( {
+			name: 'docname'
+		} ) ;
+		
+		var docId = doc.getId() ;
+		
+		doc.setLink( 'link' , user ) ;
+		
+		expect( doc ).to.equal( {
+			_id: docId ,
+			name: 'docname' ,
+			link: user ,
+			backLink: {}
+		} ) ;
+
+		expect( doc.$ ).to.equal( {
+			_id: docId ,
+			name: 'docname' ,
+			link: { _id: userId , _collection: 'users' } ,
+			backLink: {}
+		} ) ;
+
+		await user.save() ;
+		await job.save() ;
+		await doc.save() ;
+		
+		var dbDoc = await anyCollectionLinks.get( docId ) ;
+
+		expect( dbDoc.link._id ).to.equal( userId ) ;
+		expect( dbDoc.link._collection ).to.be( 'users' ) ;
+		await expect( dbDoc.getLink( 'link' ) ).to.eventually.equal( {
+			_id: userId ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson'
+		} ) ;
+		
+		doc.setLink( 'link' , job ) ;
+		
+		expect( doc ).to.equal( {
+			_id: docId ,
+			name: 'docname' ,
+			link: job ,
+			backLink: {}
+		} ) ;
+
+		expect( doc.$ ).to.equal( {
+			_id: docId ,
+			name: 'docname' ,
+			link: { _id: jobId , _collection: 'jobs' } ,
+			backLink: {}
+		} ) ;
+
+		await doc.save() ;
+		dbDoc = await anyCollectionLinks.get( docId ) ;
+
+		expect( dbDoc.link._id ).to.equal( jobId ) ;
+		expect( dbDoc.link._collection ).to.be( 'jobs' ) ;
+		await expect( dbDoc.getLink( 'link' ) ).to.eventually.equal( {
+			_id: jobId ,
+			title: 'developer' ,
+			salary: 60000 ,
+			schools: {} ,
+			users: {}
+		} ) ;
+
+		dbDoc = await anyCollectionLinks.get( docId , { populate: 'link' } ) ;
+
+		expect( dbDoc ).to.equal( {
+			_id: docId ,
+			name: 'docname' ,
+			link: {
+				_id: jobId ,
+				title: 'developer' ,
+				salary: 60000 ,
+				schools: {} ,
+				users: {}
+			} ,
+			backLink: {}
+		} ) ;
+	} ) ;
+
+	it( "should retrieve/populate back-link from any-collection links" , async () => {
+		var masterDoc = anyCollectionLinks.createDocument( { name: 'masterDoc' } ) ;
+		var masterDocId = masterDoc.getId() ;
+		
+		var doc1 = anyCollectionLinks.createDocument( { name: 'doc1' } ) ;
+		var doc1Id = doc1.getId() ;
+		
+		var doc2 = anyCollectionLinks.createDocument( { name: 'doc2' } ) ;
+		var doc2Id = doc2.getId() ;
+		
+		var doc3 = anyCollectionLinks.createDocument( { name: 'doc3' } ) ;
+		var doc3Id = doc3.getId() ;
+		
+		doc1.setLink( 'link' , masterDoc ) ;
+		doc2.setLink( 'link' , masterDoc ) ;
+		doc3.setLink( 'link' , masterDoc ) ;
+		
+		await masterDoc.save() ;
+		await doc1.save() ;
+		await doc2.save() ;
+		await doc3.save() ;
+		
+		var dbMasterDoc = await anyCollectionLinks.get( masterDocId ) ;
+		
+		await expect( dbMasterDoc.getLink( 'backLink' ) ).to.eventually.be.partially.like( [
+			{ name: "doc1" } ,
+			{ name: "doc2" } ,
+			{ name: "doc3" }
+		] ) ;
+		
+		// We create a user, we force re-using the same ID to try to mess up with the back-link foreign-collection filtering
+		var user = users.createDocument( {
+			_id: masterDocId ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+		
+		var userId = user.getId() ;
+		expect( userId ).to.be( masterDocId ) ;
+		
+		doc3.setLink( 'link' , user ) ;
+		
+		await user.save() ;
+		await doc3.save() ;
+
+		await expect( users.get( userId ) ).to.eventually.be.partially.like( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var dbMasterDoc = await anyCollectionLinks.get( masterDocId ) ;
+		
+		await expect( dbMasterDoc.getLink( 'backLink' ) ).to.eventually.be.partially.like( [
+			{ name: "doc1" } ,
+			{ name: "doc2" }
+		] ) ;
+
+		dbMasterDoc = await anyCollectionLinks.get( masterDocId , { populate: 'backLink' } ) ;
+
+		expect( dbMasterDoc ).to.be.partially.like( {
+			_id: masterDocId ,
+			name: 'masterDoc' ,
+			backLink: [
+				{ name: "doc1" } ,
+				{ name: "doc2" }
+			]
+		} ) ;
+	} ) ;
 } ) ;
 
 
