@@ -2155,6 +2155,21 @@ describe( "Any-collection links" , () => {
 			schools: {} ,
 			users: {}
 		} ) ;
+
+		dbDoc = await anyCollectionLinks.get( docId , { populate: 'link' } ) ;
+
+		expect( dbDoc ).to.equal( {
+			_id: docId ,
+			name: 'docname' ,
+			link: {
+				_id: jobId ,
+				title: 'developer' ,
+				salary: 60000 ,
+				schools: {} ,
+				users: {}
+			} ,
+			backLink: {}
+		} ) ;
 	} ) ;
 
 	it( "should retrieve back-link from any-collection links" , async () => {
@@ -2180,7 +2195,6 @@ describe( "Any-collection links" , () => {
 		await doc3.save() ;
 		
 		var dbMasterDoc = await anyCollectionLinks.get( masterDocId ) ;
-		dbMasterDoc.getLink( 'backLink' , '' ) ;
 		
 		await expect( dbMasterDoc.getLink( 'backLink' ) ).to.eventually.be.partially.like( [
 			{ name: "doc1" } ,
@@ -2188,19 +2202,44 @@ describe( "Any-collection links" , () => {
 			{ name: "doc3" }
 		] ) ;
 		
-		return ;
-		
-// ---------------------------------------------------------- HERE -------------------------------------------------------
-
-		// Add a link from another collection
-		
+		// We create a user, we force re-using the same ID to try to mess up with the back-link foreign-collection filtering
 		var user = users.createDocument( {
+			_id: masterDocId ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
 		
+		var userId = user.getId() ;
+		expect( userId ).to.be( masterDocId ) ;
+		
+		doc3.setLink( 'link' , user ) ;
+		
 		await user.save() ;
+		await doc3.save() ;
 
+		await expect( users.get( userId ) ).to.eventually.be.partially.like( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var dbMasterDoc = await anyCollectionLinks.get( masterDocId ) ;
+		
+		await expect( dbMasterDoc.getLink( 'backLink' ) ).to.eventually.be.partially.like( [
+			{ name: "doc1" } ,
+			{ name: "doc2" }
+		] ) ;
+
+		dbMasterDoc = await anyCollectionLinks.get( masterDocId , { populate: 'backLink' } ) ;
+
+		console.log( "dbMasterDoc:" , dbMasterDoc.backLink ) ;
+		expect( dbMasterDoc ).to.be.partially.like( {
+			_id: masterDocId ,
+			name: 'masterDoc' ,
+			backLink: [
+				{ name: "doc1" } ,
+				{ name: "doc2" }
+			]
+		} ) ;
 	} ) ;
 } ) ;
 
