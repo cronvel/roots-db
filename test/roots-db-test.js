@@ -259,7 +259,7 @@ const versionedItemsDescriptor = {
 		versions: {
 			type: 'backLink' ,
 			collection: 'versions' ,
-			path: '_active'
+			path: '_activeVersion'
 		}
 	} ,
 	indexes: []
@@ -4923,7 +4923,7 @@ describe( "Versioning" , () => {
 
 	beforeEach( clearDB ) ;
 	
-	it.next( "zzz versioned collection should save every modification in the versions collection" , async () => {
+	it( "versioned collection should save every modifications in the versions collection" , async () => {
 		expect( versionedItems.versioning ).to.be( true ) ;
 		
 		var versionedItem = versionedItems.createDocument( {
@@ -4935,7 +4935,7 @@ describe( "Versioning" , () => {
 
 		expect( versionedItem ).to.equal( {
 			_id: versionedItemId ,
-			_version: 0 ,
+			_version: 1 ,
 			_modified: versionedItem._modified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1a' ,
@@ -4943,10 +4943,10 @@ describe( "Versioning" , () => {
 		} ) ;
 		
 		versionedItem.p1 = 'value1b' ;
-		// Version should not be incremented, because it was not saved
+		// Version should not be incremented, because it was not even saved once
 		expect( versionedItem ).to.equal( {
 			_id: versionedItemId ,
-			_version: 0 ,
+			_version: 1 ,
 			_modified: versionedItem._modified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1b' ,
@@ -4956,7 +4956,8 @@ describe( "Versioning" , () => {
 		await versionedItem.save() ;
 
 		versionedItem.p1 = 'value1c' ;
-		// Version should not be incremented, because it was not saved
+		
+		// Version should not be incremented, because changed was not saved yet
 		expect( versionedItem ).to.equal( {
 			_id: versionedItemId ,
 			_version: 1 ,
@@ -4966,24 +4967,103 @@ describe( "Versioning" , () => {
 			versions: {}
 		} ) ;
 		
+		await versionedItem.save() ;
+		
+		// Version should be incremented now we have save it
+		expect( versionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 2 ,
+			_modified: versionedItem._modified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1c' ,
+			versions: {}
+		} ) ;
 
-
-
-
+		var batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
+		expect( '' + batch[ 0 ]._id ).not.to.be( '' + versionedItemId ) ;
+		expect( batch ).to.be.like( [
+			{
+				_id:  batch[ 0 ]._id ,	// unpredictable
+				_version: 1 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1b' ,
+				versions: {}
+			} 
+		] ) ;
+		
 		var dbVersionedItem = await versionedItems.get( versionedItemId ) ;
 
 		expect( dbVersionedItem ).to.equal( {
 			_id: versionedItemId ,
-			_version: 0 ,
+			_version: 2 ,
 			_modified: dbVersionedItem._modified ,	// unpredictable
 			name: 'item#1' ,
-			p1: 'value1a' ,
+			p1: 'value1c' ,
 			versions: {}
 		} ) ;
 		
 		dbVersionedItem.p2 = 'value2a' ;
 		dbVersionedItem.p2 = 'value2b' ;
+		
+		// Still no version change so far, because not saved
+		expect( dbVersionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 2 ,
+			_modified: dbVersionedItem._modified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1c' ,
+			p2: 'value2b' ,
+			versions: {}
+		} ) ;
+
 		await dbVersionedItem.save() ;
+
+		// Still no change so far, because not saved
+		expect( dbVersionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 3 ,
+			_modified: dbVersionedItem._modified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1c' ,
+			p2: 'value2b' ,
+			versions: {}
+		} ) ;
+
+		batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
+		expect( '' + batch[ 0 ]._id ).not.to.be( '' + versionedItemId ) ;
+		expect( '' + batch[ 1 ]._id ).not.to.be( '' + versionedItemId ) ;
+		expect( '' + batch[ 0 ]._id ).not.to.be( '' + batch[ 1 ]._id ) ;
+		expect( batch ).to.be.like( [
+			{
+				_id:  batch[ 0 ]._id ,	// unpredictable
+				_version: 1 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1b' ,
+				versions: {}
+			} ,
+			{
+				_id:  batch[ 1 ]._id ,	// unpredictable
+				_version: 2 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1c' ,
+				versions: {}
+			} 
+		] ) ;
 
 		dbVersionedItem.p2 = 'value2c' ;
 		await dbVersionedItem.save() ;
@@ -4992,13 +5072,173 @@ describe( "Versioning" , () => {
 
 		expect( dbVersionedItem ).to.equal( {
 			_id: versionedItemId ,
-			_version: 1 ,
+			_version: 4 ,
 			_modified: dbVersionedItem._modified ,	// unpredictable
 			name: 'item#1' ,
-			p1: 'value1a' ,
+			p1: 'value1c' ,
 			p2: 'value2c' ,
 			versions: {}
 		} ) ;
+
+		batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
+		expect( batch ).to.be.like( [
+			{
+				_id:  batch[ 0 ]._id ,	// unpredictable
+				_version: 1 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1b' ,
+				versions: {}
+			} ,
+			{
+				_id:  batch[ 1 ]._id ,	// unpredictable
+				_version: 2 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1c' ,
+				versions: {}
+			} ,
+			{
+				_id:  batch[ 2 ]._id ,	// unpredictable
+				_version: 3 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1c' ,
+				p2: 'value2b' ,
+				versions: {}
+			} 
+		] ) ;
+
+		var dbItemVersions = await dbVersionedItem.getLink( 'versions' ) ;
+		expect( dbItemVersions ).to.be.like( [
+			{
+				_id:  dbItemVersions[ 0 ]._id ,	// unpredictable
+				_version: 1 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1b' ,
+				versions: {}
+			} ,
+			{
+				_id:  dbItemVersions[ 1 ]._id ,	// unpredictable
+				_version: 2 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1c' ,
+				versions: {}
+			} ,
+			{
+				_id:  dbItemVersions[ 2 ]._id ,	// unpredictable
+				_version: 3 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1c' ,
+				p2: 'value2b' ,
+				versions: {}
+			} 
+		] ) ;
+
+
+		// Test the overwrite feature
+		
+		var versionedItemReplacement = versionedItems.createDocument( {
+			_id: versionedItemId ,
+			name: 'item#1' ,
+			p1: 'value1-over' ,
+			p2: 'value2-over'
+		} ) ;
+		
+		await versionedItemReplacement.save( { overwrite: true } ) ;
+
+		dbVersionedItem = await versionedItems.get( versionedItemId ) ;
+
+		expect( dbVersionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 5 ,
+			_modified: dbVersionedItem._modified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1-over' ,
+			p2: 'value2-over' ,
+			versions: {}
+		} ) ;
+
+		batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
+		expect( batch ).to.be.like( [
+			{
+				_id:  batch[ 0 ]._id ,	// unpredictable
+				_version: 1 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1b' ,
+				versions: {}
+			} ,
+			{
+				_id:  batch[ 1 ]._id ,	// unpredictable
+				_version: 2 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1c' ,
+				versions: {}
+			} ,
+			{
+				_id:  batch[ 2 ]._id ,	// unpredictable
+				_version: 3 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1c' ,
+				p2: 'value2b' ,
+				versions: {}
+			} ,
+			{
+				_id:  batch[ 3 ]._id ,	// unpredictable
+				_version: 4 ,
+				_modified: versionedItem._modified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1c' ,
+				p2: 'value2c' ,
+				versions: {}
+			} 
+		] ) ;
 	} ) ;
 } ) ;
 
