@@ -251,10 +251,16 @@ const anyCollectionLinksDescriptor = {
 
 const versionedItemsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/versionedItems' ,
+	versioning: true ,
 	properties: {
 		name: { type: 'string' } ,
 		p1: { type: 'string' , optional: true } ,
 		p2: { type: 'string' , optional: true } ,
+		versions: {
+			type: 'backLink' ,
+			collection: 'versions' ,
+			path: '_active'
+		}
 	} ,
 	indexes: []
 } ;
@@ -4918,18 +4924,80 @@ describe( "Versioning" , () => {
 	beforeEach( clearDB ) ;
 	
 	it.next( "zzz versioned collection should save every modification in the versions collection" , async () => {
+		expect( versionedItems.versioning ).to.be( true ) ;
+		
 		var versionedItem = versionedItems.createDocument( {
 			name: 'item#1' ,
-			p1: 'v1'
+			p1: 'value1a'
 		} ) ;
 
 		var versionedItemId = versionedItem.getId() ;
 
+		expect( versionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 0 ,
+			_modified: versionedItem._modified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1a' ,
+			versions: {}
+		} ) ;
+		
+		versionedItem.p1 = 'value1b' ;
+		// Version should not be incremented, because it was not saved
+		expect( versionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 0 ,
+			_modified: versionedItem._modified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1b' ,
+			versions: {}
+		} ) ;
+		
 		await versionedItem.save() ;
+
+		versionedItem.p1 = 'value1c' ;
+		// Version should not be incremented, because it was not saved
+		expect( versionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 1 ,
+			_modified: versionedItem._modified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1c' ,
+			versions: {}
+		} ) ;
+		
+
+
+
+
 		var dbVersionedItem = await versionedItems.get( versionedItemId ) ;
 
 		expect( dbVersionedItem ).to.equal( {
-			_id: versionedItemId , name: 'item#1' , p1: 'v1'
+			_id: versionedItemId ,
+			_version: 0 ,
+			_modified: dbVersionedItem._modified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1a' ,
+			versions: {}
+		} ) ;
+		
+		dbVersionedItem.p2 = 'value2a' ;
+		dbVersionedItem.p2 = 'value2b' ;
+		await dbVersionedItem.save() ;
+
+		dbVersionedItem.p2 = 'value2c' ;
+		await dbVersionedItem.save() ;
+
+		dbVersionedItem = await versionedItems.get( versionedItemId ) ;
+
+		expect( dbVersionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 1 ,
+			_modified: dbVersionedItem._modified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1a' ,
+			p2: 'value2c' ,
+			versions: {}
 		} ) ;
 	} ) ;
 } ) ;
