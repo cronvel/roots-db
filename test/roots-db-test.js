@@ -5335,6 +5335,92 @@ describe( "Versioning" , () => {
 				versions: {}
 			}
 		] ) ;
+
+
+		// Test delete
+		
+		await dbVersionedItem.delete() ;
+		await expect( () => versionedItems.get( versionedItemId ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
+
+		batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
+		expect( batch ).to.be.like( [
+			{
+				_id: batch[ 0 ]._id ,	// unpredictable
+				_version: 1 ,
+				_lastModified: batch[ 0 ]._lastModified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1b' ,
+				versions: {}
+			} ,
+			{
+				_id: batch[ 1 ]._id ,	// unpredictable
+				_version: 2 ,
+				_lastModified: batch[ 1 ]._lastModified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1c' ,
+				versions: {}
+			} ,
+			{
+				_id: batch[ 2 ]._id ,	// unpredictable
+				_version: 3 ,
+				_lastModified: batch[ 2 ]._lastModified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1c' ,
+				p2: 'value2b' ,
+				versions: {}
+			} ,
+			{
+				_id: batch[ 3 ]._id ,	// unpredictable
+				_version: 4 ,
+				_lastModified: batch[ 3 ]._lastModified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1c' ,
+				p2: 'value2c' ,
+				versions: {}
+			} ,
+			{
+				_id: batch[ 4 ]._id ,  // unpredictable
+				_version: 5 ,
+				_lastModified: batch[ 4 ]._lastModified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'item#1' ,
+				p1: 'value1-over' ,
+				p2: 'value2-over' ,
+				versions: {}
+			} ,
+			{
+				_id: batch[ 5 ]._id ,  // unpredictable
+				_version: 6 ,
+				_lastModified: batch[ 5 ]._lastModified ,	// unpredictable
+				_activeVersion: {
+					_id: versionedItemId ,
+					_collection: 'versionedItems'
+				} ,
+				name: 'ITEM#1' ,
+				p1: 'value1-over' ,
+				p2: 'value2-over' ,
+				versions: {}
+			}
+		] ) ;
 	} ) ;
 } ) ;
 
