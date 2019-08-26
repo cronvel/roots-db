@@ -1,4 +1,10 @@
 
+v0.22.3
+-------
+
+Fix the new versioning feature, when using .commit()
+
+
 v0.22.2
 -------
 
