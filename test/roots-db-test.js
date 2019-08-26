@@ -4936,7 +4936,7 @@ describe( "Versioning" , () => {
 		expect( versionedItem ).to.equal( {
 			_id: versionedItemId ,
 			_version: 1 ,
-			_modified: versionedItem._modified ,	// unpredictable
+			_lastModified: versionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1a' ,
 			versions: {}
@@ -4947,7 +4947,7 @@ describe( "Versioning" , () => {
 		expect( versionedItem ).to.equal( {
 			_id: versionedItemId ,
 			_version: 1 ,
-			_modified: versionedItem._modified ,	// unpredictable
+			_lastModified: versionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1b' ,
 			versions: {}
@@ -4961,7 +4961,7 @@ describe( "Versioning" , () => {
 		expect( versionedItem ).to.equal( {
 			_id: versionedItemId ,
 			_version: 1 ,
-			_modified: versionedItem._modified ,	// unpredictable
+			_lastModified: versionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1c' ,
 			versions: {}
@@ -4973,7 +4973,7 @@ describe( "Versioning" , () => {
 		expect( versionedItem ).to.equal( {
 			_id: versionedItemId ,
 			_version: 2 ,
-			_modified: versionedItem._modified ,	// unpredictable
+			_lastModified: versionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1c' ,
 			versions: {}
@@ -4985,7 +4985,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 0 ]._id ,	// unpredictable
 				_version: 1 ,
-				_modified: batch[ 0 ]._modified ,	// unpredictable
+				_lastModified: batch[ 0 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5001,7 +5001,7 @@ describe( "Versioning" , () => {
 		expect( dbVersionedItem ).to.equal( {
 			_id: versionedItemId ,
 			_version: 2 ,
-			_modified: dbVersionedItem._modified ,	// unpredictable
+			_lastModified: dbVersionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1c' ,
 			versions: {}
@@ -5014,7 +5014,7 @@ describe( "Versioning" , () => {
 		expect( dbVersionedItem ).to.equal( {
 			_id: versionedItemId ,
 			_version: 2 ,
-			_modified: dbVersionedItem._modified ,	// unpredictable
+			_lastModified: dbVersionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1c' ,
 			p2: 'value2b' ,
@@ -5027,7 +5027,7 @@ describe( "Versioning" , () => {
 		expect( dbVersionedItem ).to.equal( {
 			_id: versionedItemId ,
 			_version: 3 ,
-			_modified: dbVersionedItem._modified ,	// unpredictable
+			_lastModified: dbVersionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1c' ,
 			p2: 'value2b' ,
@@ -5042,7 +5042,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 0 ]._id ,	// unpredictable
 				_version: 1 ,
-				_modified: batch[ 0 ]._modified ,	// unpredictable
+				_lastModified: batch[ 0 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5054,7 +5054,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 1 ]._id ,	// unpredictable
 				_version: 2 ,
-				_modified: batch[ 1 ]._modified ,	// unpredictable
+				_lastModified: batch[ 1 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5073,7 +5073,7 @@ describe( "Versioning" , () => {
 		expect( dbVersionedItem ).to.equal( {
 			_id: versionedItemId ,
 			_version: 4 ,
-			_modified: dbVersionedItem._modified ,	// unpredictable
+			_lastModified: dbVersionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1c' ,
 			p2: 'value2c' ,
@@ -5085,7 +5085,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 0 ]._id ,	// unpredictable
 				_version: 1 ,
-				_modified: batch[ 0 ]._modified ,	// unpredictable
+				_lastModified: batch[ 0 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5097,7 +5097,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 1 ]._id ,	// unpredictable
 				_version: 2 ,
-				_modified: batch[ 1 ]._modified ,	// unpredictable
+				_lastModified: batch[ 1 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5109,7 +5109,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 2 ]._id ,	// unpredictable
 				_version: 3 ,
-				_modified: batch[ 2 ]._modified ,	// unpredictable
+				_lastModified: batch[ 2 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5126,7 +5126,7 @@ describe( "Versioning" , () => {
 			{
 				_id:  dbItemVersions[ 0 ]._id ,	// unpredictable
 				_version: 1 ,
-				_modified: dbItemVersions[ 0 ]._modified ,	// unpredictable
+				_lastModified: dbItemVersions[ 0 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5138,7 +5138,7 @@ describe( "Versioning" , () => {
 			{
 				_id:  dbItemVersions[ 1 ]._id ,	// unpredictable
 				_version: 2 ,
-				_modified: dbItemVersions[ 1 ]._modified ,	// unpredictable
+				_lastModified: dbItemVersions[ 1 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5150,7 +5150,7 @@ describe( "Versioning" , () => {
 			{
 				_id:  dbItemVersions[ 2 ]._id ,	// unpredictable
 				_version: 3 ,
-				_modified: dbItemVersions[ 2 ]._modified ,	// unpredictable
+				_lastModified: dbItemVersions[ 2 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5179,7 +5179,7 @@ describe( "Versioning" , () => {
 		expect( dbVersionedItem ).to.equal( {
 			_id: versionedItemId ,
 			_version: 5 ,
-			_modified: dbVersionedItem._modified ,	// unpredictable
+			_lastModified: dbVersionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1-over' ,
 			p2: 'value2-over' ,
@@ -5191,7 +5191,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 0 ]._id ,	// unpredictable
 				_version: 1 ,
-				_modified: batch[ 0 ]._modified ,	// unpredictable
+				_lastModified: batch[ 0 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5203,7 +5203,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 1 ]._id ,	// unpredictable
 				_version: 2 ,
-				_modified: batch[ 1 ]._modified ,	// unpredictable
+				_lastModified: batch[ 1 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5215,7 +5215,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 2 ]._id ,	// unpredictable
 				_version: 3 ,
-				_modified: batch[ 2 ]._modified ,	// unpredictable
+				_lastModified: batch[ 2 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5228,7 +5228,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 3 ]._id ,	// unpredictable
 				_version: 4 ,
-				_modified: batch[ 3 ]._modified ,	// unpredictable
+				_lastModified: batch[ 3 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5249,7 +5249,7 @@ describe( "Versioning" , () => {
 		expect( dbVersionedItem ).to.equal( {
 			_id: versionedItemId ,
 			_version: 6 ,
-			_modified: dbVersionedItem._modified ,	// unpredictable
+			_lastModified: dbVersionedItem._lastModified ,	// unpredictable
 			name: 'ITEM#1' ,
 			p1: 'value1-over' ,
 			p2: 'value2-over' ,
@@ -5261,7 +5261,7 @@ describe( "Versioning" , () => {
 		expect( dbVersionedItem ).to.equal( {
 			_id: versionedItemId ,
 			_version: 6 ,
-			_modified: dbVersionedItem._modified ,	// unpredictable
+			_lastModified: dbVersionedItem._lastModified ,	// unpredictable
 			name: 'ITEM#1' ,
 			p1: 'value1-over' ,
 			p2: 'value2-over' ,
@@ -5273,7 +5273,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 0 ]._id ,	// unpredictable
 				_version: 1 ,
-				_modified: batch[ 0 ]._modified ,	// unpredictable
+				_lastModified: batch[ 0 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5285,7 +5285,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 1 ]._id ,	// unpredictable
 				_version: 2 ,
-				_modified: batch[ 1 ]._modified ,	// unpredictable
+				_lastModified: batch[ 1 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5297,7 +5297,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 2 ]._id ,	// unpredictable
 				_version: 3 ,
-				_modified: batch[ 2 ]._modified ,	// unpredictable
+				_lastModified: batch[ 2 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5310,7 +5310,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 3 ]._id ,	// unpredictable
 				_version: 4 ,
-				_modified: batch[ 3 ]._modified ,	// unpredictable
+				_lastModified: batch[ 3 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
@@ -5323,7 +5323,7 @@ describe( "Versioning" , () => {
 			{
 				_id: batch[ 4 ]._id ,  // unpredictable
 				_version: 5 ,
-				_modified: batch[ 4 ]._modified ,	// unpredictable
+				_lastModified: batch[ 4 ]._lastModified ,	// unpredictable
 				_activeVersion: {
 					_id: versionedItemId ,
 					_collection: 'versionedItems'
