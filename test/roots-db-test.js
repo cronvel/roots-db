@@ -565,6 +565,7 @@ describe( "Document creation" , () => {
 				} ,
 				indexes: [ { properties: { "job._id": 1 } } , { properties: { "job._id": 1 , memberSid: 1 } , unique: true } ] ,
 				hooks: users.documentSchema.hooks ,
+				versioning: false ,
 				canLock: false ,
 				lockTimeout: 1000 ,
 				Batch: users.documentSchema.Batch ,
