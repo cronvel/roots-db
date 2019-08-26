@@ -1,4 +1,11 @@
 
+v0.23.2
+-------
+
+Versioned items are now saved to the version collection on .delete()
+dead-link clean-up is bypassed on versionCollection documents
+
+
 v0.23.1
 -------
 
