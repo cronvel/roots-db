@@ -1,4 +1,10 @@
 
+v0.23.5
+-------
+
+Add a (more x2) fallback for turning on versioning on a collection after some data were already inserted
+
+
 v0.23.4
 -------
 

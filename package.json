@@ -1,6 +1,6 @@
 {
   "name": "roots-db",
-  "version": "0.23.4",
+  "version": "0.23.5",
   "engines": {
     "node": ">=8.0.0"
   },
@@ -10,7 +10,7 @@
     "test": "test"
   },
   "dependencies": {
-    "doormen": "^0.10.8",
+    "doormen": "^0.10.10",
     "error-status": "^1.10.0",
     "fs-kit": "^0.3.2",
     "hash-kit": "^0.3.2",
