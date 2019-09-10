@@ -5422,6 +5422,59 @@ describe( "Versioning" , () => {
 			}
 		] ) ;
 	} ) ;
+	
+	it( "race conditions" , async () => {
+		expect( versionedItems.versioning ).to.be( true ) ;
+		
+		var versionedItem = versionedItems.createDocument( {
+			name: 'item#1' ,
+			p1: 'value1a'
+		} ) ;
+
+		var versionedItemId = versionedItem.getId() ;
+
+		expect( versionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 1 ,
+			_lastModified: versionedItem._lastModified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1a' ,
+			versions: {}
+		} ) ;
+		
+		await versionedItem.save() ;
+
+		var dbVersionedItem1 = await versionedItems.get( versionedItemId ) ;
+		var dbVersionedItem2 = await versionedItems.get( versionedItemId ) ;
+
+		expect( dbVersionedItem1 ).to.equal( {
+			_id: versionedItemId ,
+			_version: 1 ,
+			_lastModified: dbVersionedItem1._lastModified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1a' ,
+			versions: {}
+		} ) ;
+		
+		expect( dbVersionedItem1 ).to.equal( dbVersionedItem2 ) ;
+		
+		dbVersionedItem1.p1 = 'value2a' ;
+		dbVersionedItem2.p1 = 'value2b' ;
+		await dbVersionedItem1.commit() ;
+		await dbVersionedItem2.commit() ;
+
+		var dbVersionedItem1 = await versionedItems.get( versionedItemId ) ;
+
+		expect( dbVersionedItem1 ).to.equal( {
+			_id: versionedItemId ,
+			_version: 3 ,
+			_lastModified: dbVersionedItem1._lastModified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value2b' ,
+			versions: {}
+		} ) ;
+		
+	} ) ;
 } ) ;
 
 
