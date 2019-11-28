@@ -757,6 +757,59 @@ describe( "Document creation" , () => {
 
 
 
+describe( "Clone documents" , () => {
+	
+	it( "should clone a document" , () => {
+		var user = users.createDocument( {
+			firstName: 'Bobby' ,
+			lastName: 'Fischer'
+		} ) ;
+
+		expect( user.getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( user._id ).to.be( user.getId() ) ;
+
+		expect( user ).to.equal( {
+			_id: user._id ,
+			firstName: 'Bobby' ,
+			lastName: 'Fischer' ,
+			memberSid: 'Bobby Fischer'
+		} ) ;
+		
+		var clone = user.clone() ;
+
+		expect( clone.getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( clone._id ).to.be( clone.getId() ) ;
+		
+		// The ID should be different
+		expect( '' + clone._id ).not.to.be( '' + user._id ) ;
+
+		expect( clone ).to.equal( {
+			_id: clone._id ,
+			firstName: 'Bobby' ,
+			lastName: 'Fischer' ,
+			memberSid: 'Bobby Fischer'
+		} ) ;
+		
+		clone.firstName = 'Bob' ;
+
+		expect( clone ).to.equal( {
+			_id: clone._id ,
+			firstName: 'Bob' ,
+			lastName: 'Fischer' ,
+			memberSid: 'Bobby Fischer'
+		} ) ;
+		
+		expect( user ).to.equal( {
+			_id: user._id ,
+			firstName: 'Bobby' ,
+			lastName: 'Fischer' ,
+			memberSid: 'Bobby Fischer'
+		} ) ;
+	} ) ;
+} ) ;
+
+
+
 describe( "Get documents" , () => {
 
 	beforeEach( clearDB ) ;
@@ -4295,8 +4348,8 @@ describe( "Populate links" , () => {
 		dbJob.schools.sort( ( a , b ) => b.title - a.title ) ;
 
 		// Order by id
-		dbJob.schools[ 0 ].jobs.sort( ( a , b ) => a.toString() > b.toString() ? 1 : -1 ) ;
-		dbJob.schools[ 1 ].jobs.sort( ( a , b ) => a.toString() > b.toString() ? 1 : -1 ) ;
+		dbJob.schools[ 0 ].jobs.sort( ( a , b ) => '' + a._id > '' + b._id ? 1 : -1 ) ;
+		dbJob.schools[ 1 ].jobs.sort( ( a , b ) => '' + a._id > '' + b._id ? 1 : -1 ) ;
 
 		expect( dbJob ).to.be.like( {
 			_id: job1._id ,
@@ -4324,7 +4377,7 @@ describe( "Populate links" , () => {
 		dbJob = await jobs.get( job4._id , { populate: 'schools' , stats } ) ;
 
 		// Order by id
-		dbJob.schools[ 0 ].jobs.sort( ( a , b ) => a.toString() > b.toString() ? 1 : -1 ) ;
+		dbJob.schools[ 0 ].jobs.sort( ( a , b ) => '' + a._id > '' + b._id ? 1 : -1 ) ;
 
 		expect( dbJob ).to.be.like( {
 			_id: job4._id ,
@@ -5557,7 +5610,7 @@ describe( "Historical bugs" , () => {
 		expect( batch ).to.be.like( [] ) ;
 	} ) ;
 
-	it( "'keyTooLargeToIndex' should provide enough information to be debugged" , async () => {
+	it.opt( "'keyTooLargeToIndex' should provide enough information to be debugged" , async () => {
 		// This creates an index of 1119 bytes:
 		var town = towns.createDocument( {
 			name: 'Paris'.repeat( 100 ) ,
@@ -5676,7 +5729,7 @@ describe( "Slow tests" , () => {
 
 		it( "should build indexes" , async function() {
 			//console.log( "start test" ) ;
-			this.timeout( 12000 ) ;
+			this.timeout( 15000 ) ;
 			expect( users.uniques ).to.equal( [ [ '_id' ] , [ 'job._id' , 'memberSid' ] ] ) ;
 			expect( jobs.uniques ).to.equal( [ [ '_id' ] ] ) ;
 
