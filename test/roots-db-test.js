@@ -5727,7 +5727,7 @@ describe( "Slow tests" , () => {
 		beforeEach( clearDBIndexes ) ;
 		//beforeEach( dropDBCollections ) ;
 
-		it( "should build indexes" , async function() {
+		it.opt( "should build indexes" , async function() {
 			//console.log( "start test" ) ;
 			this.timeout( 15000 ) ;
 			expect( users.uniques ).to.equal( [ [ '_id' ] , [ 'job._id' , 'memberSid' ] ] ) ;
