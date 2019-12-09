@@ -545,13 +545,13 @@ describe( "Document creation" , () => {
 						type: "string" , maxLength: 30 , default: "Doe" , tags: [ "content" ] , inputHint: "text"
 					} ,
 					godfather: {
-						type: "link" , optional: true , collection: "users" , tags: [ "content" ] , sanitize: [ "toLink" ] , inputHint: "embedded"
+						type: "link" , optional: true , collection: "users" , tags: [ "content" ] , sanitize: [ "toLink" ] , opaque: true , inputHint: "embedded"
 					} ,
 					connection: {
-						type: "strictObject" , optional: true , of: { type: "link" , collection: "users" , sanitize: [ "toLink" ] , tags: [ "content" ] , inputHint: "embedded" } , tags: [ "content" ] , inputHint: "embedded"
+						type: "strictObject" , optional: true , of: { type: "link" , collection: "users" , sanitize: [ "toLink" ] , opaque: true , tags: [ "content" ] , inputHint: "embedded" } , tags: [ "content" ] , inputHint: "embedded"
 					} ,
 					job: {
-						type: "link" , optional: true , collection: "jobs" , tags: [ "content" ] , sanitize: [ "toLink" ] , inputHint: "embedded"
+						type: "link" , optional: true , collection: "jobs" , tags: [ "content" ] , sanitize: [ "toLink" ] , opaque: true , inputHint: "embedded"
 					} ,
 					memberSid: {
 						optional: true , type: "string" , maxLength: 30 , tags: [ "id" ] , inputHint: "text"
@@ -1863,6 +1863,7 @@ describe( "Links" , () => {
 				collection: 'jobs' ,
 				optional: true ,
 				type: 'link' ,
+				opaque: true ,
 				tags: [ 'content' ] ,
 				sanitize: [ 'toLink' ] ,
 				inputHint: "embedded"
@@ -1883,6 +1884,7 @@ describe( "Links" , () => {
 				collection: 'jobs' ,
 				optional: true ,
 				type: 'link' ,
+				opaque: true ,
 				tags: [ 'content' ] ,
 				sanitize: [ 'toLink' ] ,
 				inputHint: "embedded"
@@ -1918,6 +1920,7 @@ describe( "Links" , () => {
 				collection: 'jobs' ,
 				optional: true ,
 				type: 'link' ,
+				opaque: true ,
 				tags: [ 'content' ] ,
 				sanitize: [ 'toLink' ] ,
 				inputHint: "embedded"
@@ -1941,6 +1944,7 @@ describe( "Links" , () => {
 				collection: 'jobs' ,
 				optional: true ,
 				type: 'link' ,
+				opaque: true ,
 				tags: [ 'content' ] ,
 				sanitize: [ 'toLink' ] ,
 				inputHint: "embedded"
@@ -5715,6 +5719,81 @@ describe( "Historical bugs" , () => {
 	it( "the special field _id should be taken as indexed by default, allowing queries on _id" , async () => {
 		expect( users.indexedProperties._id ).to.be.ok() ;
 		expect( users.uniques[ 0 ] ).to.equal( [ '_id' ] ) ;
+	} ) ;
+
+	it( "xxx patch on link providing non-ID" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var userId = user.getId() ;
+
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var jobId = job.getId() ;
+
+		await Promise.all( [ user.save() , job.save() ] ) ;
+		var dbUser = await users.get( userId ) ;
+
+		// Forbid access to internal properties of a link: link are "opaque"
+		expect( () => dbUser.patch( { "job._id": '' + jobId } , { validate: true } ) ).to.throw.a( doormen.ValidatorError ) ;
+		dbUser.patch( { job: { _id: '' + jobId } } , { validate: true } ) ;
+		console.log( dbUser._.raw ) ;
+		expect( dbUser.job._id ).to.equal( jobId ) ;
+		await expect( dbUser.getLink( 'job' ) ).to.eventually.equal( {
+			_id: jobId ,
+			title: "developer" ,
+			salary: 60000 ,
+			users: {} ,
+			schools: {}
+		} ) ;
+	} ) ;
+	
+	it( "zzz patch on multi-link providing non-ID" , async () => {
+		var map , batch , dbSchool ;
+
+		var school = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+
+		var id = school.getId() ;
+
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var job1Id = job1.getId() ;
+
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+
+		var job2Id = job2.getId() ;
+
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+
+		var job3Id = job3.getId() ;
+
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
+		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [] } ) ;
+		
+		school.patch( { jobs: [ { _id: ''+job1._id, title:'developer', salary: 60000 } , { _id: ''+job2._id } ] } ) ;
+		//console.log( school ) ;
+		console.log( school._.raw ) ;
+		//expect( school._.raw ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
+		await school.save() ;
+
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
+		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
 	} ) ;
 } ) ;
 
