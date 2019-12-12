@@ -2413,6 +2413,8 @@ describe( "Multi-links" , () => {
 		// .setLink() and uniqness
 		school.setLink( 'jobs' , [ job1 , job2 , job1 ] ) ;
 		expect( school.jobs ).to.equal( [ job1 , job2 ] ) ;
+		log.hdebug( ".setLink() %Y, raw: %Y" , school , school._.raw ) ;
+		log.hdebug( "    populated: %Y" , school._.populatedDocumentProxies.get( school._.raw.jobs[ 0 ] ) ) ;
 
 		// .addLink() and uniqness
 		school.addLink( 'jobs' , job2 ) ;
@@ -2421,13 +2423,19 @@ describe( "Multi-links" , () => {
 		// direct access do not enforce uniqness until validation
 		school.jobs = [ job1 , job2 , job1 ] ;
 		expect( school.jobs ).to.equal( [ job1 , job2 , job1 ] ) ;
+		log.hdebug( "direct %Y, raw: %Y" , school , school._.raw ) ;
+		log.hdebug( "    populated: %Y" , school._.populatedDocumentProxies.get( school._.raw.jobs[ 0 ] ) ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
 		
 		// Duplicated links should be removed now
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ job1 , job2 ] } ) ;
 
+		log.hdebug( "direct, after .save() %Y, raw: %Y" , school , school._.raw ) ;
+		log.hdebug( "    populated: %Y" , school._.populatedDocumentProxies.get( school._.raw.jobs[ 0 ] ) ) ;
 		batch = await school.getLink( "jobs" ) ;
+		log.hdebug( "after .save(), using .getLink() %Y, raw: %Y" , batch[0], batch[0]._.raw ) ;
+		log.hdebug( "    populated: %Y" , school._.populatedDocumentProxies.get( batch[0] ) ) ;
 
 		map = {} ;
 		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
