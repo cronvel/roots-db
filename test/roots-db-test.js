@@ -5742,7 +5742,7 @@ describe( "Historical bugs" , () => {
 		// Forbid access to internal properties of a link: link are "opaque"
 		expect( () => dbUser.patch( { "job._id": '' + jobId } , { validate: true } ) ).to.throw.a( doormen.ValidatorError ) ;
 		dbUser.patch( { job: { _id: '' + jobId } } , { validate: true } ) ;
-		console.log( dbUser._.raw ) ;
+		log.hdebug( "%Y" , dbUser._.raw ) ;
 		expect( dbUser.job._id ).to.equal( jobId ) ;
 		await expect( dbUser.getLink( 'job' ) ).to.eventually.equal( {
 			_id: jobId ,
@@ -5753,7 +5753,7 @@ describe( "Historical bugs" , () => {
 		} ) ;
 	} ) ;
 	
-	it( "zzz patch on multi-link providing non-ID" , async () => {
+	it.opt( "zzz patch on multi-link providing non-ID" , async () => {
 		var map , batch , dbSchool ;
 
 		var school = schools.createDocument( {

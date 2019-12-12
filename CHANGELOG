@@ -1,4 +1,10 @@
 
+v0.24.0
+-------
+
+Breaking (but probably ok) -- new doormen schema config 'opaque', that forbid any patch inside said object
+
+
 v0.23.14
 --------
 
