@@ -442,73 +442,7 @@ before( () => {
 
 
 describe( "Collection" , () => {
-
 	it( "Some collection tests" ) ;
-	
-	it.opt( "Test user/password in the connection string" , async () => {
-		/*
-			First, create a user in the mongo-shell with the command:
-			db.createUser( { user: 'restricted' , pwd: 'restricted-pw' , roles: [ { role: "readWrite", db: "rootsDb-restricted" } ] } )
-		*/
-		
-		var world_ = new rootsDb.World() ;
-		var descriptor = {
-			url: 'mongodb://restricted:restricted-pw@localhost:27017/rootsDb-restricted/restrictedCollection' ,
-			properties: {
-				prop1: {
-					type: 'string'
-				} ,
-				prop2: {
-					type: 'string'
-				}
-			}
-		} ;
-		
-		var restrictedCollection = world_.createCollection( 'restrictedCollection' , descriptor ) ;
-		
-		//console.log( "restrictedCollection.url:" , restrictedCollection.url ) ;
-		//console.log( "restrictedCollection.config:" , restrictedCollection.config ) ;
-		//console.log( "restrictedCollection.driver.url:" , restrictedCollection.driver.url ) ;
-
-		var doc = restrictedCollection.createDocument( {
-			prop1: 'v1' ,
-			prop2: 'v2'
-		} ) ;
-		
-		var id = doc.getId() ;
-
-		await doc.save() ;
-		var dbDoc = await restrictedCollection.get( id ) ;
-
-		expect( dbDoc ).to.be.an( Object ) ;
-		expect( dbDoc._ ).to.be.a( rootsDb.Document ) ;
-		expect( dbDoc._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( dbDoc._id ).to.equal( id ) ;
-		expect( dbDoc ).to.equal( { _id: doc._id , prop1: 'v1' , prop2: 'v2' } ) ;
-
-
-		// Check failure
-		var descriptor2 = {
-			url: 'mongodb://restricted:badpwé@localhost:27017/rootsDb-restricted/restrictedCollection2' ,
-			properties: {
-				prop1: {
-					type: 'string'
-				} ,
-				prop2: {
-					type: 'string'
-				}
-			}
-		} ;
-		
-		var restrictedCollection2 = world_.createCollection( 'restrictedCollection2' , descriptor2 ) ;
-		var doc2 = restrictedCollection2.createDocument( {
-			prop1: 'v3' ,
-			prop2: 'v4'
-		} ) ;
-		var id = doc2.getId() ;
-		
-		await expect( () => doc2.save() ).to.reject() ;
-	} ) ;
 } ) ;
 
 
@@ -2380,7 +2314,7 @@ describe( "Multi-links" , () => {
 		} ) ;
 	} ) ;
 
-	it( "It should enforce link uniqness" , async () => {
+	it( "should enforce link uniqness" , async () => {
 		var map , batch , dbSchool ;
 
 		var school = schools.createDocument( {
@@ -2413,8 +2347,6 @@ describe( "Multi-links" , () => {
 		// .setLink() and uniqness
 		school.setLink( 'jobs' , [ job1 , job2 , job1 ] ) ;
 		expect( school.jobs ).to.equal( [ job1 , job2 ] ) ;
-		log.hdebug( ".setLink() %Y, raw: %Y" , school , school._.raw ) ;
-		log.hdebug( "    populated: %Y" , school._.populatedDocumentProxies.get( school._.raw.jobs[ 0 ] ) ) ;
 
 		// .addLink() and uniqness
 		school.addLink( 'jobs' , job2 ) ;
@@ -2423,19 +2355,13 @@ describe( "Multi-links" , () => {
 		// direct access do not enforce uniqness until validation
 		school.jobs = [ job1 , job2 , job1 ] ;
 		expect( school.jobs ).to.equal( [ job1 , job2 , job1 ] ) ;
-		log.hdebug( "direct %Y, raw: %Y" , school , school._.raw ) ;
-		log.hdebug( "    populated: %Y" , school._.populatedDocumentProxies.get( school._.raw.jobs[ 0 ] ) ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
 		
 		// Duplicated links should be removed now
-		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ job1 , job2 ] } ) ;
+		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
 
-		log.hdebug( "direct, after .save() %Y, raw: %Y" , school , school._.raw ) ;
-		log.hdebug( "    populated: %Y" , school._.populatedDocumentProxies.get( school._.raw.jobs[ 0 ] ) ) ;
 		batch = await school.getLink( "jobs" ) ;
-		log.hdebug( "after .save(), using .getLink() %Y, raw: %Y" , batch[0], batch[0]._.raw ) ;
-		log.hdebug( "    populated: %Y" , school._.populatedDocumentProxies.get( batch[0] ) ) ;
 
 		map = {} ;
 		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
@@ -5729,7 +5655,131 @@ describe( "Historical bugs" , () => {
 		expect( users.uniques[ 0 ] ).to.equal( [ '_id' ] ) ;
 	} ) ;
 
-	it( "xxx patch on link providing non-ID" , async () => {
+	it( "direct assignment to a (multi)link (without using .setLink()) should at least transform to proper link (as document) and populate the document proxy" , async () => {
+		var map , batch , dbSchool ;
+
+		var school = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+
+		var id = school.getId() ;
+
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var job1Id = job1.getId() ;
+
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+
+		var job2Id = job2.getId() ;
+
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+
+		var job3Id = job3.getId() ;
+
+		// direct access
+		school.jobs = [ job1 , job2 , job1 ] ;
+		expect( school.jobs ).to.equal( [ job1 , job2 , job1 ] ) ;
+		expect( school._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } , { _id: job1Id } ] ) ;
+		expect( school._.populatedDocumentProxies.get( school._.raw.jobs[ 0 ] ) ).to.be( job1 ) ;
+
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
+		
+		// Duplicated links should be removed now, proxy Set did not trigger the validator, but .save() does...
+		
+		dbSchool = await schools.get( id ) ;
+		expect( dbSchool ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
+		expect( dbSchool._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
+		expect( dbSchool._.populatedDocumentProxies.get( dbSchool._.raw.jobs[ 0 ] ) ).to.be.undefined() ;
+
+		batch = await school.getLink( "jobs" ) ;
+		//log.hdebug( "after .save(), using .getLink() %Y" , batch ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
+
+		expect( map ).to.equal( {
+			developer: {
+				_id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+			} ,
+			sysadmin: {
+				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: {} , schools: {}
+			}
+		} ) ;
+	} ) ;
+
+	it( "direct assignment to a (multi)link (without using .setLink()) should at least transform to proper link (as document-like object) and populate the document proxy" , async () => {
+		var map , batch , dbSchool ;
+
+		var school = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+
+		var id = school.getId() ;
+
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var job1Id = job1.getId() ;
+
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+
+		var job2Id = job2.getId() ;
+
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+
+		var job3Id = job3.getId() ;
+
+		// direct access
+		var multiLink = JSON.parse( JSON.stringify( [ job1 , job2 , job1 ] ) ) ;
+		//log.hdebug( "%Y" , multiLink ) ;
+		school.jobs = multiLink ;
+		expect( school.jobs ).to.equal( multiLink ) ;
+		expect( school._.raw.jobs ).to.equal( multiLink ) ;
+		expect( school._.populatedDocumentProxies.get( school._.raw.jobs[ 0 ] ) ).to.be.undefined() ;
+
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
+		
+		// Duplicated links should be removed now, proxy Set did not trigger the validator, but .save() does...
+		
+		dbSchool = await schools.get( id ) ;
+		expect( dbSchool ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
+		expect( dbSchool._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
+		expect( dbSchool._.populatedDocumentProxies.get( dbSchool._.raw.jobs[ 0 ] ) ).to.be.undefined() ;
+
+		batch = await school.getLink( "jobs" ) ;
+		//log.hdebug( "after .save(), using .getLink() %Y" , batch ) ;
+
+		map = {} ;
+		batch.forEach( doc => { map[ doc.title ] = doc ; } ) ;
+
+		expect( map ).to.equal( {
+			developer: {
+				_id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+			} ,
+			sysadmin: {
+				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: {} , schools: {}
+			}
+		} ) ;
+	} ) ;
+
+	it( "patch on link providing non-ID" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -5750,7 +5800,7 @@ describe( "Historical bugs" , () => {
 		// Forbid access to internal properties of a link: link are "opaque"
 		expect( () => dbUser.patch( { "job._id": '' + jobId } , { validate: true } ) ).to.throw.a( doormen.ValidatorError ) ;
 		dbUser.patch( { job: { _id: '' + jobId } } , { validate: true } ) ;
-		log.hdebug( "%Y" , dbUser._.raw ) ;
+		//log.hdebug( "%Y" , dbUser._.raw ) ;
 		expect( dbUser.job._id ).to.equal( jobId ) ;
 		await expect( dbUser.getLink( 'job' ) ).to.eventually.equal( {
 			_id: jobId ,
@@ -5761,7 +5811,7 @@ describe( "Historical bugs" , () => {
 		} ) ;
 	} ) ;
 	
-	it.opt( "zzz patch on multi-link providing non-ID" , async () => {
+	it( "patch with validate option off on multi-link providing non-ID" , async () => {
 		var map , batch , dbSchool ;
 
 		var school = schools.createDocument( {
@@ -5794,11 +5844,58 @@ describe( "Historical bugs" , () => {
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [] } ) ;
 		
+		// No validate: so it is stored as it is
 		school.patch( { jobs: [ { _id: ''+job1._id, title:'developer', salary: 60000 } , { _id: ''+job2._id } ] } ) ;
-		//console.log( school ) ;
-		console.log( school._.raw ) ;
-		//expect( school._.raw ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
+		expect( school._.raw ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: ''+job1._id, title:'developer', salary: 60000 } , { _id: ''+job2._id } ] } ) ;
+		
+		// No we save it, so validation happens NOW!
 		await school.save() ;
+		expect( school._.raw ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
+
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
+		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
+	} ) ;
+	
+	it( "patch with validate option on on multi-link providing non-ID" , async () => {
+		var map , batch , dbSchool ;
+
+		var school = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+
+		var id = school.getId() ;
+
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var job1Id = job1.getId() ;
+
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+
+		var job2Id = job2.getId() ;
+
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+
+		var job3Id = job3.getId() ;
+
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
+		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [] } ) ;
+		
+		// It's validated NOW: so it is stored the way it should be
+		school.patch( { jobs: [ { _id: ''+job1._id, title:'developer', salary: 60000 } , { _id: ''+job2._id } ] } , { validate: true } ) ;
+		expect( school._.raw ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
+
+		// No changes...
+		await school.save() ;
+		expect( school._.raw ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
@@ -5827,6 +5924,71 @@ describe( "Slow tests" , () => {
 				expect( await collection.driver.getIndexes() ).to.equal( collection.indexes ) ;
 			} ) ;
 		} ) ;
+	} ) ;
+
+	it.opt( "Test user/password in the connection string" , async () => {
+		/*
+			First, create a user in the mongo-shell with the command:
+			db.createUser( { user: 'restricted' , pwd: 'restricted-pw' , roles: [ { role: "readWrite", db: "rootsDb-restricted" } ] } )
+		*/
+		
+		var world_ = new rootsDb.World() ;
+		var descriptor = {
+			url: 'mongodb://restricted:restricted-pw@localhost:27017/rootsDb-restricted/restrictedCollection' ,
+			properties: {
+				prop1: {
+					type: 'string'
+				} ,
+				prop2: {
+					type: 'string'
+				}
+			}
+		} ;
+		
+		var restrictedCollection = world_.createCollection( 'restrictedCollection' , descriptor ) ;
+		
+		//console.log( "restrictedCollection.url:" , restrictedCollection.url ) ;
+		//console.log( "restrictedCollection.config:" , restrictedCollection.config ) ;
+		//console.log( "restrictedCollection.driver.url:" , restrictedCollection.driver.url ) ;
+
+		var doc = restrictedCollection.createDocument( {
+			prop1: 'v1' ,
+			prop2: 'v2'
+		} ) ;
+		
+		var id = doc.getId() ;
+
+		await doc.save() ;
+		var dbDoc = await restrictedCollection.get( id ) ;
+
+		expect( dbDoc ).to.be.an( Object ) ;
+		expect( dbDoc._ ).to.be.a( rootsDb.Document ) ;
+		expect( dbDoc._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( dbDoc._id ).to.equal( id ) ;
+		expect( dbDoc ).to.equal( { _id: doc._id , prop1: 'v1' , prop2: 'v2' } ) ;
+
+
+		// Check failure
+		var descriptor2 = {
+			url: 'mongodb://restricted:badpwé@localhost:27017/rootsDb-restricted/restrictedCollection2' ,
+			properties: {
+				prop1: {
+					type: 'string'
+				} ,
+				prop2: {
+					type: 'string'
+				}
+			}
+		} ;
+		
+		var restrictedCollection2 = world_.createCollection( 'restrictedCollection2' , descriptor2 ) ;
+		var doc2 = restrictedCollection2.createDocument( {
+			prop1: 'v3' ,
+			prop2: 'v4'
+		} ) ;
+		var id = doc2.getId() ;
+		
+		await expect( () => doc2.save() ).to.reject() ;
 	} ) ;
 } ) ;
 
