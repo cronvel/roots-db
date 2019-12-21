@@ -1,4 +1,10 @@
 
+v0.25.3
+-------
+
+Now on document proxy set, a doormen.isEqual() test is performed, avoiding creating unnecessary versions and DB patch
+
+
 v0.25.2
 -------
 

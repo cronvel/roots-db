@@ -256,6 +256,8 @@ const versionedItemsDescriptor = {
 		name: { type: 'string' } ,
 		p1: { type: 'string' , optional: true } ,
 		p2: { type: 'string' , optional: true } ,
+		p3: { type: 'strictObject' , optional: true } ,
+		p4: { type: 'date' , optional: true } ,
 		versions: {
 			type: 'backLink' ,
 			collection: 'versions' ,
@@ -5412,6 +5414,86 @@ describe( "Versioning" , () => {
 				versions: {}
 			}
 		] ) ;
+	} ) ;
+	
+	it( "setting a property to another value/object which is equal (in the 'doormen sens') should not create a new version" , async () => {
+		var date1 = new Date() , date2 = new Date() ;
+		
+		var versionedItem = versionedItems.createDocument( {
+			name: 'item#1' ,
+			p1: 'value1a' ,
+			p3: { a: 1 } ,
+			p4: date1
+		} ) ;
+
+		var versionedItemId = versionedItem.getId() ;
+
+		expect( versionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 1 ,
+			_lastModified: versionedItem._lastModified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1a' ,
+			p3: { a: 1 } ,
+			p4: date1 ,
+			versions: {}
+		} ) ;
+		
+		await versionedItem.save() ;
+
+		versionedItem.p1 = 'value1a' ;
+		await versionedItem.save() ;
+		
+		// Version should be incremented now we have save it
+		expect( versionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 1 ,
+			_lastModified: versionedItem._lastModified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1a' ,
+			p3: { a: 1 } ,
+			p4: date1 ,
+			versions: {}
+		} ) ;
+
+		var batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
+		expect( batch ).to.have.length( 0 ) ;
+
+		versionedItem.p3 = { a: 1 } ;
+		await versionedItem.save() ;
+		
+		// Version should be incremented now we have save it
+		expect( versionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 1 ,
+			_lastModified: versionedItem._lastModified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1a' ,
+			p3: { a: 1 } ,
+			p4: date1 ,
+			versions: {}
+		} ) ;
+
+		var batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
+		expect( batch ).to.have.length( 0 ) ;
+
+		versionedItem.p4 = date2 ;
+		await versionedItem.save() ;
+		
+		// Version should be incremented now we have save it
+		expect( versionedItem ).to.equal( {
+			_id: versionedItemId ,
+			_version: 1 ,
+			_lastModified: versionedItem._lastModified ,	// unpredictable
+			name: 'item#1' ,
+			p1: 'value1a' ,
+			p3: { a: 1 } ,
+			p4: date1 ,
+			versions: {}
+		} ) ;
+
+		var batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
+		expect( batch ).to.have.length( 0 ) ;
 	} ) ;
 	
 	it( "race conditions" , async () => {
