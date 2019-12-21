@@ -1,4 +1,11 @@
 
+v0.25.2
+-------
+
+Support for builtin 'default function' in schema
+versioning properties are turned from 'system' to 'system-content' tag
+
+
 v0.25.1
 -------
 
