@@ -3466,7 +3466,7 @@ describe( "Attachment links" , () => {
 
 		// Now load as a stream
 		var readStream = await dbAttachment.getReadStream() ;
-		var fakeWritable = new streamKit.FakeWritable() ;
+		var fakeWritable = new streamKit.WritableToBuffer() ;
 		readStream.pipe( fakeWritable ) ;
 		await Promise.onceEvent( fakeWritable , "finish" ) ;
 
