@@ -1,7 +1,7 @@
 /*
 	Roots DB
 
-	Copyright (c) 2014 - 2019 Cédric Ronvel
+	Copyright (c) 2014 - 2020 Cédric Ronvel
 
 	The MIT License (MIT)
 
@@ -127,7 +127,8 @@ const usersDescriptor = {
 				document.memberSid = '' + document.firstName + ' ' + document.lastName ;
 			}
 		//]
-	}
+	} ,
+	refreshTimeout: 50
 } ;
 
 const expectedDefaultUser = { firstName: 'Joe' , lastName: 'Doe' , memberSid: 'Joe Doe' } ;
@@ -504,6 +505,7 @@ describe( "Document creation" , () => {
 				versioning: false ,
 				canLock: false ,
 				lockTimeout: 1000 ,
+				refreshTimeout: 50 ,
 				Batch: users.documentSchema.Batch ,
 				Collection: users.documentSchema.Collection ,
 				Document: users.documentSchema.Document
@@ -915,6 +917,55 @@ describe( "Delete documents" , () => {
 
 		await user.delete() ;
 		await expect( () => users.get( id ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Refresh documents" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should refresh a document" , async () => {
+		var user = users.createDocument( {
+			firstName: 'John' ,
+			lastName: 'McGregor'
+		} ) ;
+		var id = user.getId() ;
+		await user.save() ;
+
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id , firstName: 'John' , lastName: 'McGregor' , memberSid: "John McGregor"
+		} ) ;
+		dbUser.firstName = 'Duncan' ;
+		await dbUser.save() ;
+		
+		await user.refresh() ;
+		expect( user ).to.equal( {
+			_id: id , firstName: 'John' , lastName: 'McGregor' , memberSid: "John McGregor"
+		} ) ;
+		
+		await Promise.resolveTimeout( 60 ) ;
+		await user.refresh() ;
+		expect( user ).to.equal( {
+			_id: id , firstName: 'Duncan' , lastName: 'McGregor' , memberSid: "John McGregor"
+		} ) ;
+
+		dbUser.firstName = 'Robert' ;
+		await dbUser.save() ;
+
+		await user.refresh() ;
+		expect( user ).to.equal( {
+			_id: id , firstName: 'Duncan' , lastName: 'McGregor' , memberSid: "John McGregor"
+		} ) ;
+		
+		await Promise.resolveTimeout( 60 ) ;
+		await user.refresh() ;
+		expect( user ).to.equal( {
+			_id: id , firstName: 'Robert' , lastName: 'McGregor' , memberSid: "John McGregor"
+		} ) ;
+
 	} ) ;
 } ) ;
 

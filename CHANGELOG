@@ -1,4 +1,10 @@
 
+v0.25.5
+-------
+
+New: Document#reload() and Document#refresh()
+
+
 v0.25.4
 -------
 

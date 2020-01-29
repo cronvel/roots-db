@@ -1,6 +1,6 @@
 {
   "name": "roots-db",
-  "version": "0.25.4",
+  "version": "0.25.5",
   "engines": {
     "node": ">=8.0.0"
   },
@@ -50,7 +50,7 @@
     "title": "Roots DB",
     "years": [
       2014,
-      2019
+      2020
     ],
     "owner": "Cédric Ronvel"
   }
