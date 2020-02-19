@@ -1,4 +1,10 @@
 
+v0.26.0
+-------
+
+BREAKING CHANGE: now Collection instances need to call [async] .init(), because attachments check are now longer done synchronously inside the constructor
+
+
 v0.25.6
 -------
 

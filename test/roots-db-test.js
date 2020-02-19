@@ -410,35 +410,35 @@ function clearCollectionIndexes( collection ) {
 
 
 // Force creating the collection
-before( () => {
-	versions = world.createVersionCollection( 'versions' , versionsDescriptor ) ;
+before( async () => {
+	versions = await world.createAndInitVersionCollection( 'versions' , versionsDescriptor ) ;
 	expect( versions ).to.be.a( rootsDb.VersionCollection ) ;
 
-	users = world.createCollection( 'users' , usersDescriptor ) ;
+	users = await world.createAndInitCollection( 'users' , usersDescriptor ) ;
 	expect( users ).to.be.a( rootsDb.Collection ) ;
 
-	jobs = world.createCollection( 'jobs' , jobsDescriptor ) ;
+	jobs = await world.createAndInitCollection( 'jobs' , jobsDescriptor ) ;
 	expect( jobs ).to.be.a( rootsDb.Collection ) ;
 
-	schools = world.createCollection( 'schools' , schoolsDescriptor ) ;
+	schools = await world.createAndInitCollection( 'schools' , schoolsDescriptor ) ;
 	expect( schools ).to.be.a( rootsDb.Collection ) ;
 
-	towns = world.createCollection( 'towns' , townsDescriptor ) ;
+	towns = await world.createAndInitCollection( 'towns' , townsDescriptor ) ;
 	expect( towns ).to.be.a( rootsDb.Collection ) ;
 
-	lockables = world.createCollection( 'lockables' , lockablesDescriptor ) ;
+	lockables = await world.createAndInitCollection( 'lockables' , lockablesDescriptor ) ;
 	expect( lockables ).to.be.a( rootsDb.Collection ) ;
 
-	nestedLinks = world.createCollection( 'nestedLinks' , nestedLinksDescriptor ) ;
+	nestedLinks = await world.createAndInitCollection( 'nestedLinks' , nestedLinksDescriptor ) ;
 	expect( nestedLinks ).to.be.a( rootsDb.Collection ) ;
 
-	anyCollectionLinks = world.createCollection( 'anyCollectionLinks' , anyCollectionLinksDescriptor ) ;
+	anyCollectionLinks = await world.createAndInitCollection( 'anyCollectionLinks' , anyCollectionLinksDescriptor ) ;
 	expect( anyCollectionLinks ).to.be.a( rootsDb.Collection ) ;
 
-	versionedItems = world.createCollection( 'versionedItems' , versionedItemsDescriptor ) ;
+	versionedItems = await world.createAndInitCollection( 'versionedItems' , versionedItemsDescriptor ) ;
 	expect( versionedItems ).to.be.a( rootsDb.Collection ) ;
 
-	extendables = world.createCollection( 'extendables' , extendablesDescriptor ) ;
+	extendables = await world.createAndInitCollection( 'extendables' , extendablesDescriptor ) ;
 	expect( extendables ).to.be.a( rootsDb.Collection ) ;
 } ) ;
 
@@ -6078,7 +6078,7 @@ describe( "Slow tests" , () => {
 			}
 		} ;
 		
-		var restrictedCollection = world_.createCollection( 'restrictedCollection' , descriptor ) ;
+		var restrictedCollection = await world_.createAndInitCollection( 'restrictedCollection' , descriptor ) ;
 		
 		//console.log( "restrictedCollection.url:" , restrictedCollection.url ) ;
 		//console.log( "restrictedCollection.config:" , restrictedCollection.config ) ;
@@ -6114,7 +6114,7 @@ describe( "Slow tests" , () => {
 			}
 		} ;
 		
-		var restrictedCollection2 = world_.createCollection( 'restrictedCollection2' , descriptor2 ) ;
+		var restrictedCollection2 = await world_.createAndInitCollection( 'restrictedCollection2' , descriptor2 ) ;
 		var doc2 = restrictedCollection2.createDocument( {
 			prop1: 'v3' ,
 			prop2: 'v4'
