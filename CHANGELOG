@@ -1,4 +1,10 @@
 
+v0.26.1
+-------
+
+New: options 'depth' specify the depth-limit for deep-population
+
+
 v0.26.0
 -------
 

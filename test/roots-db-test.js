@@ -4406,21 +4406,39 @@ describe( "Deep populate links" , () => {
 			lastName: 'Polson'
 		} ) ;
 
+		var gfUser = users.createDocument( {
+			firstName: 'The' ,
+			lastName: 'Godfather'
+		} ) ;
+
 		var job = jobs.createDocument( {
 			title: 'developer' ,
 			salary: 60000
 		} ) ;
 
+		var job2 = jobs.createDocument( {
+			title: 'senior developer' ,
+			salary: 80000
+		} ) ;
+
 		// Link the documents!
 		user.setLink( 'job' , job ) ;
 		user2.setLink( 'job' , job ) ;
+		gfUser.setLink( 'job' , job2 ) ;
+		user.setLink( 'godfather' , gfUser ) ;
+		user2.setLink( 'godfather' , gfUser ) ;
 
 		await job.save() ;
+		await job2.save() ;
 		await user.save() ;
 		await user2.save() ;
+		await gfUser.save() ;
 
 		var stats = {} ;
-		var dbUser = await users.get( user._id , { deepPopulate: { users: 'job' , jobs: 'users' } , stats } ) ;
+		
+		// Check that the syntax support both array and direct string
+		//var dbUser = await users.get( user._id , { deepPopulate: { users: [ 'job' ] , jobs: 'users' } , stats } ) ;
+		var dbUser = await users.get( user._id , { deepPopulate: { users: [ 'job' , 'godfather' ] , jobs: 'users' } , stats } ) ;
 
 		expect( dbUser.job.users ).to.have.length( 2 ) ;
 
@@ -4446,18 +4464,49 @@ describe( "Deep populate links" , () => {
 				users: []
 			}
 		} ;
+		expected.godfather = {
+			_id: gfUser._id ,
+			firstName: "The" ,
+			lastName: "Godfather" ,
+			memberSid: "The Godfather" ,
+			job: {
+				_id: job2._id ,
+				title: 'senior developer' ,
+				salary: 80000 ,
+				schools: {} ,
+				users: []
+			}
+		} ;
+		expected.godfather.job.users[ 0 ] = expected.godfather ;
 		expected.job.users[ 0 ] = expected ;
 		expected.job.users[ 1 ] = {
 			_id: user2._id ,
 			firstName: "Robert" ,
 			lastName: "Polson" ,
 			memberSid: "Robert Polson" ,
+			godfather: expected.godfather ,
 			job: expected.job
 		} ;
 		expect( dbUser ).to.be.like( expected ) ;
+		
+		// There is something wrong this the "like" assertion and proxy (?) ATM
+		expect( dbUser.godfather ).to.be.like( expected.godfather ) ;
+		expect( dbUser.job.users[ 0 ] ).to.be.like( expected ) ;
+		//expect( dbUser.job.users[ 1 ] ).to.be.like( expected.job.users[ 1 ] ) ;
+		
+		//log.hdebug( "%[5l10000]Y" , dbUser ) ;
 
+		// There are 5 queries because of job's backlink to users (we don't have IDs when back-linking)
+		expect( stats.population.depth ).to.be( 3 ) ;
+		expect( stats.population.dbQueries ).to.be( 5 ) ;
+		
+		
+		
+		// Now test the depth limit
+		stats = {} ;
+		dbUser = await users.get( user._id , { depth: 2 , deepPopulate: { users: [ 'job' , 'godfather' ] , jobs: 'users' } , stats } ) ;
 		expect( stats.population.depth ).to.be( 2 ) ;
-		expect( stats.population.dbQueries ).to.be( 2 ) ;
+		expect( stats.population.dbQueries ).to.be( 4 ) ;
 	} ) ;
 
 	it( "more deep population tests" ) ;
