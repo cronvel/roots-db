@@ -1,4 +1,10 @@
 
+v0.26.3
+-------
+
+Fix a bug iin anyCollection link: now Document instance are supported as link and will be sanitized correctly
+
+
 v0.26.2
 -------
 
