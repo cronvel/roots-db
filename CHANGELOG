@@ -1,4 +1,10 @@
 
+v0.26.4
+-------
+
+Catch and re-throw a validator error like it should
+
+
 v0.26.3
 -------
 
