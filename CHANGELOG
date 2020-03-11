@@ -1,4 +1,10 @@
 
+v0.26.5
+-------
+
+Fix a potentially critical issue with nested proxies (anything that have to call a constructor, like Array#splice() does, would had crashed)
+
+
 v0.26.4
 -------
 
