@@ -1,4 +1,10 @@
 
+v0.26.7
+-------
+
+New: Collection#findEach()
+
+
 v0.26.6
 -------
 

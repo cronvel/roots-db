@@ -1828,6 +1828,51 @@ describe( "Find with a query object" , () => {
 
 
 
+describe( "Find each document with a query object (serialized)" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should find documents (in a batch) using a queryObject" , async () => {
+		var localBatch = users.createBatch( [
+			{ firstName: 'Bob' , lastName: 'Marley' } ,
+			{ firstName: 'Julian' , lastName: 'Marley' } ,
+			{ firstName: 'Mr' , lastName: 'X' } ,
+			{ firstName: 'Stephen' , lastName: 'Marley' } ,
+			{ firstName: 'Ziggy' , lastName: 'Marley' } ,
+			{ firstName: 'Thomas' , lastName: 'Jefferson' } ,
+			{ firstName: 'Rita' , lastName: 'Marley' }
+		] ) ;
+
+		expect( localBatch ).to.have.length( 7 ) ;
+
+		await localBatch.save() ;
+
+		var startDate = Date.now() ,
+			docs = [] ;
+		
+		await users.findEach( { firstName: { $regex: /^[thomasepnbo]+$/ , $options: 'i' } } , doc => {
+			expect( doc._ ).to.be.a( rootsDb.Document ) ;
+			docs.push( doc ) ;
+			// Force a timeout
+			return Promise.resolveTimeout( 50 ) ;
+		} ) ;
+
+		// Check serialization time
+		expect( Date.now() - startDate ).to.be.greater.than( 150 ) ;
+		
+		expect( docs ).to.be.an( Array ) ;
+		expect( docs ).to.have.length( 3 ) ;
+
+		expect( docs ).to.be.partially.like( [
+			{ firstName: 'Bob' , lastName: 'Marley' , memberSid: 'Bob Marley' } ,
+			{ firstName: 'Stephen' , lastName: 'Marley' , memberSid: 'Stephen Marley' } ,
+			{ firstName: 'Thomas' , lastName: 'Jefferson' , memberSid: 'Thomas Jefferson' }
+		] ) ;
+	} ) ;
+} ) ;
+
+
+
 describe( "Links" , () => {
 
 	beforeEach( clearDB ) ;
