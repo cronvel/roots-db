@@ -6196,10 +6196,21 @@ describe( "Slow tests" , () => {
 
 			return Promise.map( Object.keys( world.collections ) , async ( name ) => {
 				var collection = world.collections[ name ] ;
-				await collection.buildIndexes() ;
-				var indexes = await collection.driver.getIndexes() ;
-				log.hdebug( 'Index built for collection %s:\nDB indexes: %Y\nSchema indexes: %Y' , name , indexes , collection.indexes ) ;
-				expect( indexes ).to.be.partially.like( collection.indexes ) ;
+				
+				try {
+					await collection.buildIndexes() ;
+					var indexes = await collection.driver.getIndexes() ;
+					//log.hdebug( "Index built for collection %s\nDB indexes: %Y\nSchema indexes: %Y" , name , indexes , collection.indexes ) ;
+					
+					// Should be reversed: indexes has less key than collection.indexes...
+					// Also it's not an optimal test, it should be more detailed.
+					//expect( indexes ).to.be.partially.like( collection.indexes ) ;
+					expect( collection.indexes ).to.be.partially.like( indexes ) ;
+				}
+				catch ( error ) {
+					log.error( "Failed for %s: %E" , collection.name , error ) ;
+					throw error ;
+				}
 			} ) ;
 		} ) ;
 	} ) ;

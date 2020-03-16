@@ -1,4 +1,10 @@
 
+v0.27.0
+-------
+
+Maybe breaking: indexing links should be done using 'links' instead of 'properties'
+
+
 v0.26.8
 -------
 
