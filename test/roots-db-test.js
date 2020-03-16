@@ -117,16 +117,13 @@ const usersDescriptor = {
 		}
 	} ,
 	indexes: [
-		{ linkProperties: { "job": 1 } } ,
-		{ linkProperties: { "job": 1 } , properties: { memberSid: 1 } , unique: true }
+		{ links: { "job": 1 } } ,
+		{ links: { "job": 1 } , properties: { memberSid: 1 } , unique: true }
 	] ,
 	hooks: {
-		afterCreateDocument: //[
-			function( document ) {
-				//console.log( "- Users afterCreateDocument 'after' hook -" ) ;
-				document.memberSid = '' + document.firstName + ' ' + document.lastName ;
-			}
-		//]
+		afterCreateDocument: document => {
+			document.memberSid = '' + document.firstName + ' ' + document.lastName ;
+		}
 	} ,
 	refreshTimeout: 50
 } ;
@@ -501,8 +498,8 @@ describe( "Document creation" , () => {
 					}
 				} ,
 				indexes: [
-					{ name: '76XfzeoWr6vypri1dK4JpmbR0n8' , properties: { "job._id": 1 } , linkProperties: { job: 1 } } ,
-					{ name: 't6CAMDF5H-Rh9YqkMGKNkYdnT0A' , properties: { "job._id": 1 , memberSid: 1 } , linkProperties: { job: 1 } , unique: true }
+					{ name: 'Ze2_dAMJpGa0kIzVPZ6Da7k10PA' , properties: { "job._id": 1 } , links: { job: 1 } } ,
+					{ name: 'NM_S_Qv840Upx2TZWNHyyBCSVtA' , properties: { "job._id": 1 , memberSid: 1 } , links: { job: 1 } , unique: true }
 				] ,
 				hooks: users.documentSchema.hooks ,
 				versioning: false ,
@@ -512,6 +509,56 @@ describe( "Document creation" , () => {
 				Batch: users.documentSchema.Batch ,
 				Collection: users.documentSchema.Collection ,
 				Document: users.documentSchema.Document
+			}
+		) ;
+
+		expect( versions.documentSchema ).to.equal(
+			{
+				url: "mongodb://localhost:27017/rootsDb/versions" ,
+				attachmentUrl: "/home/cedric/inside/github/roots-db/test/tmp/" ,
+				extraProperties: true ,
+				properties: {
+					_activeVersion: {
+						type: "link" , anyCollection: true , inputHint: "embedded" , opaque: true , sanitize: [ "toLink" ] , system: true , tags: [ "system-content" ]
+					} ,
+					_id: {
+						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , tags: [ "id" ]
+					} ,
+					_lastModified: {
+						defaultFn: "now" , inputHint: "date" , sanitize: [ "toDate" ] , system: true , tags: [ "system-content" ] , type: "date"
+					} ,
+					_version: {
+						default: 1 , inputHint: "text" , sanitize: [ "toInteger" ] , system: true , tags: [ "system-content" ] , type: "integer"
+					}
+				} ,
+				indexes: [
+					{
+						links: { _activeVersion: 1 } ,
+						name: "yddg3wKajusaYIbbFm8ZVUv3xjI" ,
+						properties: {
+							"_activeVersion._collection": 1 ,
+							"_activeVersion._id": 1
+						}
+					} ,
+					{
+						links: { _activeVersion: 1 } ,
+						name: "yhYrmRX6i7x9FyehXJKoflrTTnI" ,
+						properties: {
+							"_activeVersion._collection": 1 ,
+							"_activeVersion._id": 1 ,
+							_version: 1
+						} ,
+						unique: true
+					}
+				] ,
+				hooks: versions.documentSchema.hooks ,
+				versioning: false ,
+				canLock: false ,
+				lockTimeout: 1000 ,
+				refreshTimeout: 1000 ,
+				Batch: versions.documentSchema.Batch ,
+				Collection: versions.documentSchema.Collection ,
+				Document: versions.documentSchema.Document
 			}
 		) ;
 	} ) ;
@@ -6150,8 +6197,9 @@ describe( "Slow tests" , () => {
 			return Promise.map( Object.keys( world.collections ) , async ( name ) => {
 				var collection = world.collections[ name ] ;
 				await collection.buildIndexes() ;
-				log.verbose( 'Index built for collection %s' , name ) ;
-				expect( await collection.driver.getIndexes() ).to.equal( collection.indexes ) ;
+				var indexes = await collection.driver.getIndexes() ;
+				log.hdebug( 'Index built for collection %s:\nDB indexes: %Y\nSchema indexes: %Y' , name , indexes , collection.indexes ) ;
+				expect( indexes ).to.be.partially.like( collection.indexes ) ;
 			} ) ;
 		} ) ;
 	} ) ;
