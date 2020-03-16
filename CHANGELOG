@@ -1,4 +1,10 @@
 
+v0.27.1
+-------
+
+Fix bad name for internal property: indexedLinkProperties -> indexedLinks, to better reflect the schema
+
+
 v0.27.0
 -------
 
