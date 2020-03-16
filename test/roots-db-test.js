@@ -117,8 +117,8 @@ const usersDescriptor = {
 		}
 	} ,
 	indexes: [
-		{ properties: { "job._id": 1 } } ,
-		{ properties: { "job._id": 1 , memberSid: 1 } , unique: true }
+		{ linkProperties: { "job": 1 } } ,
+		{ linkProperties: { "job": 1 } , properties: { memberSid: 1 } , unique: true }
 	] ,
 	hooks: {
 		afterCreateDocument: //[
@@ -500,7 +500,10 @@ describe( "Document creation" , () => {
 						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , tags: [ "id" ]
 					}
 				} ,
-				indexes: [ { properties: { "job._id": 1 } } , { properties: { "job._id": 1 , memberSid: 1 } , unique: true } ] ,
+				indexes: [
+					{ name: '76XfzeoWr6vypri1dK4JpmbR0n8' , properties: { "job._id": 1 } , linkProperties: { job: 1 } } ,
+					{ name: 't6CAMDF5H-Rh9YqkMGKNkYdnT0A' , properties: { "job._id": 1 , memberSid: 1 } , linkProperties: { job: 1 } , unique: true }
+				] ,
 				hooks: users.documentSchema.hooks ,
 				versioning: false ,
 				canLock: false ,
