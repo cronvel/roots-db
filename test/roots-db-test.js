@@ -498,8 +498,8 @@ describe( "Document creation" , () => {
 					}
 				} ,
 				indexes: [
-					{ name: 'Ze2_dAMJpGa0kIzVPZ6Da7k10PA' , properties: { "job._id": 1 } , links: { job: 1 } } ,
-					{ name: 'NM_S_Qv840Upx2TZWNHyyBCSVtA' , properties: { "job._id": 1 , memberSid: 1 } , links: { job: 1 } , unique: true }
+					{ name: 'ZRBwnf_WlQFS7jwEBRHJaeawY7E' , properties: { "job._id": 1 } , links: { job: 1 } , unique: false , partial: false , driver: null } ,
+					{ name: '5Ho_ZTKs3U07A-Uewbuf9B2gbV8' , properties: { "job._id": 1 , memberSid: 1 } , links: { job: 1 } , unique: true , partial: false , driver: null }
 				] ,
 				hooks: users.documentSchema.hooks ,
 				versioning: false ,
@@ -533,22 +533,27 @@ describe( "Document creation" , () => {
 				} ,
 				indexes: [
 					{
-						links: { _activeVersion: 1 } ,
-						name: "yddg3wKajusaYIbbFm8ZVUv3xjI" ,
+						name: "IYQzgCI3rQ3kjbSMnPAWV0-4Ftk" ,
 						properties: {
 							"_activeVersion._collection": 1 ,
 							"_activeVersion._id": 1
-						}
+						} ,
+						links: { _activeVersion: 1 } ,
+						unique: false ,
+						partial: false ,
+						driver: null 
 					} ,
 					{
-						links: { _activeVersion: 1 } ,
-						name: "yhYrmRX6i7x9FyehXJKoflrTTnI" ,
+						name: "DvydVH9aUPHwgAQfyT56qysVyeE" ,
 						properties: {
 							"_activeVersion._collection": 1 ,
 							"_activeVersion._id": 1 ,
 							_version: 1
 						} ,
-						unique: true
+						links: { _activeVersion: 1 } ,
+						unique: true ,
+						partial: false ,
+						driver: null 
 					}
 				] ,
 				hooks: versions.documentSchema.hooks ,
@@ -6191,7 +6196,7 @@ describe( "Slow tests" , () => {
 		it.opt( "should build indexes" , async function() {
 			//console.log( "start test" ) ;
 			this.timeout( 15000 ) ;
-			expect( users.uniques ).to.equal( [ [ '_id' ] , [ 'job._id' , 'memberSid' ] ] ) ;
+			expect( users.uniques ).to.equal( [ [ '_id' ] , [ 'memberSid' , 'job._id' ] ] ) ;
 			expect( jobs.uniques ).to.equal( [ [ '_id' ] ] ) ;
 
 			return Promise.map( Object.keys( world.collections ) , async ( name ) => {

@@ -1,4 +1,10 @@
 
+v0.27.2
+-------
+
+Indexes hash/name changed again (using new hash-kit .fingerprint() that is consistent over properties order)
+
+
 v0.27.1
 -------
 
