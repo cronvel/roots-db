@@ -1,4 +1,10 @@
 
+v0.27.3
+-------
+
+Better 'versionDuplicateKey' error detection
+
+
 v0.27.2
 -------
 
