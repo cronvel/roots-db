@@ -164,10 +164,11 @@ const schoolsDescriptor = {
 		{
 			properties: { title: 1 } ,
 			unique: true ,
+			// Ti use with the collation unit test
 			collation: {
 				locale: 'en' ,
 				caseLevel: true ,
-				numericOrdering: true ,
+				numericOrdering: true
 			}
 		}
 	]
@@ -550,12 +551,14 @@ describe( "Document creation" , () => {
 				} ,
 				indexes: [
 					{
-						name: "P3urFqHS0MeSRMC2zVxhCCrXp9M" ,
+						name: "_pY6Lhgiky-udo38l_7umMnJMx8" ,
 						properties: { title: 1 } ,
 						unique: true ,
 						partial: false ,
 						collation: {
-							locale: 'en'
+							locale: 'en' ,
+							caseLevel: true ,
+							numericOrdering: true
 						}
 					}
 				] ,
@@ -1936,21 +1939,27 @@ describe( "Find with a query object" , () => {
 		] ) ;
 	} ) ;
 
-	it( "Sort on a collection with an index with collation" , async () => {
+	it( "Sort on a collection with an index, with collation" , async () => {
 		var someSchools = [
 			schools.createDocument( { title: 'a school' } ) ,
-			schools.createDocument( { title: 'A school' } ) ,
 			schools.createDocument( { title: 'that school' } ) ,
 			schools.createDocument( { title: 'That school' } ) ,
+			schools.createDocument( { title: 'A school' } ) ,
 		] ;
 
 		await Promise.map( someSchools , school => school.save() ) ;
-		var dbBatch = await schools.find( {} , { sort: { title: 1 } } ) ;
+		var dbBatch = await schools.find( {} , {
+			collation: { locale: 'en' , caseLevel: true , numericOrdering: true } ,
+			sort: { title: 1 }
+		} ) ;
 
 		//expect( dbBatch ).to.have.length( 2 ) ;
-		log.hdebug( "Batch: %Y" , [ ... dbBatch ] ) ;
+		//log.hdebug( "Batch: %Y" , [ ... dbBatch ] ) ;
 		expect( dbBatch ).to.be.partially.like( [
-			{ title: '' }
+			{ title: "a school" } ,
+			{ title: "A school" } ,
+			{ title: "that school" } ,
+			{ title: "That school" }
 		] ) ;
 	} ) ;
 } ) ;
@@ -6283,8 +6292,23 @@ describe( "Slow tests" , () => {
 					
 					// Should be reversed: indexes has less key than collection.indexes...
 					// Also it's not an optimal test, it should be more detailed.
-					//expect( indexes ).to.be.partially.like( collection.indexes ) ;
-					expect( collection.indexes ).to.be.partially.like( indexes ) ;
+					//expect( collection.indexes ).to.be.partially.like( indexes ) ;
+					
+					expect( Object.keys( indexes ) ).to.have.length.of( Object.keys( collection.indexes ).length ) ;
+					//log.hdebug( ">>>>>>>>>>>>>>>>> %s\nDB: %Y\nframework: %Y" , name , indexes , collection.indexes ) ;
+
+					Object.keys( indexes ).forEach( indexName => {
+						var index = indexes[ indexName ] ;
+						var cIndex = collection.indexes[ indexName ] ;
+						expect( index.properties ).to.equal( cIndex.properties ) ;
+						expect( index.unique || false ).to.be( cIndex.unique ) ;
+						
+						if ( cIndex.partial ) { expect( index.partialFilterExpression ).to.be.ok() ; }
+						else { expect( index.partialFilterExpression ).not.to.be.ok() ; }
+
+						if ( cIndex.collation ) { expect( index.collation ).to.partially.equal( cIndex.collation ) ; }
+						else { expect( index.collation ).not.to.be.ok() ; }
+					} ) ;
 				}
 				catch ( error ) {
 					log.error( "Failed for %s: %E" , collection.name , error ) ;
