@@ -159,7 +159,18 @@ const schoolsDescriptor = {
 			type: 'multiLink' ,
 			collection: 'jobs'
 		}
-	}
+	} ,
+	indexes: [
+		{
+			properties: { title: 1 } ,
+			unique: true ,
+			collation: {
+				locale: 'en' ,
+				caseLevel: true ,
+				numericOrdering: true ,
+			}
+		}
+	]
 } ;
 
 const townsDescriptor = {
@@ -498,8 +509,8 @@ describe( "Document creation" , () => {
 					}
 				} ,
 				indexes: [
-					{ name: 'ZRBwnf_WlQFS7jwEBRHJaeawY7E' , properties: { "job._id": 1 } , links: { job: 1 } , unique: false , partial: false , driver: null } ,
-					{ name: '5Ho_ZTKs3U07A-Uewbuf9B2gbV8' , properties: { "job._id": 1 , memberSid: 1 } , links: { job: 1 } , unique: true , partial: false , driver: null }
+					{ name: 'Hzz2C_5P5AOjVdPSG_7URlrUcAk' , properties: { "job._id": 1 } , links: { job: 1 } , unique: false , partial: false } ,
+					{ name: 'EyFhPyID5m2EHyOTgAvC5I8AOeY' , properties: { "job._id": 1 , memberSid: 1 } , links: { job: 1 } , unique: true , partial: false }
 				] ,
 				hooks: users.documentSchema.hooks ,
 				versioning: false ,
@@ -509,6 +520,53 @@ describe( "Document creation" , () => {
 				Batch: users.documentSchema.Batch ,
 				Collection: users.documentSchema.Collection ,
 				Document: users.documentSchema.Document
+			}
+		) ;
+
+		expect( schools.documentSchema ).to.equal(
+			{
+				url: "mongodb://localhost:27017/rootsDb/schools" ,
+				properties: {
+					_id: {
+						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , tags: [ "id" ]
+					} ,
+					title: {
+						type: 'string' ,
+						maxLength: 50 ,
+						inputHint: "text" ,
+						tags: [ "content" ]
+					} ,
+					jobs: {
+						type: 'multiLink' ,
+						collection: 'jobs' ,
+						constraints: [ { convert: "toString" , enforce: "unique" , noEmpty: true , path: "_id" , resolve: true } ] ,
+						default: [] ,
+						inputHint: "embedded" ,
+						of: { type: "link" , inputHint: "embedded" , opaque: true , sanitize: [ "toLink" ] , tags: [ "content" ] } ,
+						opaque: true ,
+						sanitize: [ "toMultiLink" ] ,
+						tags: [ "content" ]
+					}
+				} ,
+				indexes: [
+					{
+						name: "P3urFqHS0MeSRMC2zVxhCCrXp9M" ,
+						properties: { title: 1 } ,
+						unique: true ,
+						partial: false ,
+						collation: {
+							locale: 'en'
+						}
+					}
+				] ,
+				hooks: schools.documentSchema.hooks ,
+				versioning: false ,
+				canLock: false ,
+				lockTimeout: 1000 ,
+				refreshTimeout: 1000 ,
+				Batch: schools.documentSchema.Batch ,
+				Collection: schools.documentSchema.Collection ,
+				Document: schools.documentSchema.Document
 			}
 		) ;
 
@@ -533,18 +591,17 @@ describe( "Document creation" , () => {
 				} ,
 				indexes: [
 					{
-						name: "IYQzgCI3rQ3kjbSMnPAWV0-4Ftk" ,
+						name: "OgLcSH3E_bMZrjYG5DZG08RSJtc" ,
 						properties: {
 							"_activeVersion._collection": 1 ,
 							"_activeVersion._id": 1
 						} ,
 						links: { _activeVersion: 1 } ,
 						unique: false ,
-						partial: false ,
-						driver: null 
+						partial: false
 					} ,
 					{
-						name: "DvydVH9aUPHwgAQfyT56qysVyeE" ,
+						name: "Jqlr2UkS886iHcOUoIDbKoR_PEg" ,
 						properties: {
 							"_activeVersion._collection": 1 ,
 							"_activeVersion._id": 1 ,
@@ -552,8 +609,7 @@ describe( "Document creation" , () => {
 						} ,
 						links: { _activeVersion: 1 } ,
 						unique: true ,
-						partial: false ,
-						driver: null 
+						partial: false
 					}
 				] ,
 				hooks: versions.documentSchema.hooks ,
@@ -1877,6 +1933,24 @@ describe( "Find with a query object" , () => {
 		expect( dbBatch ).to.be.partially.like( [
 			{ firstName: 'Julian' , lastName: 'Marley' } ,
 			{ firstName: 'Mr' , lastName: 'X' }
+		] ) ;
+	} ) ;
+
+	it( "Sort on a collection with an index with collation" , async () => {
+		var someSchools = [
+			schools.createDocument( { title: 'a school' } ) ,
+			schools.createDocument( { title: 'A school' } ) ,
+			schools.createDocument( { title: 'that school' } ) ,
+			schools.createDocument( { title: 'That school' } ) ,
+		] ;
+
+		await Promise.map( someSchools , school => school.save() ) ;
+		var dbBatch = await schools.find( {} , { sort: { title: 1 } } ) ;
+
+		//expect( dbBatch ).to.have.length( 2 ) ;
+		log.hdebug( "Batch: %Y" , [ ... dbBatch ] ) ;
+		expect( dbBatch ).to.be.partially.like( [
+			{ title: '' }
 		] ) ;
 	} ) ;
 } ) ;
