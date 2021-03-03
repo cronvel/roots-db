@@ -65,12 +65,12 @@ var versions , users , jobs , schools , towns , lockables , nestedLinks , anyCol
 
 const versionsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/versions' ,
-	attachmentUrl: __dirname + '/tmp/'
+	attachmentUrl: 'file://' + __dirname + '/tmp/'
 } ;
 
 const usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
-	attachmentUrl: __dirname + '/tmp/' ,
+	attachmentUrl: 'file://' + __dirname + '/tmp/' ,
 	properties: {
 		firstName: {
 			type: 'string' ,
@@ -482,7 +482,7 @@ describe( "Document creation" , () => {
 		expect( users.documentSchema ).to.equal(
 			{
 				url: "mongodb://localhost:27017/rootsDb/users" ,
-				attachmentUrl: "/home/cedric/inside/github/roots-db/test/tmp/" ,
+				attachmentUrl: 'file://' + __dirname + '/tmp/' ,
 				properties: {
 					firstName: {
 						type: "string" , maxLength: 30 , default: "Joe" , tags: [ "content" ] , inputHint: "text"
@@ -576,7 +576,7 @@ describe( "Document creation" , () => {
 		expect( versions.documentSchema ).to.equal(
 			{
 				url: "mongodb://localhost:27017/rootsDb/versions" ,
-				attachmentUrl: "/home/cedric/inside/github/roots-db/test/tmp/" ,
+				attachmentUrl: 'file://' + __dirname + '/tmp/' ,
 				extraProperties: true ,
 				properties: {
 					_activeVersion: {
