@@ -3309,23 +3309,21 @@ describe( "Attachment links" , () => {
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				incoming: undefined ,
-				baseUrl: details.attachment.baseUrl ,
-				fullUrl: details.attachment.baseUrl +
-					details.attachment.documentId.toString() +
-					'/' + details.attachment.id.toString()
+				driver: users.attachmentDriver ,
+				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
 
 		var dbAttachment = dbUser.getAttachment( 'file' ) ;
 		expect( dbAttachment ).to.be.like( {
-			id: dbUser.file.id ,
+			id: user.file.id ,
 			filename: 'joke.txt' ,
 			contentType: 'text/plain' ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: undefined ,
-			baseUrl: dbAttachment.baseUrl ,
-			fullUrl: dbAttachment.baseUrl + dbAttachment.documentId.toString() + '/' + dbAttachment.id.toString()
+			driver: users.attachmentDriver ,
+			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		var content = await dbAttachment.load() ;
