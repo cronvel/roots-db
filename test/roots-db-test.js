@@ -3255,7 +3255,7 @@ describe( "Attachment links" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should create, save, and load an attachment" , async () => {
+	it( "zzz should create, save, and load an attachment" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3264,7 +3264,6 @@ describe( "Attachment links" , () => {
 		var id = user.getId() ;
 
 		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		var fullUrl = attachment.fullUrl ;
 		user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
@@ -3278,7 +3277,7 @@ describe( "Attachment links" , () => {
 		await user.save() ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
 
 		var dbUser = await users.get( id ) ;
 		expect( dbUser ).to.equal( {
