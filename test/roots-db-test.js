@@ -3255,7 +3255,7 @@ describe( "Attachment links" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "zzz should create, save, and load an attachment" , async () => {
+	it( "should create, save, and load an attachment" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3303,7 +3303,7 @@ describe( "Attachment links" , () => {
 				inputHint: "file"
 			} ,
 			attachment: {
-				id: user.file.id ,
+				id: dbUser.file.id ,
 				filename: 'joke.txt' ,
 				contentType: 'text/plain' ,
 				collectionName: 'users' ,
@@ -3339,7 +3339,6 @@ describe( "Attachment links" , () => {
 		var id = user.getId() ;
 
 		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		var fullUrl = attachment.fullUrl ;
 		user.setAttachment( 'file' , attachment ) ;
 
 		await attachment.save() ;
@@ -3375,16 +3374,14 @@ describe( "Attachment links" , () => {
 				inputHint: "file"
 			} ,
 			attachment: {
-				id: user.file.id ,
+				id: dbUser.file.id ,
 				filename: 'lol.txt' ,
 				contentType: 'text/joke' ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				incoming: undefined ,
-				baseUrl: details.attachment.baseUrl ,
-				fullUrl: details.attachment.baseUrl +
-					details.attachment.documentId.toString() +
-					'/' + details.attachment.id.toString()
+				driver: users.attachmentDriver ,
+				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
 
@@ -3396,8 +3393,8 @@ describe( "Attachment links" , () => {
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: undefined ,
-			baseUrl: dbAttachment.baseUrl ,
-			fullUrl: dbAttachment.baseUrl + dbAttachment.documentId.toString() + '/' + dbAttachment.id.toString()
+			driver: users.attachmentDriver ,
+			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		var content = await dbAttachment.load() ;
@@ -3413,14 +3410,13 @@ describe( "Attachment links" , () => {
 		var id = user.getId() ;
 
 		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		var fullUrl = attachment.fullUrl ;
 		await user.setAttachment( 'file' , attachment ) ;
 
 		await attachment.save() ;
 		await user.save() ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
 
 		var dbUser = await users.get( id ) ;
 
@@ -3435,7 +3431,7 @@ describe( "Attachment links" , () => {
 		await dbUser.setAttachment( 'file' , attachment2 ) ;
 
 		// Check that the previous file has been deleted
-		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
 
 		await attachment2.save() ;
 		await dbUser.save() ;
@@ -3471,10 +3467,8 @@ describe( "Attachment links" , () => {
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				incoming: undefined ,
-				baseUrl: details.attachment.baseUrl ,
-				fullUrl: details.attachment.baseUrl +
-					details.attachment.documentId.toString() +
-					'/' + details.attachment.id.toString()
+				driver: users.attachmentDriver ,
+				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
 
@@ -3486,16 +3480,14 @@ describe( "Attachment links" , () => {
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: undefined ,
-			baseUrl: details.attachment.baseUrl ,
-			fullUrl: details.attachment.baseUrl +
-				details.attachment.documentId.toString() +
-				'/' + details.attachment.id.toString()
+			driver: users.attachmentDriver ,
+			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( "<html><head></head><body>Hello world!</body></html>\n" ) ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( dbAttachment.fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+		expect( () => { fs.accessSync( dbAttachment.path , fs.R_OK ) ; } ).not.to.throw() ;
 	} ) ;
 
 	it( "Delete an attachment" , async () => {
@@ -3507,14 +3499,13 @@ describe( "Attachment links" , () => {
 		var id = user.getId() ;
 
 		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		var fullUrl = attachment.fullUrl ;
 		await user.setAttachment( 'file' , attachment ) ;
 
 		await attachment.save() ;
 		await user.save() ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
 
 		var dbUser = await users.get( id ) ;
 
@@ -3524,7 +3515,7 @@ describe( "Attachment links" , () => {
 		await dbUser.removeAttachment( 'file' ) ;
 
 		// Check that the previous file has been deleted
-		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
 
 		expect( dbUser ).to.equal( {
 			_id: id ,
@@ -3555,7 +3546,6 @@ describe( "Attachment links" , () => {
 		} ) ;
 
 		var attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
-		var fullUrl = attachment.fullUrl ;
 		user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
@@ -3569,7 +3559,7 @@ describe( "Attachment links" , () => {
 		await user.save() ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
 
 		var dbUser = await users.get( id ) ;
 		expect( dbUser ).to.equal( {
@@ -3592,8 +3582,8 @@ describe( "Attachment links" , () => {
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: undefined ,
-			baseUrl: dbAttachment.baseUrl ,
-			fullUrl: dbAttachment.baseUrl + dbAttachment.documentId.toString() + '/' + dbAttachment.id.toString()
+			driver: users.attachmentDriver ,
+			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -3606,7 +3596,7 @@ describe( "Attachment links" , () => {
 		await dbUser.setAttachment( 'file' , attachment2 ) ;
 
 		// Check that the previous file has been deleted
-		expect( () => { fs.accessSync( fullUrl , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
 
 		await attachment2.save() ;
 		await dbUser.save() ;
@@ -3633,16 +3623,14 @@ describe( "Attachment links" , () => {
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: undefined ,
-			baseUrl: dbAttachment.baseUrl ,
-			fullUrl: dbAttachment.baseUrl +
-				dbAttachment.documentId.toString() +
-				'/' + dbAttachment.id.toString()
+			driver: users.attachmentDriver ,
+			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment2.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 30 ) ) ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( dbAttachment.fullUrl , fs.R_OK ) ; } ).not.to.throw() ;
+		expect( () => { fs.accessSync( dbAttachment.path , fs.R_OK ) ; } ).not.to.throw() ;
 
 		// Now load as a stream
 		var readStream = await dbAttachment.getReadStream() ;
