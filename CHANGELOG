@@ -1,4 +1,10 @@
 
+v0.28.0
+-------
+
+Maybe breaking: now using WHATWG URL instead of legacy url
+
+
 v0.27.8
 -------
 

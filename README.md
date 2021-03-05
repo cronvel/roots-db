@@ -1,7 +1,6 @@
 
 
-# Roots DB
+# RootsDB
 
-Minimalistic ODM.
-
+A minimalistic ODM.
 
