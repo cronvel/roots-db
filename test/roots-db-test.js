@@ -3335,7 +3335,7 @@ describe( "Attachment links" , () => {
 				hashType: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , _incoming: null ,
+				incoming: null , _incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
 				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 			}
@@ -3350,7 +3350,7 @@ describe( "Attachment links" , () => {
 			hashType: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null ,
+			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
@@ -3412,7 +3412,7 @@ describe( "Attachment links" , () => {
 				hashType: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , _incoming: null ,
+				incoming: null , _incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
 				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 			}
@@ -3427,7 +3427,7 @@ describe( "Attachment links" , () => {
 			hashType: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null ,
+			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
@@ -3505,7 +3505,7 @@ describe( "Attachment links" , () => {
 				hashType: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , _incoming: null ,
+				incoming: null , _incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
 				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 			}
@@ -3520,7 +3520,7 @@ describe( "Attachment links" , () => {
 			hashType: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null ,
+			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
@@ -3628,7 +3628,7 @@ describe( "Attachment links" , () => {
 			hashType: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null ,
+			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment.id
 		} ) ;
@@ -3673,7 +3673,7 @@ describe( "Attachment links" , () => {
 			hashType: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null ,
+			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment2.id
 		} ) ;
@@ -3869,7 +3869,7 @@ describe( "Attachment links and checksum/hash" , () => {
 				hashType: 'sha256' ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , _incoming: null ,
+				incoming: null , _incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
 				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 			}
@@ -3884,7 +3884,7 @@ describe( "Attachment links and checksum/hash" , () => {
 			hashType: 'sha256' ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null ,
+			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
@@ -3951,13 +3951,79 @@ describe( "Attachment links and checksum/hash" , () => {
 			hashType: 'sha256' ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null ,
+			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + dbAttachment.id
 		} ) ;
 
 		var content = await dbAttachment.load() ;
 		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
+	} ) ;
+
+	it( "should save attachment as stream and compute its checksum/hash" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+
+		var attachment , stream ,
+			contentHash = crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'hex' ) ;
+
+		stream = new streamKit.FakeReadable( {
+			timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
+		} ) ;
+
+		attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
+		await user.setAttachment( 'file' , attachment ) ;
+		//log.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'random.bin' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'bin/random' ,
+			hash: null ,	// The hash is not yet computed since it is a stream!
+			//hash: contentHash ,
+			hashType: 'sha256'
+		} ) ;
+
+		// It should be ok here
+		await attachment.save() ;
+		await user.save() ;
+
+		// Check that the file exists
+		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'random.bin' ,
+				id: user.file.id ,	// Unpredictable
+				contentType: 'bin/random' ,
+				hash: contentHash ,
+				hashType: 'sha256'
+			}
+		} ) ;
+
+		var dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.partially.like( {
+			id: dbUser.file.id ,
+			filename: 'random.bin' ,
+			contentType: 'bin/random' ,
+			hash: contentHash ,
+			hashType: 'sha256' ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			driver: users.attachmentDriver ,
+			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment.id
+		} ) ;
+
+		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
 	} ) ;
 
 	it( "should save attachment as stream and expect a given checksum/hash" , async () => {
@@ -4044,12 +4110,123 @@ describe( "Attachment links and checksum/hash" , () => {
 			hashType: 'sha256' ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null ,
+			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
+	} ) ;
+
+	it( "should .save() a document with the 'attachmentStreams' option and compute its checksum/hash" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+
+		var contentHash = [
+				crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'hex' ) ,
+				crypto.createHash( 'sha256' ).update( 'b'.repeat( 28 ) ).digest( 'hex' ) ,
+				crypto.createHash( 'sha256' ).update( 'c'.repeat( 21 ) ).digest( 'hex' )
+			] ;
+
+		var attachmentStreams = new rootsDb.AttachmentStreams() ;
+
+		attachmentStreams.addStream(
+			new streamKit.FakeReadable( {
+				timeout: 20 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
+			} ) ,
+			'file' ,
+			{ filename: 'random.bin' , contentType: 'bin/random' }
+		) ;
+
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( {
+					timeout: 20 , chunkSize: 7 , chunkCount: 4 , filler: 'b'.charCodeAt( 0 )
+				} ) ,
+				'avatar' ,
+				{ filename: 'face.jpg' , contentType: 'image/jpeg' }
+			) ;
+		} , 100 ) ;
+
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( {
+					timeout: 20 , chunkSize: 7 , chunkCount: 3 , filler: 'c'.charCodeAt( 0 )
+				} ) ,
+				'publicKey' ,
+				{ filename: 'rsa.pub' , contentType: 'application/x-pem-file' }
+			) ;
+		} , 200 ) ;
+
+		setTimeout( () => attachmentStreams.end() , 300 ) ;
+
+		// It should pass
+		await user.save( { attachmentStreams: attachmentStreams } ) ;
+		
+
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'random.bin' ,
+				id: dbUser.file.id ,	// Unpredictable
+				contentType: 'bin/random' ,
+				hash: contentHash[ 0 ] ,
+				hashType: 'sha256'
+			} ,
+			avatar: {
+				filename: 'face.jpg' ,
+				id: dbUser.avatar.id ,	// Unpredictable
+				contentType: 'image/jpeg' ,
+				hash: contentHash[ 1 ] ,
+				hashType: 'sha256'
+			} ,
+			publicKey: {
+				filename: 'rsa.pub' ,
+				id: dbUser.publicKey.id ,	// Unpredictable
+				contentType: 'application/x-pem-file' ,
+				hash: contentHash[ 2 ] ,
+				hashType: 'sha256'
+			}
+		} ) ;
+
+		var fileAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( fileAttachment ).to.be.partially.like( {
+			filename: 'random.bin' ,
+			contentType: 'bin/random' ,
+			hash: contentHash[ 0 ] ,
+			hashType: 'sha256'
+		} ) ;
+
+		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
+
+		var avatarAttachment = dbUser.getAttachment( 'avatar' ) ;
+
+		expect( avatarAttachment ).to.be.partially.like( {
+			filename: 'face.jpg' ,
+			contentType: 'image/jpeg' ,
+			hash: contentHash[ 1 ] ,
+			hashType: 'sha256'
+		} ) ;
+
+		await expect( avatarAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
+
+		var publicKeyAttachment = dbUser.getAttachment( 'publicKey' ) ;
+		expect( publicKeyAttachment ).to.be.partially.like( {
+			filename: 'rsa.pub' ,
+			contentType: 'application/x-pem-file' ,
+			hash: contentHash[ 2 ] ,
+			hashType: 'sha256'
+		} ) ;
+
+		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
 	} ) ;
 
 	it( "should .save() a document with the 'attachmentStreams' option and expect given checksum/hash" , async () => {

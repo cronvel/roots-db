@@ -1,4 +1,10 @@
 
+v0.29.1
+-------
+
+Fix Attachment checksum for stream not updating internal Document
+
+
 v0.29.0
 -------
 
