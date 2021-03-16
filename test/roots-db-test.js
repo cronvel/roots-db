@@ -35,6 +35,7 @@ const util = require( 'util' ) ;
 const mongodb = require( 'mongodb' ) ;
 const fs = require( 'fs' ) ;
 
+const crypto = require( 'crypto' ) ;
 const hash = require( 'hash-kit' ) ;
 const string = require( 'string-kit' ) ;
 const tree = require( 'tree-kit' ) ;
@@ -177,16 +178,16 @@ const schoolsDescriptor = {
 const townsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/towns' ,
 	properties: {
-		name: { type: 'string' , tags: ['id'] } ,
+		name: { type: 'string' , tags: [ 'id' ] } ,
 		meta: {
 			type: 'strictObject' ,
 			default: {} ,
-			tags: ['meta'] ,
+			tags: [ 'meta' ] ,
 			//noSubmasking: true ,
 			extraProperties: true ,
 			properties: {
 				rank: {
-					tags: ['rank'] ,
+					tags: [ 'rank' ] ,
 					optional: true ,
 					sanitize: 'toInteger'
 				}
@@ -494,7 +495,13 @@ describe( "Document creation" , () => {
 						type: "link" , optional: true , collection: "users" , tags: [ "content" ] , sanitize: [ "toLink" ] , opaque: true , inputHint: "embedded"
 					} ,
 					connection: {
-						type: "strictObject" , optional: true , of: { type: "link" , collection: "users" , sanitize: [ "toLink" ] , opaque: true , tags: [ "content" ] , inputHint: "embedded" } , tags: [ "content" ] , inputHint: "embedded"
+						type: "strictObject" ,
+						optional: true ,
+						of: {
+							type: "link" , collection: "users" , sanitize: [ "toLink" ] , opaque: true , tags: [ "content" ] , inputHint: "embedded"
+						} ,
+						tags: [ "content" ] ,
+						inputHint: "embedded"
 					} ,
 					job: {
 						type: "link" , optional: true , collection: "jobs" , tags: [ "content" ] , sanitize: [ "toLink" ] , opaque: true , inputHint: "embedded"
@@ -502,16 +509,26 @@ describe( "Document creation" , () => {
 					memberSid: {
 						optional: true , type: "string" , maxLength: 30 , tags: [ "id" ] , inputHint: "text"
 					} ,
-					avatar: { type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file" } ,
-					publicKey: { type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file" } ,
-					file: { type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file" } ,
+					avatar: {
+						type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file"
+					} ,
+					publicKey: {
+						type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file"
+					} ,
+					file: {
+						type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file"
+					} ,
 					_id: {
 						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , tags: [ "id" ]
 					}
 				} ,
 				indexes: [
-					{ name: 'Hzz2C_5P5AOjVdPSG_7URlrUcAk' , properties: { "job._id": 1 } , links: { job: 1 } , unique: false , partial: false } ,
-					{ name: 'EyFhPyID5m2EHyOTgAvC5I8AOeY' , properties: { "job._id": 1 , memberSid: 1 } , links: { job: 1 } , unique: true , partial: false }
+					{
+						name: 'Hzz2C_5P5AOjVdPSG_7URlrUcAk' , properties: { "job._id": 1 } , links: { job: 1 } , unique: false , partial: false
+					} ,
+					{
+						name: 'EyFhPyID5m2EHyOTgAvC5I8AOeY' , properties: { "job._id": 1 , memberSid: 1 } , links: { job: 1 } , unique: true , partial: false
+					}
 				] ,
 				hooks: users.documentSchema.hooks ,
 				versioning: false ,
@@ -540,10 +557,14 @@ describe( "Document creation" , () => {
 					jobs: {
 						type: 'multiLink' ,
 						collection: 'jobs' ,
-						constraints: [ { convert: "toString" , enforce: "unique" , noEmpty: true , path: "_id" , resolve: true } ] ,
+						constraints: [ {
+							convert: "toString" , enforce: "unique" , noEmpty: true , path: "_id" , resolve: true
+						} ] ,
 						default: [] ,
 						inputHint: "embedded" ,
-						of: { type: "link" , inputHint: "embedded" , opaque: true , sanitize: [ "toLink" ] , tags: [ "content" ] } ,
+						of: {
+							type: "link" , inputHint: "embedded" , opaque: true , sanitize: [ "toLink" ] , tags: [ "content" ]
+						} ,
 						opaque: true ,
 						sanitize: [ "toMultiLink" ] ,
 						tags: [ "content" ]
@@ -640,7 +661,7 @@ describe( "Document creation" , () => {
 		expect( user ).to.partially.equal( expectedDefaultUser ) ;
 		expect( user.$ ).to.partially.equal( expectedDefaultUser ) ;
 
-		
+
 		var town = towns.createDocument( { name: 'Paris' } ) ;
 
 		expect( town.meta ).to.be.an( Object ) ;
@@ -685,7 +706,7 @@ describe( "Document creation" , () => {
 			firstName: 'Bobby' ,
 			lastName: 'Fischer'
 		} , {
-			tagMask: [ 'id' ] ,
+			tagMask: [ 'id' ]
 		} ) ;
 		expect( user.__enumerate__() ).to.only.contain( '_id' , 'memberSid' ) ;
 
@@ -810,7 +831,7 @@ describe( "Document creation" , () => {
 
 
 describe( "Clone documents" , () => {
-	
+
 	it( "should clone a document" , () => {
 		var user = users.createDocument( {
 			firstName: 'Bobby' ,
@@ -826,12 +847,12 @@ describe( "Clone documents" , () => {
 			lastName: 'Fischer' ,
 			memberSid: 'Bobby Fischer'
 		} ) ;
-		
+
 		var clone = user.clone() ;
 
 		expect( clone.getId() ).to.be.an( mongodb.ObjectID ) ;
 		expect( clone._id ).to.be( clone.getId() ) ;
-		
+
 		// The ID should be different
 		expect( '' + clone._id ).not.to.be( '' + user._id ) ;
 
@@ -841,7 +862,7 @@ describe( "Clone documents" , () => {
 			lastName: 'Fischer' ,
 			memberSid: 'Bobby Fischer'
 		} ) ;
-		
+
 		clone.firstName = 'Bob' ;
 
 		expect( clone ).to.equal( {
@@ -850,7 +871,7 @@ describe( "Clone documents" , () => {
 			lastName: 'Fischer' ,
 			memberSid: 'Bobby Fischer'
 		} ) ;
-		
+
 		expect( user ).to.equal( {
 			_id: user._id ,
 			firstName: 'Bobby' ,
@@ -1054,12 +1075,12 @@ describe( "Refresh documents" , () => {
 		} ) ;
 		dbUser.firstName = 'Duncan' ;
 		await dbUser.save() ;
-		
+
 		await user.refresh() ;
 		expect( user ).to.equal( {
 			_id: id , firstName: 'John' , lastName: 'McGregor' , memberSid: "John McGregor"
 		} ) ;
-		
+
 		await Promise.resolveTimeout( 60 ) ;
 		await user.refresh() ;
 		expect( user ).to.equal( {
@@ -1073,7 +1094,7 @@ describe( "Refresh documents" , () => {
 		expect( user ).to.equal( {
 			_id: id , firstName: 'Duncan' , lastName: 'McGregor' , memberSid: "John McGregor"
 		} ) ;
-		
+
 		await Promise.resolveTimeout( 60 ) ;
 		await user.refresh() ;
 		expect( user ).to.equal( {
@@ -1229,7 +1250,7 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		school.setLink( 'jobs' , [ job1 , job2 ] ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
-		
+
 		var dbSchool = await schools.get( id ) ;
 		expect( dbSchool ).to.equal( {
 			_id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ]
@@ -1239,9 +1260,9 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		expect( dbSchool ).to.equal( {
 			_id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ]
 		} ) ;
-		
+
 		await dbSchool.save() ;
-		
+
 		dbSchool = await schools.get( id ) ;
 		expect( dbSchool ).to.equal( {
 			_id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ]
@@ -1944,7 +1965,7 @@ describe( "Find with a query object" , () => {
 			schools.createDocument( { title: 'a school' } ) ,
 			schools.createDocument( { title: 'that school' } ) ,
 			schools.createDocument( { title: 'That school' } ) ,
-			schools.createDocument( { title: 'A school' } ) ,
+			schools.createDocument( { title: 'A school' } )
 		] ;
 
 		await Promise.map( someSchools , school => school.save() ) ;
@@ -1987,7 +2008,7 @@ describe( "Find each document with a query object (serialized)" , () => {
 
 		var startDate = Date.now() ,
 			docs = [] ;
-		
+
 		await users.findEach( { firstName: { $regex: /^[thomasepnbo]+$/ , $options: 'i' } } , doc => {
 			expect( doc._ ).to.be.a( rootsDb.Document ) ;
 			docs.push( doc ) ;
@@ -1997,7 +2018,7 @@ describe( "Find each document with a query object (serialized)" , () => {
 
 		// Check serialization time
 		expect( Date.now() - startDate ).to.be.greater.than( 150 ) ;
-		
+
 		expect( docs ).to.be.an( Array ) ;
 		expect( docs ).to.have.length( 3 ) ;
 
@@ -2593,7 +2614,7 @@ describe( "Multi-links" , () => {
 		expect( school.jobs ).to.equal( [ job1 , job2 , job1 ] ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
-		
+
 		// Duplicated links should be removed now
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
 
@@ -3081,7 +3102,7 @@ describe( "Back-links" , () => {
 describe( "Any-collection links" , () => {
 
 	beforeEach( clearDB ) ;
-	
+
 	it( "should retrieve/populate an any-collection link" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -3100,11 +3121,11 @@ describe( "Any-collection links" , () => {
 		var doc = anyCollectionLinks.createDocument( {
 			name: 'docname'
 		} ) ;
-		
+
 		var docId = doc.getId() ;
-		
+
 		doc.setLink( 'link' , user ) ;
-		
+
 		expect( doc ).to.equal( {
 			_id: docId ,
 			name: 'docname' ,
@@ -3122,7 +3143,7 @@ describe( "Any-collection links" , () => {
 		await user.save() ;
 		await job.save() ;
 		await doc.save() ;
-		
+
 		var dbDoc = await anyCollectionLinks.get( docId ) ;
 
 		expect( dbDoc.link._id ).to.equal( userId ) ;
@@ -3133,9 +3154,9 @@ describe( "Any-collection links" , () => {
 			lastName: 'Polson' ,
 			memberSid: 'Jilbert Polson'
 		} ) ;
-		
+
 		doc.setLink( 'link' , job ) ;
-		
+
 		expect( doc ).to.equal( {
 			_id: docId ,
 			name: 'docname' ,
@@ -3182,45 +3203,45 @@ describe( "Any-collection links" , () => {
 	it( "should retrieve/populate back-link from any-collection links" , async () => {
 		var masterDoc = anyCollectionLinks.createDocument( { name: 'masterDoc' } ) ;
 		var masterDocId = masterDoc.getId() ;
-		
+
 		var doc1 = anyCollectionLinks.createDocument( { name: 'doc1' } ) ;
 		var doc1Id = doc1.getId() ;
-		
+
 		var doc2 = anyCollectionLinks.createDocument( { name: 'doc2' } ) ;
 		var doc2Id = doc2.getId() ;
-		
+
 		var doc3 = anyCollectionLinks.createDocument( { name: 'doc3' } ) ;
 		var doc3Id = doc3.getId() ;
-		
+
 		doc1.setLink( 'link' , masterDoc ) ;
 		doc2.setLink( 'link' , masterDoc ) ;
 		doc3.setLink( 'link' , masterDoc ) ;
-		
+
 		await masterDoc.save() ;
 		await doc1.save() ;
 		await doc2.save() ;
 		await doc3.save() ;
-		
+
 		var dbMasterDoc = await anyCollectionLinks.get( masterDocId ) ;
-		
+
 		await expect( dbMasterDoc.getLink( 'backLink' ) ).to.eventually.be.partially.like( [
 			{ name: "doc1" } ,
 			{ name: "doc2" } ,
 			{ name: "doc3" }
 		] ) ;
-		
+
 		// We create a user, we force re-using the same ID to try to mess up with the back-link foreign-collection filtering
 		var user = users.createDocument( {
 			_id: masterDocId ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
 		} ) ;
-		
+
 		var userId = user.getId() ;
 		expect( userId ).to.be( masterDocId ) ;
-		
+
 		doc3.setLink( 'link' , user ) ;
-		
+
 		await user.save() ;
 		await doc3.save() ;
 
@@ -3229,8 +3250,8 @@ describe( "Any-collection links" , () => {
 			lastName: 'Polson'
 		} ) ;
 
-		var dbMasterDoc = await anyCollectionLinks.get( masterDocId ) ;
-		
+		dbMasterDoc = await anyCollectionLinks.get( masterDocId ) ;
+
 		await expect( dbMasterDoc.getLink( 'backLink' ) ).to.eventually.be.partially.like( [
 			{ name: "doc1" } ,
 			{ name: "doc2" }
@@ -3264,13 +3285,15 @@ describe( "Attachment links" , () => {
 		var id = user.getId() ;
 
 		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		user.setAttachment( 'file' , attachment ) ;
+		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.equal( {
 			filename: 'joke.txt' ,
 			id: user.file.id ,	// Unpredictable
-			contentType: 'text/plain'
+			contentType: 'text/plain' ,
+			hash: null ,
+			hashType: null
 		} ) ;
 
 		await attachment.save() ;
@@ -3288,7 +3311,9 @@ describe( "Attachment links" , () => {
 			file: {
 				filename: 'joke.txt' ,
 				id: user.file.id ,	// Unpredictable
-				contentType: 'text/plain'
+				contentType: 'text/plain' ,
+				hash: null ,
+				hashType: null
 			}
 		} ) ;
 
@@ -3306,9 +3331,11 @@ describe( "Attachment links" , () => {
 				id: dbUser.file.id ,
 				filename: 'joke.txt' ,
 				contentType: 'text/plain' ,
+				hash: null ,
+				hashType: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: undefined ,
+				incoming: null , _incoming: null ,
 				driver: users.attachmentDriver ,
 				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 			}
@@ -3319,9 +3346,11 @@ describe( "Attachment links" , () => {
 			id: user.file.id ,
 			filename: 'joke.txt' ,
 			contentType: 'text/plain' ,
+			hash: null ,
+			hashType: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: undefined ,
+			incoming: null , _incoming: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
@@ -3339,7 +3368,7 @@ describe( "Attachment links" , () => {
 		var id = user.getId() ;
 
 		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		user.setAttachment( 'file' , attachment ) ;
+		await user.setAttachment( 'file' , attachment ) ;
 
 		await attachment.save() ;
 		await user.save() ;
@@ -3359,7 +3388,9 @@ describe( "Attachment links" , () => {
 			file: {
 				filename: 'lol.txt' ,
 				id: user.file.id ,	// Unpredictable
-				contentType: 'text/joke'
+				contentType: 'text/joke' ,
+				hash: null ,
+				hashType: null
 			}
 		} ) ;
 
@@ -3377,9 +3408,11 @@ describe( "Attachment links" , () => {
 				id: dbUser.file.id ,
 				filename: 'lol.txt' ,
 				contentType: 'text/joke' ,
+				hash: null ,
+				hashType: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: undefined ,
+				incoming: null , _incoming: null ,
 				driver: users.attachmentDriver ,
 				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 			}
@@ -3390,9 +3423,11 @@ describe( "Attachment links" , () => {
 			id: dbUser.file.id ,
 			filename: 'lol.txt' ,
 			contentType: 'text/joke' ,
+			hash: null ,
+			hashType: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: undefined ,
+			incoming: null , _incoming: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
@@ -3446,7 +3481,9 @@ describe( "Attachment links" , () => {
 			file: {
 				filename: 'hello-world.html' ,
 				id: dbUser.file.id ,	// Unpredictable
-				contentType: 'text/html'
+				contentType: 'text/html' ,
+				hash: null ,
+				hashType: null
 			}
 		} ) ;
 
@@ -3464,9 +3501,11 @@ describe( "Attachment links" , () => {
 				id: dbUser.file.id ,
 				filename: 'hello-world.html' ,
 				contentType: 'text/html' ,
+				hash: null ,
+				hashType: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: undefined ,
+				incoming: null , _incoming: null ,
 				driver: users.attachmentDriver ,
 				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 			}
@@ -3477,9 +3516,11 @@ describe( "Attachment links" , () => {
 			id: dbUser.file.id ,
 			filename: 'hello-world.html' ,
 			contentType: 'text/html' ,
+			hash: null ,
+			hashType: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: undefined ,
+			incoming: null , _incoming: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
@@ -3546,13 +3587,15 @@ describe( "Attachment links" , () => {
 		} ) ;
 
 		var attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
-		user.setAttachment( 'file' , attachment ) ;
+		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.equal( {
 			filename: 'random.bin' ,
 			id: user.file.id ,	// Unpredictable
-			contentType: 'bin/random'
+			contentType: 'bin/random' ,
+			hash: null ,
+			hashType: null
 		} ) ;
 
 		await attachment.save() ;
@@ -3570,7 +3613,9 @@ describe( "Attachment links" , () => {
 			file: {
 				filename: 'random.bin' ,
 				id: user.file.id ,	// Unpredictable
-				contentType: 'bin/random'
+				contentType: 'bin/random' ,
+				hash: null ,
+				hashType: null
 			}
 		} ) ;
 
@@ -3579,9 +3624,11 @@ describe( "Attachment links" , () => {
 			id: dbUser.file.id ,
 			filename: 'random.bin' ,
 			contentType: 'bin/random' ,
+			hash: null ,
+			hashType: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: undefined ,
+			incoming: null , _incoming: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment.id
 		} ) ;
@@ -3611,7 +3658,9 @@ describe( "Attachment links" , () => {
 			file: {
 				filename: 'more-random.bin' ,
 				id: dbUser.file.id ,	// Unpredictable
-				contentType: 'bin/random'
+				contentType: 'bin/random' ,
+				hash: null ,
+				hashType: null
 			}
 		} ) ;
 
@@ -3620,9 +3669,11 @@ describe( "Attachment links" , () => {
 			id: dbUser.file.id ,
 			filename: 'more-random.bin' ,
 			contentType: 'bin/random' ,
+			hash: null ,
+			hashType: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: undefined ,
+			incoming: null , _incoming: null ,
 			driver: users.attachmentDriver ,
 			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment2.id
 		} ) ;
@@ -3691,24 +3742,32 @@ describe( "Attachment links" , () => {
 			file: {
 				filename: 'random.bin' ,
 				id: dbUser.file.id ,	// Unpredictable
-				contentType: 'bin/random'
+				contentType: 'bin/random' ,
+				hash: null ,
+				hashType: null
 			} ,
 			avatar: {
 				filename: 'face.jpg' ,
 				id: dbUser.avatar.id ,	// Unpredictable
-				contentType: 'image/jpeg'
+				contentType: 'image/jpeg' ,
+				hash: null ,
+				hashType: null
 			} ,
 			publicKey: {
 				filename: 'rsa.pub' ,
 				id: dbUser.publicKey.id ,	// Unpredictable
-				contentType: 'application/x-pem-file'
+				contentType: 'application/x-pem-file' ,
+				hash: null ,
+				hashType: null
 			}
 		} ) ;
 
 		var fileAttachment = dbUser.getAttachment( 'file' ) ;
 		expect( fileAttachment ).to.be.partially.like( {
 			filename: 'random.bin' ,
-			contentType: 'bin/random'
+			contentType: 'bin/random' ,
+			hash: null ,
+			hashType: null
 		} ) ;
 
 		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -3717,7 +3776,9 @@ describe( "Attachment links" , () => {
 
 		expect( avatarAttachment ).to.be.partially.like( {
 			filename: 'face.jpg' ,
-			contentType: 'image/jpeg'
+			contentType: 'image/jpeg' ,
+			hash: null ,
+			hashType: null
 		} ) ;
 
 		await expect( avatarAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
@@ -3725,7 +3786,420 @@ describe( "Attachment links" , () => {
 		var publicKeyAttachment = dbUser.getAttachment( 'publicKey' ) ;
 		expect( publicKeyAttachment ).to.be.partially.like( {
 			filename: 'rsa.pub' ,
-			contentType: 'application/x-pem-file'
+			contentType: 'application/x-pem-file' ,
+			hash: null ,
+			hashType: null
+		} ) ;
+
+		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Attachment links and checksum/hash" , () => {
+
+	// Here we change the 'users' collection before performing the test, so it forces hash computation
+	beforeEach( () => {
+		clearDB() ;
+		users.attachmentHashType = 'sha256' ;
+	} ) ;
+
+	afterEach( () => {
+		users.attachmentHashType = null ;
+	} ) ;
+
+	it( "zzz should save attachment and compute its checksum/hash then load it" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+
+		var contentHash = crypto.createHash( 'sha256' ).update( 'grigrigredin menufretin\n' ).digest( 'hex' ) ;
+		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		await user.setAttachment( 'file' , attachment ) ;
+		//log.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'joke.txt' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'text/plain' ,
+			hash: contentHash ,
+			hashType: 'sha256'
+		} ) ;
+
+		await attachment.save() ;
+		await user.save() ;
+
+		// Check that the file exists
+		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'joke.txt' ,
+				id: user.file.id ,	// Unpredictable
+				contentType: 'text/plain' ,
+				hash: contentHash ,
+				hashType: 'sha256'
+			}
+		} ) ;
+
+		var details = dbUser.getAttachmentDetails( 'file' ) ;
+		expect( details ).to.be.like( {
+			type: 'attachment' ,
+			hostPath: 'file' ,
+			schema: {
+				optional: true ,
+				type: 'attachment' ,
+				tags: [ 'content' ] ,
+				inputHint: "file"
+			} ,
+			attachment: {
+				id: dbUser.file.id ,
+				filename: 'joke.txt' ,
+				contentType: 'text/plain' ,
+				hash: contentHash ,
+				hashType: 'sha256' ,
+				collectionName: 'users' ,
+				documentId: id.toString() ,
+				incoming: null , _incoming: null ,
+				driver: users.attachmentDriver ,
+				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
+			}
+		} ) ;
+
+		var dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.like( {
+			id: user.file.id ,
+			filename: 'joke.txt' ,
+			contentType: 'text/plain' ,
+			hash: contentHash ,
+			hashType: 'sha256' ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			incoming: null , _incoming: null ,
+			driver: users.attachmentDriver ,
+			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
+		} ) ;
+
+		var content = await dbAttachment.load() ;
+		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
+	} ) ;
+
+	it( "zzz should save attachment and expect a given checksum/hash" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+
+		var attachment ,
+			contentHash = crypto.createHash( 'sha256' ).update( 'grigrigredin menufretin\n' ).digest( 'hex' ) ,
+			badContentHash = contentHash.slice( 0 , -3 ) + 'bad' ;
+
+		// With an incorrect hash
+		expect( () => user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: badContentHash } , "grigrigredin menufretin\n" ) ).to.throw( Error , { code: 'badHash' } ) ;
+
+		// With the correct hash
+		attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash } , "grigrigredin menufretin\n" ) ;
+		await user.setAttachment( 'file' , attachment ) ;
+		//log.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'joke.txt' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'text/plain' ,
+			hash: contentHash ,
+			hashType: 'sha256'
+		} ) ;
+
+		await attachment.save() ;
+		await user.save() ;
+
+		// Check that the file exists
+		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'joke.txt' ,
+				id: user.file.id ,	// Unpredictable
+				contentType: 'text/plain' ,
+				hash: contentHash ,
+				hashType: 'sha256'
+			}
+		} ) ;
+
+		var dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.like( {
+			id: user.file.id ,
+			filename: 'joke.txt' ,
+			contentType: 'text/plain' ,
+			hash: contentHash ,
+			hashType: 'sha256' ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			incoming: null , _incoming: null ,
+			driver: users.attachmentDriver ,
+			path: __dirname + '/tmp/' + dbUser.getId() + '/' + dbAttachment.id
+		} ) ;
+
+		var content = await dbAttachment.load() ;
+		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
+	} ) ;
+
+	it( "xxx should save attachment as stream and expect a given checksum/hash" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+
+		var attachment , stream ,
+			contentHash = crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'hex' ) ,
+			badContentHash = contentHash.slice( 0 , -3 ) + 'bad' ;
+
+		
+		// Start with a bad hash
+
+		stream = new streamKit.FakeReadable( {
+			timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
+		} ) ;
+
+		attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: badContentHash } , stream ) ;
+		await user.setAttachment( 'file' , attachment ) ;
+		//log.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'random.bin' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'bin/random' ,
+			hash: badContentHash ,
+			hashType: 'sha256'
+		} ) ;
+
+		// It should throw here
+		await expect( () => attachment.save() ).to.eventually.throw( Error , { code: 'badHash' } ) ;
+		
+		
+		// Now start over with the correct one
+		
+		stream = new streamKit.FakeReadable( {
+			timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
+		} ) ;
+
+		attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash } , stream ) ;
+		await user.setAttachment( 'file' , attachment ) ;
+		//log.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'random.bin' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'bin/random' ,
+			hash: contentHash ,
+			hashType: 'sha256'
+		} ) ;
+
+		// It should be ok here
+		await attachment.save() ;
+		await user.save() ;
+
+		// Check that the file exists
+		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'random.bin' ,
+				id: user.file.id ,	// Unpredictable
+				contentType: 'bin/random' ,
+				hash: contentHash ,
+				hashType: 'sha256'
+			}
+		} ) ;
+
+		var dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.like( {
+			id: dbUser.file.id ,
+			filename: 'random.bin' ,
+			contentType: 'bin/random' ,
+			hash: contentHash ,
+			hashType: 'sha256' ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			incoming: null , _incoming: null ,
+			driver: users.attachmentDriver ,
+			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment.id
+		} ) ;
+
+		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
+	} ) ;
+
+	it( "xxx should .save() a document with the 'attachmentStreams' option and expect given checksum/hash" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+
+		var attachmentStreams ,
+			contentHash = [
+				crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'hex' ) ,
+				crypto.createHash( 'sha256' ).update( 'b'.repeat( 40 ) ).digest( 'hex' ) ,
+				crypto.createHash( 'sha256' ).update( 'c'.repeat( 40 ) ).digest( 'hex' )
+			] ,
+			badContentHash = contentHash.map( str => str.slice( 0 , -3 ) + 'bad' ) ;
+
+		
+		// Start with a bad hash
+
+		attachmentStreams = new rootsDb.AttachmentStreams() ;
+
+		attachmentStreams.addStream(
+			new streamKit.FakeReadable( {
+				timeout: 20 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
+			} ) ,
+			'file' ,
+			{ filename: 'random.bin' , contentType: 'bin/random' , hash: badContentHash[ 0 ] }
+		) ;
+
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( {
+					timeout: 20 , chunkSize: 7 , chunkCount: 4 , filler: 'b'.charCodeAt( 0 )
+				} ) ,
+				'avatar' ,
+				{ filename: 'face.jpg' , contentType: 'image/jpeg' , hash: badContentHash[ 1 ] }
+			) ;
+		} , 100 ) ;
+
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( {
+					timeout: 20 , chunkSize: 7 , chunkCount: 3 , filler: 'c'.charCodeAt( 0 )
+				} ) ,
+				'publicKey' ,
+				{ filename: 'rsa.pub' , contentType: 'application/x-pem-file' , hash: badContentHash[ 2 ] }
+			) ;
+		} , 200 ) ;
+
+		setTimeout( () => attachmentStreams.end() , 300 ) ;
+
+		await expect( () => user.save( { attachmentStreams: attachmentStreams } ) ).to.eventually.throw( Error , { code: 'badHash' } ) ;
+		
+		
+		// Now start over with the correct one
+		
+		attachmentStreams = new rootsDb.AttachmentStreams() ;
+
+		attachmentStreams.addStream(
+			new streamKit.FakeReadable( {
+				timeout: 20 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
+			} ) ,
+			'file' ,
+			{ filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash[ 0 ] }
+		) ;
+
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( {
+					timeout: 20 , chunkSize: 7 , chunkCount: 4 , filler: 'b'.charCodeAt( 0 )
+				} ) ,
+				'avatar' ,
+				{ filename: 'face.jpg' , contentType: 'image/jpeg' , hash: contentHash[ 1 ] }
+			) ;
+		} , 100 ) ;
+
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( {
+					timeout: 20 , chunkSize: 7 , chunkCount: 3 , filler: 'c'.charCodeAt( 0 )
+				} ) ,
+				'publicKey' ,
+				{ filename: 'rsa.pub' , contentType: 'application/x-pem-file' , hash: contentHash[ 2 ] }
+			) ;
+		} , 200 ) ;
+
+		setTimeout( () => attachmentStreams.end() , 300 ) ;
+
+		await user.save( { attachmentStreams: attachmentStreams } ) ;
+		
+// ----------------------------------------------------------------------------------------- HERE -----------------------------------------------------
+		
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'random.bin' ,
+				id: dbUser.file.id ,	// Unpredictable
+				contentType: 'bin/random' ,
+				hash: null ,
+				hashType: null
+			} ,
+			avatar: {
+				filename: 'face.jpg' ,
+				id: dbUser.avatar.id ,	// Unpredictable
+				contentType: 'image/jpeg' ,
+				hash: null ,
+				hashType: null
+			} ,
+			publicKey: {
+				filename: 'rsa.pub' ,
+				id: dbUser.publicKey.id ,	// Unpredictable
+				contentType: 'application/x-pem-file' ,
+				hash: null ,
+				hashType: null
+			}
+		} ) ;
+
+		var fileAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( fileAttachment ).to.be.partially.like( {
+			filename: 'random.bin' ,
+			contentType: 'bin/random' ,
+			hash: null ,
+			hashType: null
+		} ) ;
+
+		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
+
+		var avatarAttachment = dbUser.getAttachment( 'avatar' ) ;
+
+		expect( avatarAttachment ).to.be.partially.like( {
+			filename: 'face.jpg' ,
+			contentType: 'image/jpeg' ,
+			hash: null ,
+			hashType: null
+		} ) ;
+
+		await expect( avatarAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
+
+		var publicKeyAttachment = dbUser.getAttachment( 'publicKey' ) ;
+		expect( publicKeyAttachment ).to.be.partially.like( {
+			filename: 'rsa.pub' ,
+			contentType: 'application/x-pem-file' ,
+			hash: null ,
+			hashType: null
 		} ) ;
 
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
@@ -4603,7 +5077,7 @@ describe( "Deep populate links" , () => {
 		await gfUser.save() ;
 
 		var stats = {} ;
-		
+
 		// Check that the syntax support both array and direct string
 		//var dbUser = await users.get( user._id , { deepPopulate: { users: [ 'job' ] , jobs: 'users' } , stats } ) ;
 		var dbUser = await users.get( user._id , { deepPopulate: { users: [ 'job' , 'godfather' ] , jobs: 'users' } , stats } ) ;
@@ -4656,20 +5130,20 @@ describe( "Deep populate links" , () => {
 			job: expected.job
 		} ;
 		expect( dbUser ).to.be.like( expected ) ;
-		
+
 		// There is something wrong this the "like" assertion and proxy (?) ATM
 		expect( dbUser.godfather ).to.be.like( expected.godfather ) ;
 		expect( dbUser.job.users[ 0 ] ).to.be.like( expected ) ;
 		//expect( dbUser.job.users[ 1 ] ).to.be.like( expected.job.users[ 1 ] ) ;
-		
+
 		//log.hdebug( "%[5l10000]Y" , dbUser ) ;
 
 		// There are 5 queries because of job's backlink to users (we don't have IDs when back-linking)
 		expect( stats.population.depth ).to.be( 3 ) ;
 		expect( stats.population.dbQueries ).to.be( 5 ) ;
-		
-		
-		
+
+
+
 		// Now test the depth limit
 		stats = {} ;
 		dbUser = await users.get( user._id , { depth: 2 , deepPopulate: { users: [ 'job' , 'godfather' ] , jobs: 'users' } , stats } ) ;
@@ -5184,10 +5658,10 @@ describe( "Memory model" , () => {
 describe( "Versioning" , () => {
 
 	beforeEach( clearDB ) ;
-	
+
 	it( "versioned collection should save every modifications in the versions collection" , async () => {
 		expect( versionedItems.versioning ).to.be( true ) ;
-		
+
 		var versionedItem = versionedItems.createDocument( {
 			name: 'item#1' ,
 			p1: 'value1a'
@@ -5203,7 +5677,7 @@ describe( "Versioning" , () => {
 			p1: 'value1a' ,
 			versions: {}
 		} ) ;
-		
+
 		versionedItem.p1 = 'value1b' ;
 		// Version should not be incremented, because it was not even saved once
 		expect( versionedItem ).to.equal( {
@@ -5214,11 +5688,11 @@ describe( "Versioning" , () => {
 			p1: 'value1b' ,
 			versions: {}
 		} ) ;
-		
+
 		await versionedItem.save() ;
 
 		versionedItem.p1 = 'value1c' ;
-		
+
 		// Version should not be incremented, because changed was not saved yet
 		expect( versionedItem ).to.equal( {
 			_id: versionedItemId ,
@@ -5228,9 +5702,9 @@ describe( "Versioning" , () => {
 			p1: 'value1c' ,
 			versions: {}
 		} ) ;
-		
+
 		await versionedItem.save() ;
-		
+
 		// Version should be incremented now we have save it
 		expect( versionedItem ).to.equal( {
 			_id: versionedItemId ,
@@ -5255,9 +5729,9 @@ describe( "Versioning" , () => {
 				name: 'item#1' ,
 				p1: 'value1b' ,
 				versions: {}
-			} 
+			}
 		] ) ;
-		
+
 		var dbVersionedItem = await versionedItems.get( versionedItemId ) ;
 
 		expect( dbVersionedItem ).to.equal( {
@@ -5268,10 +5742,10 @@ describe( "Versioning" , () => {
 			p1: 'value1c' ,
 			versions: {}
 		} ) ;
-		
+
 		dbVersionedItem.p2 = 'value2a' ;
 		dbVersionedItem.p2 = 'value2b' ;
-		
+
 		// Still no version change so far, because not saved
 		expect( dbVersionedItem ).to.equal( {
 			_id: versionedItemId ,
@@ -5324,7 +5798,7 @@ describe( "Versioning" , () => {
 				name: 'item#1' ,
 				p1: 'value1c' ,
 				versions: {}
-			} 
+			}
 		] ) ;
 
 		dbVersionedItem.p2 = 'value2c' ;
@@ -5380,13 +5854,13 @@ describe( "Versioning" , () => {
 				p1: 'value1c' ,
 				p2: 'value2b' ,
 				versions: {}
-			} 
+			}
 		] ) ;
 
 		var dbItemVersions = await dbVersionedItem.getLink( 'versions' ) ;
 		expect( dbItemVersions ).to.be.like( [
 			{
-				_id:  dbItemVersions[ 0 ]._id ,	// unpredictable
+				_id: dbItemVersions[ 0 ]._id ,	// unpredictable
 				_version: 1 ,
 				_lastModified: dbItemVersions[ 0 ]._lastModified ,	// unpredictable
 				_activeVersion: {
@@ -5398,7 +5872,7 @@ describe( "Versioning" , () => {
 				versions: {}
 			} ,
 			{
-				_id:  dbItemVersions[ 1 ]._id ,	// unpredictable
+				_id: dbItemVersions[ 1 ]._id ,	// unpredictable
 				_version: 2 ,
 				_lastModified: dbItemVersions[ 1 ]._lastModified ,	// unpredictable
 				_activeVersion: {
@@ -5410,7 +5884,7 @@ describe( "Versioning" , () => {
 				versions: {}
 			} ,
 			{
-				_id:  dbItemVersions[ 2 ]._id ,	// unpredictable
+				_id: dbItemVersions[ 2 ]._id ,	// unpredictable
 				_version: 3 ,
 				_lastModified: dbItemVersions[ 2 ]._lastModified ,	// unpredictable
 				_activeVersion: {
@@ -5421,19 +5895,19 @@ describe( "Versioning" , () => {
 				p1: 'value1c' ,
 				p2: 'value2b' ,
 				versions: {}
-			} 
+			}
 		] ) ;
 
 
 		// Test the overwrite feature
-		
+
 		var versionedItemReplacement = versionedItems.createDocument( {
 			_id: versionedItemId ,
 			name: 'item#1' ,
 			p1: 'value1-over' ,
 			p2: 'value2-over'
 		} ) ;
-		
+
 		await versionedItemReplacement.save( { overwrite: true } ) ;
 
 		dbVersionedItem = await versionedItems.get( versionedItemId ) ;
@@ -5499,12 +5973,12 @@ describe( "Versioning" , () => {
 				p1: 'value1c' ,
 				p2: 'value2c' ,
 				versions: {}
-			} 
+			}
 		] ) ;
 
 
 		// Test the commit feature
-		
+
 		dbVersionedItem.name = 'ITEM#1' ;
 		await dbVersionedItem.commit() ;
 
@@ -5599,7 +6073,7 @@ describe( "Versioning" , () => {
 
 
 		// Test delete
-		
+
 		await dbVersionedItem.delete() ;
 		await expect( () => versionedItems.get( versionedItemId ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
 
@@ -5683,10 +6157,10 @@ describe( "Versioning" , () => {
 			}
 		] ) ;
 	} ) ;
-	
+
 	it( "setting a property to another value/object which is equal (in the 'doormen sens') should not create a new version" , async () => {
 		var date1 = new Date() , date2 = new Date() ;
-		
+
 		var versionedItem = versionedItems.createDocument( {
 			name: 'item#1' ,
 			p1: 'value1a' ,
@@ -5706,12 +6180,12 @@ describe( "Versioning" , () => {
 			p4: date1 ,
 			versions: {}
 		} ) ;
-		
+
 		await versionedItem.save() ;
 
 		versionedItem.p1 = 'value1a' ;
 		await versionedItem.save() ;
-		
+
 		// Version should be incremented now we have save it
 		expect( versionedItem ).to.equal( {
 			_id: versionedItemId ,
@@ -5729,7 +6203,7 @@ describe( "Versioning" , () => {
 
 		versionedItem.p3 = { a: 1 } ;
 		await versionedItem.save() ;
-		
+
 		// Version should be incremented now we have save it
 		expect( versionedItem ).to.equal( {
 			_id: versionedItemId ,
@@ -5742,12 +6216,12 @@ describe( "Versioning" , () => {
 			versions: {}
 		} ) ;
 
-		var batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
+		batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
 		expect( batch ).to.have.length( 0 ) ;
 
 		versionedItem.p4 = date2 ;
 		await versionedItem.save() ;
-		
+
 		// Version should be incremented now we have save it
 		expect( versionedItem ).to.equal( {
 			_id: versionedItemId ,
@@ -5760,13 +6234,13 @@ describe( "Versioning" , () => {
 			versions: {}
 		} ) ;
 
-		var batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
+		batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
 		expect( batch ).to.have.length( 0 ) ;
 	} ) ;
-	
+
 	it( "race conditions" , async () => {
 		expect( versionedItems.versioning ).to.be( true ) ;
-		
+
 		var versionedItem = versionedItems.createDocument( {
 			name: 'item#1' ,
 			p1: 'value1a'
@@ -5782,7 +6256,7 @@ describe( "Versioning" , () => {
 			p1: 'value1a' ,
 			versions: {}
 		} ) ;
-		
+
 		await versionedItem.save() ;
 
 		var dbVersionedItem1 = await versionedItems.get( versionedItemId ) ;
@@ -5796,15 +6270,15 @@ describe( "Versioning" , () => {
 			p1: 'value1a' ,
 			versions: {}
 		} ) ;
-		
+
 		expect( dbVersionedItem1 ).to.equal( dbVersionedItem2 ) ;
-		
+
 		dbVersionedItem1.p1 = 'value2a' ;
 		dbVersionedItem2.p1 = 'value2b' ;
 		await dbVersionedItem1.commit() ;
 		await dbVersionedItem2.commit() ;
 
-		var dbVersionedItem1 = await versionedItems.get( versionedItemId ) ;
+		dbVersionedItem1 = await versionedItems.get( versionedItemId ) ;
 
 		expect( dbVersionedItem1 ).to.equal( {
 			_id: versionedItemId ,
@@ -5814,7 +6288,7 @@ describe( "Versioning" , () => {
 			p1: 'value2b' ,
 			versions: {}
 		} ) ;
-		
+
 	} ) ;
 } ) ;
 
@@ -5906,7 +6380,7 @@ describe( "Historical bugs" , () => {
 				country: 'France'.repeat( 100 )
 			}
 		} ) ;
-		
+
 		await expect( () => town.save() ).to.reject.with( ErrorStatus , { type: 'badRequest' , code: 'keyTooLargeToIndex' } ) ;
 	} ) ;
 
@@ -6042,9 +6516,9 @@ describe( "Historical bugs" , () => {
 		expect( school._.populatedDocumentProxies.get( school._.raw.jobs[ 0 ] ) ).to.be( job1 ) ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
-		
+
 		// Duplicated links should be removed now, proxy Set did not trigger the validator, but .save() does...
-		
+
 		dbSchool = await schools.get( id ) ;
 		expect( dbSchool ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
 		expect( dbSchool._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
@@ -6105,9 +6579,9 @@ describe( "Historical bugs" , () => {
 		expect( school._.populatedDocumentProxies.get( school._.raw.jobs[ 0 ] ) ).to.be.undefined() ;
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
-		
+
 		// Duplicated links should be removed now, proxy Set did not trigger the validator, but .save() does...
-		
+
 		dbSchool = await schools.get( id ) ;
 		expect( dbSchool ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
 		expect( dbSchool._.raw.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
@@ -6160,7 +6634,7 @@ describe( "Historical bugs" , () => {
 			schools: {}
 		} ) ;
 	} ) ;
-	
+
 	it( "patch with validate option off on multi-link providing non-ID" , async () => {
 		var map , batch , dbSchool ;
 
@@ -6193,11 +6667,11 @@ describe( "Historical bugs" , () => {
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [] } ) ;
-		
+
 		// No validate: so it is stored as it is
-		school.patch( { jobs: [ { _id: ''+job1._id, title:'developer', salary: 60000 } , { _id: ''+job2._id } ] } ) ;
-		expect( school._.raw ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: ''+job1._id, title:'developer', salary: 60000 } , { _id: ''+job2._id } ] } ) ;
-		
+		school.patch( { jobs: [ { _id: '' + job1._id , title: 'developer' , salary: 60000 } , { _id: '' + job2._id } ] } ) ;
+		expect( school._.raw ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: '' + job1._id , title: 'developer' , salary: 60000 } , { _id: '' + job2._id } ] } ) ;
+
 		// No we save it, so validation happens NOW!
 		await school.save() ;
 		expect( school._.raw ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
@@ -6205,7 +6679,7 @@ describe( "Historical bugs" , () => {
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
 	} ) ;
-	
+
 	it( "patch with validate option on on multi-link providing non-ID" , async () => {
 		var map , batch , dbSchool ;
 
@@ -6238,9 +6712,9 @@ describe( "Historical bugs" , () => {
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [] } ) ;
-		
+
 		// It's validated NOW: so it is stored the way it should be
-		school.patch( { jobs: [ { _id: ''+job1._id, title:'developer', salary: 60000 } , { _id: ''+job2._id } ] } , { validate: true } ) ;
+		school.patch( { jobs: [ { _id: '' + job1._id , title: 'developer' , salary: 60000 } , { _id: '' + job2._id } ] } , { validate: true } ) ;
 		expect( school._.raw ).to.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
 
 		// No changes...
@@ -6269,16 +6743,16 @@ describe( "Slow tests" , () => {
 
 			return Promise.map( Object.keys( world.collections ) , async ( name ) => {
 				var collection = world.collections[ name ] ;
-				
+
 				try {
 					await collection.buildIndexes() ;
 					var indexes = await collection.driver.getIndexes() ;
 					//log.hdebug( "Index built for collection %s\nDB indexes: %Y\nSchema indexes: %Y" , name , indexes , collection.indexes ) ;
-					
+
 					// Should be reversed: indexes has less key than collection.indexes...
 					// Also it's not an optimal test, it should be more detailed.
 					//expect( collection.indexes ).to.be.partially.like( indexes ) ;
-					
+
 					expect( Object.keys( indexes ) ).to.have.length.of( Object.keys( collection.indexes ).length ) ;
 					//log.hdebug( ">>>>>>>>>>>>>>>>> %s\nDB: %Y\nframework: %Y" , name , indexes , collection.indexes ) ;
 
@@ -6287,7 +6761,7 @@ describe( "Slow tests" , () => {
 						var cIndex = collection.indexes[ indexName ] ;
 						expect( index.properties ).to.equal( cIndex.properties ) ;
 						expect( index.unique || false ).to.be( cIndex.unique ) ;
-						
+
 						if ( cIndex.partial ) { expect( index.partialFilterExpression ).to.be.ok() ; }
 						else { expect( index.partialFilterExpression ).not.to.be.ok() ; }
 
@@ -6308,7 +6782,7 @@ describe( "Slow tests" , () => {
 			First, create a user in the mongo-shell with the command:
 			db.createUser( { user: 'restricted' , pwd: 'restricted-pw' , roles: [ { role: "readWrite", db: "rootsDb-restricted" } ] } )
 		*/
-		
+
 		var world_ = new rootsDb.World() ;
 		var descriptor = {
 			url: 'mongodb://restricted:restricted-pw@localhost:27017/rootsDb-restricted/restrictedCollection' ,
@@ -6321,9 +6795,9 @@ describe( "Slow tests" , () => {
 				}
 			}
 		} ;
-		
+
 		var restrictedCollection = await world_.createAndInitCollection( 'restrictedCollection' , descriptor ) ;
-		
+
 		//console.log( "restrictedCollection.url:" , restrictedCollection.url ) ;
 		//console.log( "restrictedCollection.config:" , restrictedCollection.config ) ;
 		//console.log( "restrictedCollection.driver.url:" , restrictedCollection.driver.url ) ;
@@ -6332,7 +6806,7 @@ describe( "Slow tests" , () => {
 			prop1: 'v1' ,
 			prop2: 'v2'
 		} ) ;
-		
+
 		var id = doc.getId() ;
 
 		await doc.save() ;
@@ -6357,14 +6831,14 @@ describe( "Slow tests" , () => {
 				}
 			}
 		} ;
-		
+
 		var restrictedCollection2 = await world_.createAndInitCollection( 'restrictedCollection2' , descriptor2 ) ;
 		var doc2 = restrictedCollection2.createDocument( {
 			prop1: 'v3' ,
 			prop2: 'v4'
 		} ) ;
-		var id = doc2.getId() ;
-		
+		id = doc2.getId() ;
+
 		await expect( () => doc2.save() ).to.reject() ;
 	} ) ;
 } ) ;
