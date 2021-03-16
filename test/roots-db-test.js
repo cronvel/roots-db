@@ -3809,7 +3809,7 @@ describe( "Attachment links and checksum/hash" , () => {
 		users.attachmentHashType = null ;
 	} ) ;
 
-	it( "zzz should save attachment and compute its checksum/hash then load it" , async () => {
+	it( "should save attachment and compute its checksum/hash then load it" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3893,7 +3893,7 @@ describe( "Attachment links and checksum/hash" , () => {
 		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
 	} ) ;
 
-	it( "zzz should save attachment and expect a given checksum/hash" , async () => {
+	it( "should save attachment and expect a given checksum/hash" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3960,7 +3960,7 @@ describe( "Attachment links and checksum/hash" , () => {
 		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
 	} ) ;
 
-	it( "xxx should save attachment as stream and expect a given checksum/hash" , async () => {
+	it( "should save attachment as stream and expect a given checksum/hash" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -4052,7 +4052,7 @@ describe( "Attachment links and checksum/hash" , () => {
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
 	} ) ;
 
-	it( "xxx should .save() a document with the 'attachmentStreams' option and expect given checksum/hash" , async () => {
+	it( "should .save() a document with the 'attachmentStreams' option and expect given checksum/hash" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -4060,20 +4060,19 @@ describe( "Attachment links and checksum/hash" , () => {
 
 		var id = user.getId() ;
 
-		var attachmentStreams ,
-			contentHash = [
+		var contentHash = [
 				crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'hex' ) ,
-				crypto.createHash( 'sha256' ).update( 'b'.repeat( 40 ) ).digest( 'hex' ) ,
-				crypto.createHash( 'sha256' ).update( 'c'.repeat( 40 ) ).digest( 'hex' )
+				crypto.createHash( 'sha256' ).update( 'b'.repeat( 28 ) ).digest( 'hex' ) ,
+				crypto.createHash( 'sha256' ).update( 'c'.repeat( 21 ) ).digest( 'hex' )
 			] ,
 			badContentHash = contentHash.map( str => str.slice( 0 , -3 ) + 'bad' ) ;
 
 		
 		// Start with a bad hash
 
-		attachmentStreams = new rootsDb.AttachmentStreams() ;
+		var badAttachmentStreams = new rootsDb.AttachmentStreams() ;
 
-		attachmentStreams.addStream(
+		badAttachmentStreams.addStream(
 			new streamKit.FakeReadable( {
 				timeout: 20 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
 			} ) ,
@@ -4082,7 +4081,7 @@ describe( "Attachment links and checksum/hash" , () => {
 		) ;
 
 		setTimeout( () => {
-			attachmentStreams.addStream(
+			badAttachmentStreams.addStream(
 				new streamKit.FakeReadable( {
 					timeout: 20 , chunkSize: 7 , chunkCount: 4 , filler: 'b'.charCodeAt( 0 )
 				} ) ,
@@ -4092,7 +4091,7 @@ describe( "Attachment links and checksum/hash" , () => {
 		} , 100 ) ;
 
 		setTimeout( () => {
-			attachmentStreams.addStream(
+			badAttachmentStreams.addStream(
 				new streamKit.FakeReadable( {
 					timeout: 20 , chunkSize: 7 , chunkCount: 3 , filler: 'c'.charCodeAt( 0 )
 				} ) ,
@@ -4101,14 +4100,14 @@ describe( "Attachment links and checksum/hash" , () => {
 			) ;
 		} , 200 ) ;
 
-		setTimeout( () => attachmentStreams.end() , 300 ) ;
+		setTimeout( () => badAttachmentStreams.end() , 300 ) ;
 
-		await expect( () => user.save( { attachmentStreams: attachmentStreams } ) ).to.eventually.throw( Error , { code: 'badHash' } ) ;
+		await expect( () => user.save( { attachmentStreams: badAttachmentStreams } ) ).to.eventually.throw( Error , { code: 'badHash' } ) ;
 		
 		
 		// Now start over with the correct one
 		
-		attachmentStreams = new rootsDb.AttachmentStreams() ;
+		var attachmentStreams = new rootsDb.AttachmentStreams() ;
 
 		attachmentStreams.addStream(
 			new streamKit.FakeReadable( {
@@ -4140,10 +4139,10 @@ describe( "Attachment links and checksum/hash" , () => {
 
 		setTimeout( () => attachmentStreams.end() , 300 ) ;
 
+		// It should pass
 		await user.save( { attachmentStreams: attachmentStreams } ) ;
 		
-// ----------------------------------------------------------------------------------------- HERE -----------------------------------------------------
-		
+
 		var dbUser = await users.get( id ) ;
 		expect( dbUser ).to.equal( {
 			_id: id ,
@@ -4154,22 +4153,22 @@ describe( "Attachment links and checksum/hash" , () => {
 				filename: 'random.bin' ,
 				id: dbUser.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
-				hash: null ,
-				hashType: null
+				hash: contentHash[ 0 ] ,
+				hashType: 'sha256'
 			} ,
 			avatar: {
 				filename: 'face.jpg' ,
 				id: dbUser.avatar.id ,	// Unpredictable
 				contentType: 'image/jpeg' ,
-				hash: null ,
-				hashType: null
+				hash: contentHash[ 1 ] ,
+				hashType: 'sha256'
 			} ,
 			publicKey: {
 				filename: 'rsa.pub' ,
 				id: dbUser.publicKey.id ,	// Unpredictable
 				contentType: 'application/x-pem-file' ,
-				hash: null ,
-				hashType: null
+				hash: contentHash[ 2 ] ,
+				hashType: 'sha256'
 			}
 		} ) ;
 
@@ -4177,8 +4176,8 @@ describe( "Attachment links and checksum/hash" , () => {
 		expect( fileAttachment ).to.be.partially.like( {
 			filename: 'random.bin' ,
 			contentType: 'bin/random' ,
-			hash: null ,
-			hashType: null
+			hash: contentHash[ 0 ] ,
+			hashType: 'sha256'
 		} ) ;
 
 		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -4188,8 +4187,8 @@ describe( "Attachment links and checksum/hash" , () => {
 		expect( avatarAttachment ).to.be.partially.like( {
 			filename: 'face.jpg' ,
 			contentType: 'image/jpeg' ,
-			hash: null ,
-			hashType: null
+			hash: contentHash[ 1 ] ,
+			hashType: 'sha256'
 		} ) ;
 
 		await expect( avatarAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
@@ -4198,8 +4197,8 @@ describe( "Attachment links and checksum/hash" , () => {
 		expect( publicKeyAttachment ).to.be.partially.like( {
 			filename: 'rsa.pub' ,
 			contentType: 'application/x-pem-file' ,
-			hash: null ,
-			hashType: null
+			hash: contentHash[ 2 ] ,
+			hashType: 'sha256'
 		} ) ;
 
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
