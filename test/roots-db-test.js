@@ -3817,7 +3817,7 @@ describe( "Attachment links and checksum/hash" , () => {
 
 		var id = user.getId() ;
 
-		var contentHash = crypto.createHash( 'sha256' ).update( 'grigrigredin menufretin\n' ).digest( 'hex' ) ;
+		var contentHash = crypto.createHash( 'sha256' ).update( 'grigrigredin menufretin\n' ).digest( 'base64' ) ;
 		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
@@ -3902,7 +3902,7 @@ describe( "Attachment links and checksum/hash" , () => {
 		var id = user.getId() ;
 
 		var attachment ,
-			contentHash = crypto.createHash( 'sha256' ).update( 'grigrigredin menufretin\n' ).digest( 'hex' ) ,
+			contentHash = crypto.createHash( 'sha256' ).update( 'grigrigredin menufretin\n' ).digest( 'base64' ) ,
 			badContentHash = contentHash.slice( 0 , -3 ) + 'bad' ;
 
 		// With an incorrect hash
@@ -3969,7 +3969,7 @@ describe( "Attachment links and checksum/hash" , () => {
 		var id = user.getId() ;
 
 		var attachment , stream ,
-			contentHash = crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'hex' ) ;
+			contentHash = crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'base64' ) ;
 
 		stream = new streamKit.FakeReadable( {
 			timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
@@ -4035,7 +4035,7 @@ describe( "Attachment links and checksum/hash" , () => {
 		var id = user.getId() ;
 
 		var attachment , stream ,
-			contentHash = crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'hex' ) ,
+			contentHash = crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'base64' ) ,
 			badContentHash = contentHash.slice( 0 , -3 ) + 'bad' ;
 
 		
@@ -4127,9 +4127,9 @@ describe( "Attachment links and checksum/hash" , () => {
 		var id = user.getId() ;
 
 		var contentHash = [
-				crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'hex' ) ,
-				crypto.createHash( 'sha256' ).update( 'b'.repeat( 28 ) ).digest( 'hex' ) ,
-				crypto.createHash( 'sha256' ).update( 'c'.repeat( 21 ) ).digest( 'hex' )
+				crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'base64' ) ,
+				crypto.createHash( 'sha256' ).update( 'b'.repeat( 28 ) ).digest( 'base64' ) ,
+				crypto.createHash( 'sha256' ).update( 'c'.repeat( 21 ) ).digest( 'base64' )
 			] ;
 
 		var attachmentStreams = new rootsDb.AttachmentStreams() ;
@@ -4238,9 +4238,9 @@ describe( "Attachment links and checksum/hash" , () => {
 		var id = user.getId() ;
 
 		var contentHash = [
-				crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'hex' ) ,
-				crypto.createHash( 'sha256' ).update( 'b'.repeat( 28 ) ).digest( 'hex' ) ,
-				crypto.createHash( 'sha256' ).update( 'c'.repeat( 21 ) ).digest( 'hex' )
+				crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'base64' ) ,
+				crypto.createHash( 'sha256' ).update( 'b'.repeat( 28 ) ).digest( 'base64' ) ,
+				crypto.createHash( 'sha256' ).update( 'c'.repeat( 21 ) ).digest( 'base64' )
 			] ,
 			badContentHash = contentHash.map( str => str.slice( 0 , -3 ) + 'bad' ) ;
 

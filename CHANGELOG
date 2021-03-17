@@ -1,4 +1,10 @@
 
+v0.29.2
+-------
+
+Attachment Hash are now in base64 instead of hex
+
+
 v0.29.1
 -------
 
