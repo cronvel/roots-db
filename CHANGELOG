@@ -1,4 +1,10 @@
 
+v0.29.3
+-------
+
+Hash error have an 'expected' and 'actual' property
+
+
 v0.29.2
 -------
 
