@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /*
 	Roots DB
 
@@ -28,20 +29,15 @@
 
 
 
-const path = require( 'path' ) ;
-const rootsDb = require( './rootsDb' ) ;
-const log = require( 'logfella' ).global.use( 'roots-db' ) ;
-const Exm = require( 'exm' ) ;
+const rootsDb = require( '..' ) ;
 
 
-module.exports = Exm.registerNs( {
-	module ,
-	ns: 'roots-db' ,
-	log: log.info.bind( log ) ,
-	api: {
-		registerDriver: rootsDb.registerDriver ,
-		registerAttachmentDriver: rootsDb.registerAttachmentDriver ,
-		log: require( 'logfella' ).global.use( 'roots-db-ext' )
-	}
-} ) ;
+
+async function cli() {
+	console.log( "exm:" , Object.assign( {} , rootsDb.exm , { fromModule: '<stripped>' } ) ) ;
+}
+
+
+
+cli() ;
 

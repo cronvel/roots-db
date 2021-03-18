@@ -71,7 +71,8 @@ const versionsDescriptor = {
 
 const usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
-	attachmentUrl: 'file://' + __dirname + '/tmp/' ,
+	//attachmentUrl: 'file://' + __dirname + '/tmp/' ,
+	attachmentUrl: require( './s3-config.local.json' ).attachmentUrl ,
 	properties: {
 		firstName: {
 			type: 'string' ,
