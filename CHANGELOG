@@ -1,4 +1,10 @@
 
+v0.30.0
+-------
+
+Breaking: use Exm for managing extensions
+
+
 v0.29.3
 -------
 
