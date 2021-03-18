@@ -58,6 +58,26 @@ const log = logfella.global.use( 'unit-test' ) ;
 
 
 
+// Test options
+//testOption( 'driver' , 'attachment-driver' ) ;
+testOption( 'attachment-driver' ) ;
+
+var ATTACHMENT_MODE , USERS_ATTACHMENT_URL ;
+
+switch ( getTestOption( 'attachment-driver' ) ) {
+	case 's3' :
+		ATTACHMENT_MODE = 's3' ;
+		USERS_ATTACHMENT_URL = require( './s3-config.local.json' ).attachmentUrl ;
+		break ;
+	case 'file' :
+	default :
+		ATTACHMENT_MODE = 'file' ;
+		USERS_ATTACHMENT_URL = 'file://' + __dirname + '/tmp/' ;
+		break ;
+}
+
+
+
 // Create the world...
 const world = new rootsDb.World() ;
 
@@ -71,8 +91,7 @@ const versionsDescriptor = {
 
 const usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
-	//attachmentUrl: 'file://' + __dirname + '/tmp/' ,
-	attachmentUrl: require( './s3-config.local.json' ).attachmentUrl ,
+	attachmentUrl: USERS_ATTACHMENT_URL ,
 	properties: {
 		firstName: {
 			type: 'string' ,
@@ -484,7 +503,7 @@ describe( "Document creation" , () => {
 		expect( users.documentSchema ).to.equal(
 			{
 				url: "mongodb://localhost:27017/rootsDb/users" ,
-				attachmentUrl: 'file://' + __dirname + '/tmp/' ,
+				attachmentUrl: USERS_ATTACHMENT_URL ,
 				properties: {
 					firstName: {
 						type: "string" , maxLength: 30 , default: "Joe" , tags: [ "content" ] , inputHint: "text"
@@ -3273,11 +3292,13 @@ describe( "Any-collection links" , () => {
 
 
 
-describe( "Attachment links" , () => {
+describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should create, save, and load an attachment" , async () => {
+	it( "should create, save, and load an attachment" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3301,7 +3322,9 @@ describe( "Attachment links" , () => {
 		await user.save() ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
 
 		var dbUser = await users.get( id ) ;
 		expect( dbUser ).to.equal( {
@@ -3338,7 +3361,7 @@ describe( "Attachment links" , () => {
 				documentId: id.toString() ,
 				incoming: null , _incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
-				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
+				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
 
@@ -3353,14 +3376,16 @@ describe( "Attachment links" , () => {
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		var content = await dbAttachment.load() ;
 		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
 	} ) ;
 
-	it( "should alter meta-data of an attachment" , async () => {
+	it( "should alter meta-data of an attachment" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3415,7 +3440,7 @@ describe( "Attachment links" , () => {
 				documentId: id.toString() ,
 				incoming: null , _incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
-				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
+				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
 
@@ -3430,14 +3455,16 @@ describe( "Attachment links" , () => {
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		var content = await dbAttachment.load() ;
 		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
 	} ) ;
 
-	it( "should replace an attachment" , async () => {
+	it( "should replace an attachment" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3452,7 +3479,9 @@ describe( "Attachment links" , () => {
 		await user.save() ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
 
 		var dbUser = await users.get( id ) ;
 
@@ -3467,7 +3496,9 @@ describe( "Attachment links" , () => {
 		await dbUser.setAttachment( 'file' , attachment2 ) ;
 
 		// Check that the previous file has been deleted
-		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		}
 
 		await attachment2.save() ;
 		await dbUser.save() ;
@@ -3508,7 +3539,7 @@ describe( "Attachment links" , () => {
 				documentId: id.toString() ,
 				incoming: null , _incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
-				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
+				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
 
@@ -3523,16 +3554,20 @@ describe( "Attachment links" , () => {
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( "<html><head></head><body>Hello world!</body></html>\n" ) ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( dbAttachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( dbAttachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
 	} ) ;
 
-	it( "Delete an attachment" , async () => {
+	it( "Delete an attachment" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3547,7 +3582,9 @@ describe( "Attachment links" , () => {
 		await user.save() ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
 
 		var dbUser = await users.get( id ) ;
 
@@ -3557,7 +3594,9 @@ describe( "Attachment links" , () => {
 		await dbUser.removeAttachment( 'file' ) ;
 
 		// Check that the previous file has been deleted
-		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		}
 
 		expect( dbUser ).to.equal( {
 			_id: id ,
@@ -3576,7 +3615,9 @@ describe( "Attachment links" , () => {
 		expect( () => dbUser.getAttachment( 'file' ) ).to.throw( ErrorStatus , { type: 'notFound' } ) ;
 	} ) ;
 
-	it( "should create, save and replace attachments as stream, and load as stream" , async () => {
+	it( "should create, save and replace attachments as stream, and load as stream" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3603,7 +3644,9 @@ describe( "Attachment links" , () => {
 		await user.save() ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
 
 		var dbUser = await users.get( id ) ;
 		expect( dbUser ).to.equal( {
@@ -3631,7 +3674,7 @@ describe( "Attachment links" , () => {
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -3644,7 +3687,9 @@ describe( "Attachment links" , () => {
 		await dbUser.setAttachment( 'file' , attachment2 ) ;
 
 		// Check that the previous file has been deleted
-		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		}
 
 		await attachment2.save() ;
 		await dbUser.save() ;
@@ -3676,13 +3721,15 @@ describe( "Attachment links" , () => {
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment2.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment2.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 30 ) ) ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( dbAttachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( dbAttachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
 
 		// Now load as a stream
 		var readStream = await dbAttachment.getReadStream() ;
@@ -3693,7 +3740,9 @@ describe( "Attachment links" , () => {
 		expect( fakeWritable.get().toString() ).to.be( 'b'.repeat( 30 ) ) ;
 	} ) ;
 
-	it( "should .save() a document with the 'attachmentStreams' option" , async () => {
+	it( "should .save() a document with the 'attachmentStreams' option" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3798,7 +3847,7 @@ describe( "Attachment links" , () => {
 
 
 
-describe( "Attachment links and checksum/hash" , () => {
+describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")" , () => {
 
 	// Here we change the 'users' collection before performing the test, so it forces hash computation
 	beforeEach( () => {
@@ -3810,7 +3859,9 @@ describe( "Attachment links and checksum/hash" , () => {
 		users.attachmentHashType = null ;
 	} ) ;
 
-	it( "should save attachment and compute its checksum/hash then load it" , async () => {
+	it( "should save attachment and compute its checksum/hash then load it" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3835,7 +3886,9 @@ describe( "Attachment links and checksum/hash" , () => {
 		await user.save() ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
 
 		var dbUser = await users.get( id ) ;
 		expect( dbUser ).to.equal( {
@@ -3872,7 +3925,7 @@ describe( "Attachment links and checksum/hash" , () => {
 				documentId: id.toString() ,
 				incoming: null , _incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
-				path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
+				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
 
@@ -3887,14 +3940,16 @@ describe( "Attachment links and checksum/hash" , () => {
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: __dirname + '/tmp/' + dbUser.getId() + '/' + details.attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		var content = await dbAttachment.load() ;
 		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
 	} ) ;
 
-	it( "should save attachment and expect a given checksum/hash" , async () => {
+	it( "should save attachment and expect a given checksum/hash" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3926,7 +3981,9 @@ describe( "Attachment links and checksum/hash" , () => {
 		await user.save() ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
 
 		var dbUser = await users.get( id ) ;
 		expect( dbUser ).to.equal( {
@@ -3954,14 +4011,16 @@ describe( "Attachment links and checksum/hash" , () => {
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: __dirname + '/tmp/' + dbUser.getId() + '/' + dbAttachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + dbAttachment.id
 		} ) ;
 
 		var content = await dbAttachment.load() ;
 		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
 	} ) ;
 
-	it( "should save attachment as stream and compute its checksum/hash" , async () => {
+	it( "should save attachment as stream and compute its checksum/hash" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -3994,7 +4053,9 @@ describe( "Attachment links and checksum/hash" , () => {
 		await user.save() ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
 
 		var dbUser = await users.get( id ) ;
 		expect( dbUser ).to.equal( {
@@ -4021,13 +4082,15 @@ describe( "Attachment links and checksum/hash" , () => {
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
-			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
 	} ) ;
 
-	it( "should save attachment as stream and expect a given checksum/hash" , async () => {
+	it( "should save attachment as stream and expect a given checksum/hash" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -4085,7 +4148,9 @@ describe( "Attachment links and checksum/hash" , () => {
 		await user.save() ;
 
 		// Check that the file exists
-		expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
 
 		var dbUser = await users.get( id ) ;
 		expect( dbUser ).to.equal( {
@@ -4113,13 +4178,15 @@ describe( "Attachment links and checksum/hash" , () => {
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: __dirname + '/tmp/' + dbUser.getId() + '/' + attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
 	} ) ;
 
-	it( "should .save() a document with the 'attachmentStreams' option and compute its checksum/hash" , async () => {
+	it( "should .save() a document with the 'attachmentStreams' option and compute its checksum/hash" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -4230,7 +4297,9 @@ describe( "Attachment links and checksum/hash" , () => {
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
 	} ) ;
 
-	it( "should .save() a document with the 'attachmentStreams' option and expect given checksum/hash" , async () => {
+	it( "should .save() a document with the 'attachmentStreams' option and expect given checksum/hash" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
