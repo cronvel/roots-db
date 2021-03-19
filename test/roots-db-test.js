@@ -76,7 +76,8 @@ switch ( getTestOption( 'attachment-driver' ) ) {
 		break ;
 }
 
-
+// Init extensions
+rootsDb.initExtensions() ;
 
 // Create the world...
 const world = new rootsDb.World() ;
