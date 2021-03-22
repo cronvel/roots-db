@@ -1,4 +1,10 @@
 
+v0.30.3
+-------
+
+Fix: when Document#reload() failed to reload, now it reject with with a 'notFound'
+
+
 v0.30.2
 -------
 
