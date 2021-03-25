@@ -63,6 +63,7 @@ const log = logfella.global.use( 'unit-test' ) ;
 testOption( 'attachment-driver' ) ;
 
 var ATTACHMENT_MODE , USERS_ATTACHMENT_URL ;
+const ATTACHMENT_PUBLIC_BASE_URL = 'http://example.cdn.net/example' ;
 
 switch ( getTestOption( 'attachment-driver' ) ) {
 	case 's3' :
@@ -93,6 +94,7 @@ const versionsDescriptor = {
 const usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
 	attachmentUrl: USERS_ATTACHMENT_URL ,
+	attachmentPublicBaseUrl: ATTACHMENT_PUBLIC_BASE_URL ,
 	properties: {
 		firstName: {
 			type: 'string' ,
@@ -3315,8 +3317,10 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			filename: 'joke.txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain' ,
+			fileSize: 24 ,
 			hash: null ,
-			hashType: null
+			hashType: null ,
+			metadata: null
 		} ) ;
 
 		await attachment.save() ;
@@ -3337,8 +3341,10 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				filename: 'joke.txt' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'text/plain' ,
+				fileSize: 24 ,
 				hash: null ,
-				hashType: null
+				hashType: null ,
+				metadata: null
 			}
 		} ) ;
 
@@ -3356,13 +3362,16 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				id: dbUser.file.id ,
 				filename: 'joke.txt' ,
 				contentType: 'text/plain' ,
+				fileSize: 24 ,
 				hash: null ,
 				hashType: null ,
+				metadata: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				incoming: null , _incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
-				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
+				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
 
@@ -3371,13 +3380,16 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			id: user.file.id ,
 			filename: 'joke.txt' ,
 			contentType: 'text/plain' ,
+			fileSize: 24 ,
 			hash: null ,
 			hashType: null ,
+			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		var content = await dbAttachment.load() ;
@@ -3416,8 +3428,10 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				filename: 'lol.txt' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'text/joke' ,
+				fileSize: 24 ,
 				hash: null ,
-				hashType: null
+				hashType: null ,
+				metadata: null
 			}
 		} ) ;
 
@@ -3435,13 +3449,16 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				id: dbUser.file.id ,
 				filename: 'lol.txt' ,
 				contentType: 'text/joke' ,
+				fileSize: 24 ,
 				hash: null ,
 				hashType: null ,
+				metadata: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				incoming: null , _incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
-				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
+				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
 
@@ -3450,13 +3467,16 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			id: dbUser.file.id ,
 			filename: 'lol.txt' ,
 			contentType: 'text/joke' ,
+			fileSize: 24 ,
 			hash: null ,
 			hashType: null ,
+			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		var content = await dbAttachment.load() ;
@@ -3515,8 +3535,10 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				filename: 'hello-world.html' ,
 				id: dbUser.file.id ,	// Unpredictable
 				contentType: 'text/html' ,
+				fileSize: 52 ,
 				hash: null ,
-				hashType: null
+				hashType: null ,
+				metadata: null
 			}
 		} ) ;
 
@@ -3534,13 +3556,16 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				id: dbUser.file.id ,
 				filename: 'hello-world.html' ,
 				contentType: 'text/html' ,
+				fileSize: 52 ,
 				hash: null ,
 				hashType: null ,
+				metadata: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				incoming: null , _incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
-				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
+				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
 
@@ -3549,13 +3574,16 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			id: dbUser.file.id ,
 			filename: 'hello-world.html' ,
 			contentType: 'text/html' ,
+			fileSize: 52 ,
 			hash: null ,
 			hashType: null ,
+			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( "<html><head></head><body>Hello world!</body></html>\n" ) ;
@@ -3616,7 +3644,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( () => dbUser.getAttachment( 'file' ) ).to.throw( ErrorStatus , { type: 'notFound' } ) ;
 	} ) ;
 
-	it( "should create, save and replace attachments as stream, and load as stream" , async function() {
+	it( "zzz should create, save and replace attachments as stream, and load as stream" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -3637,13 +3665,16 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			filename: 'random.bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
+			fileSize: null ,
 			hash: null ,
-			hashType: null
+			hashType: null ,
+			metadata: null ,
 		} ) ;
 
 		await attachment.save() ;
+		console.error( "attachment saved" ) ;
 		await user.save() ;
-
+		
 		// Check that the file exists
 		if ( ATTACHMENT_MODE === 'file' ) {
 			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
@@ -3659,8 +3690,10 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				filename: 'random.bin' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
+				fileSize: 24 ,
 				hash: null ,
-				hashType: null
+				hashType: null ,
+				metadata: null ,
 			}
 		} ) ;
 
@@ -3669,13 +3702,16 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			id: dbUser.file.id ,
 			filename: 'random.bin' ,
 			contentType: 'bin/random' ,
+			fileSize: 24 ,
 			hash: null ,
 			hashType: null ,
+			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -3706,8 +3742,10 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				filename: 'more-random.bin' ,
 				id: dbUser.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
+				fileSize: 24 ,
 				hash: null ,
-				hashType: null
+				hashType: null ,
+				metadata: null ,
 			}
 		} ) ;
 
@@ -3716,13 +3754,16 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			id: dbUser.file.id ,
 			filename: 'more-random.bin' ,
 			contentType: 'bin/random' ,
+			fileSize: 24 ,
 			hash: null ,
 			hashType: null ,
+			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment2.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment2.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 30 ) ) ;
@@ -3794,22 +3835,28 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				filename: 'random.bin' ,
 				id: dbUser.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
+				fileSize: 24 ,
 				hash: null ,
-				hashType: null
+				hashType: null ,
+				metadata: null ,
 			} ,
 			avatar: {
 				filename: 'face.jpg' ,
 				id: dbUser.avatar.id ,	// Unpredictable
 				contentType: 'image/jpeg' ,
+				fileSize: 24 ,
 				hash: null ,
-				hashType: null
+				hashType: null ,
+				metadata: null ,
 			} ,
 			publicKey: {
 				filename: 'rsa.pub' ,
 				id: dbUser.publicKey.id ,	// Unpredictable
 				contentType: 'application/x-pem-file' ,
+				fileSize: 24 ,
 				hash: null ,
-				hashType: null
+				hashType: null ,
+				metadata: null ,
 			}
 		} ) ;
 
@@ -3817,8 +3864,10 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( fileAttachment ).to.be.partially.like( {
 			filename: 'random.bin' ,
 			contentType: 'bin/random' ,
+			fileSize: 24 ,
 			hash: null ,
-			hashType: null
+			hashType: null ,
+			metadata: null ,
 		} ) ;
 
 		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -3828,8 +3877,10 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( avatarAttachment ).to.be.partially.like( {
 			filename: 'face.jpg' ,
 			contentType: 'image/jpeg' ,
+			fileSize: 24 ,
 			hash: null ,
-			hashType: null
+			hashType: null ,
+			metadata: null ,
 		} ) ;
 
 		await expect( avatarAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
@@ -3838,8 +3889,10 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( publicKeyAttachment ).to.be.partially.like( {
 			filename: 'rsa.pub' ,
 			contentType: 'application/x-pem-file' ,
+			fileSize: 24 ,
 			hash: null ,
-			hashType: null
+			hashType: null ,
+			metadata: null ,
 		} ) ;
 
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
@@ -3879,8 +3932,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			filename: 'joke.txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain' ,
+			fileSize: 24 ,
 			hash: contentHash ,
-			hashType: 'sha256'
+			hashType: 'sha256' ,
+			metadata: null ,
 		} ) ;
 
 		await attachment.save() ;
@@ -3901,8 +3956,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				filename: 'joke.txt' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'text/plain' ,
+				fileSize: 24 ,
 				hash: contentHash ,
-				hashType: 'sha256'
+				hashType: 'sha256' ,
+				metadata: null ,
 			}
 		} ) ;
 
@@ -3920,13 +3977,16 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				id: dbUser.file.id ,
 				filename: 'joke.txt' ,
 				contentType: 'text/plain' ,
+				fileSize: 24 ,
 				hash: contentHash ,
 				hashType: 'sha256' ,
+				metadata: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				incoming: null , _incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
-				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
+				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
 
@@ -3935,13 +3995,16 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			id: user.file.id ,
 			filename: 'joke.txt' ,
 			contentType: 'text/plain' ,
+			fileSize: 24 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
+			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		var content = await dbAttachment.load() ;
@@ -3974,8 +4037,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			filename: 'joke.txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain' ,
+			fileSize: 24 ,
 			hash: contentHash ,
-			hashType: 'sha256'
+			hashType: 'sha256' ,
+			metadata: null ,
 		} ) ;
 
 		await attachment.save() ;
@@ -3996,8 +4061,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				filename: 'joke.txt' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'text/plain' ,
+				fileSize: 24 ,
 				hash: contentHash ,
-				hashType: 'sha256'
+				hashType: 'sha256' ,
+				metadata: null ,
 			}
 		} ) ;
 
@@ -4006,13 +4073,16 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			id: user.file.id ,
 			filename: 'joke.txt' ,
 			contentType: 'text/plain' ,
+			fileSize: 24 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
+			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + dbAttachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + dbAttachment.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		var content = await dbAttachment.load() ;
@@ -4044,9 +4114,11 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			filename: 'random.bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
+			fileSize: 24 ,
 			hash: null ,	// The hash is not yet computed since it is a stream!
 			//hash: contentHash ,
-			hashType: 'sha256'
+			hashType: 'sha256' ,
+			metadata: null ,
 		} ) ;
 
 		// It should be ok here
@@ -4068,8 +4140,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				filename: 'random.bin' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
+				fileSize: 24 ,
 				hash: contentHash ,
-				hashType: 'sha256'
+				hashType: 'sha256' ,
+				metadata: null ,
 			}
 		} ) ;
 
@@ -4078,12 +4152,15 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			id: dbUser.file.id ,
 			filename: 'random.bin' ,
 			contentType: 'bin/random' ,
+			fileSize: 24 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
+			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -4118,8 +4195,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			filename: 'random.bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
+			fileSize: 24 ,
 			hash: badContentHash ,
-			hashType: 'sha256'
+			hashType: 'sha256' ,
+			metadata: null ,
 		} ) ;
 
 		// It should throw here
@@ -4140,8 +4219,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			filename: 'random.bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
+			fileSize: 24 ,
 			hash: contentHash ,
-			hashType: 'sha256'
+			hashType: 'sha256' ,
+			metadata: null ,
 		} ) ;
 
 		// It should be ok here
@@ -4163,8 +4244,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				filename: 'random.bin' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
+				fileSize: 24 ,
 				hash: contentHash ,
-				hashType: 'sha256'
+				hashType: 'sha256' ,
+				metadata: null ,
 			}
 		} ) ;
 
@@ -4173,13 +4256,16 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			id: dbUser.file.id ,
 			filename: 'random.bin' ,
 			contentType: 'bin/random' ,
+			fileSize: 24 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
+			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , _incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -4247,22 +4333,28 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				filename: 'random.bin' ,
 				id: dbUser.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
+				fileSize: 24 ,
 				hash: contentHash[ 0 ] ,
-				hashType: 'sha256'
+				hashType: 'sha256' ,
+				metadata: null ,
 			} ,
 			avatar: {
 				filename: 'face.jpg' ,
 				id: dbUser.avatar.id ,	// Unpredictable
 				contentType: 'image/jpeg' ,
+				fileSize: 24 ,
 				hash: contentHash[ 1 ] ,
-				hashType: 'sha256'
+				hashType: 'sha256' ,
+				metadata: null ,
 			} ,
 			publicKey: {
 				filename: 'rsa.pub' ,
 				id: dbUser.publicKey.id ,	// Unpredictable
 				contentType: 'application/x-pem-file' ,
+				fileSize: 24 ,
 				hash: contentHash[ 2 ] ,
-				hashType: 'sha256'
+				hashType: 'sha256' ,
+				metadata: null ,
 			}
 		} ) ;
 
@@ -4270,8 +4362,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		expect( fileAttachment ).to.be.partially.like( {
 			filename: 'random.bin' ,
 			contentType: 'bin/random' ,
+			fileSize: 24 ,
 			hash: contentHash[ 0 ] ,
-			hashType: 'sha256'
+			hashType: 'sha256' ,
+			metadata: null ,
 		} ) ;
 
 		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -4281,8 +4375,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		expect( avatarAttachment ).to.be.partially.like( {
 			filename: 'face.jpg' ,
 			contentType: 'image/jpeg' ,
+			fileSize: 24 ,
 			hash: contentHash[ 1 ] ,
-			hashType: 'sha256'
+			hashType: 'sha256' ,
+			metadata: null ,
 		} ) ;
 
 		await expect( avatarAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
@@ -4291,8 +4387,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		expect( publicKeyAttachment ).to.be.partially.like( {
 			filename: 'rsa.pub' ,
 			contentType: 'application/x-pem-file' ,
+			fileSize: 24 ,
 			hash: contentHash[ 2 ] ,
-			hashType: 'sha256'
+			hashType: 'sha256' ,
+			metadata: null ,
 		} ) ;
 
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
@@ -4401,22 +4499,28 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				filename: 'random.bin' ,
 				id: dbUser.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
+				fileSize: 24 ,
 				hash: contentHash[ 0 ] ,
-				hashType: 'sha256'
+				hashType: 'sha256' ,
+				metadata: null ,
 			} ,
 			avatar: {
 				filename: 'face.jpg' ,
 				id: dbUser.avatar.id ,	// Unpredictable
 				contentType: 'image/jpeg' ,
+				fileSize: 24 ,
 				hash: contentHash[ 1 ] ,
-				hashType: 'sha256'
+				hashType: 'sha256' ,
+				metadata: null ,
 			} ,
 			publicKey: {
 				filename: 'rsa.pub' ,
 				id: dbUser.publicKey.id ,	// Unpredictable
 				contentType: 'application/x-pem-file' ,
+				fileSize: 24 ,
 				hash: contentHash[ 2 ] ,
-				hashType: 'sha256'
+				hashType: 'sha256' ,
+				metadata: null ,
 			}
 		} ) ;
 
@@ -4424,8 +4528,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		expect( fileAttachment ).to.be.partially.like( {
 			filename: 'random.bin' ,
 			contentType: 'bin/random' ,
+			fileSize: 24 ,
 			hash: contentHash[ 0 ] ,
-			hashType: 'sha256'
+			hashType: 'sha256' ,
+			metadata: null ,
 		} ) ;
 
 		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -4435,8 +4541,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		expect( avatarAttachment ).to.be.partially.like( {
 			filename: 'face.jpg' ,
 			contentType: 'image/jpeg' ,
+			fileSize: 24 ,
 			hash: contentHash[ 1 ] ,
-			hashType: 'sha256'
+			hashType: 'sha256' ,
+			metadata: null ,
 		} ) ;
 
 		await expect( avatarAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
@@ -4445,8 +4553,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		expect( publicKeyAttachment ).to.be.partially.like( {
 			filename: 'rsa.pub' ,
 			contentType: 'application/x-pem-file' ,
+			fileSize: 24 ,
 			hash: contentHash[ 2 ] ,
-			hashType: 'sha256'
+			hashType: 'sha256' ,
+			metadata: null ,
 		} ) ;
 
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
