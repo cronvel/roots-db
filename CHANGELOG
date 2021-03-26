@@ -1,4 +1,10 @@
 
+v0.31.1
+-------
+
+Attachments: fix metadata, should be always available as an empty object, never null
+
+
 v0.31.0
 -------
 

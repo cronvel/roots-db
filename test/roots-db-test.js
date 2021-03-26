@@ -3321,7 +3321,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			fileSize: 24 ,
 			hash: null ,
 			hashType: null ,
-			metadata: null
+			metadata: {}
 		} ) ;
 
 		await attachment.save() ;
@@ -3345,7 +3345,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				fileSize: 24 ,
 				hash: null ,
 				hashType: null ,
-				metadata: null
+				metadata: {}
 			}
 		} ) ;
 
@@ -3366,7 +3366,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				fileSize: 24 ,
 				hash: null ,
 				hashType: null ,
-				metadata: null ,
+				metadata: {} ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				incoming: null , lastExported: null ,
@@ -3384,7 +3384,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			fileSize: 24 ,
 			hash: null ,
 			hashType: null ,
-			metadata: null ,
+			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , lastExported: null ,
@@ -3432,7 +3432,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				fileSize: 24 ,
 				hash: null ,
 				hashType: null ,
-				metadata: null
+				metadata: {}
 			}
 		} ) ;
 
@@ -3453,7 +3453,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				fileSize: 24 ,
 				hash: null ,
 				hashType: null ,
-				metadata: null ,
+				metadata: {} ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				incoming: null , lastExported: null ,
@@ -3471,7 +3471,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			fileSize: 24 ,
 			hash: null ,
 			hashType: null ,
-			metadata: null ,
+			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , lastExported: null ,
@@ -3539,7 +3539,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				fileSize: 52 ,
 				hash: null ,
 				hashType: null ,
-				metadata: null
+				metadata: {}
 			}
 		} ) ;
 
@@ -3560,7 +3560,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				fileSize: 52 ,
 				hash: null ,
 				hashType: null ,
-				metadata: null ,
+				metadata: {} ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				incoming: null , lastExported: null ,
@@ -3578,7 +3578,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			fileSize: 52 ,
 			hash: null ,
 			hashType: null ,
-			metadata: null ,
+			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , lastExported: null ,
@@ -3669,7 +3669,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			fileSize: null ,
 			hash: null ,
 			hashType: null ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		await attachment.save() ;
@@ -3693,7 +3693,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				fileSize: 40 ,
 				hash: null ,
 				hashType: null ,
-				metadata: null ,
+				metadata: {} ,
 			}
 		} ) ;
 
@@ -3705,7 +3705,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			fileSize: 40 ,
 			hash: null ,
 			hashType: null ,
-			metadata: null ,
+			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , lastExported: null ,
@@ -3745,7 +3745,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				fileSize: 30 ,
 				hash: null ,
 				hashType: null ,
-				metadata: null ,
+				metadata: {} ,
 			}
 		} ) ;
 
@@ -3757,7 +3757,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			fileSize: 30 ,
 			hash: null ,
 			hashType: null ,
-			metadata: null ,
+			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , lastExported: null ,
@@ -3838,7 +3838,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				fileSize: 40 ,
 				hash: null ,
 				hashType: null ,
-				metadata: null ,
+				metadata: {} ,
 			} ,
 			avatar: {
 				filename: 'face.jpg' ,
@@ -3847,7 +3847,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				fileSize: 28 ,
 				hash: null ,
 				hashType: null ,
-				metadata: null ,
+				metadata: {} ,
 			} ,
 			publicKey: {
 				filename: 'rsa.pub' ,
@@ -3856,7 +3856,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				fileSize: 21 ,
 				hash: null ,
 				hashType: null ,
-				metadata: null ,
+				metadata: {} ,
 			}
 		} ) ;
 
@@ -3867,7 +3867,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			fileSize: 40 ,
 			hash: null ,
 			hashType: null ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -3880,7 +3880,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			fileSize: 28 ,
 			hash: null ,
 			hashType: null ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		await expect( avatarAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
@@ -3892,7 +3892,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			fileSize: 21 ,
 			hash: null ,
 			hashType: null ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
@@ -4054,7 +4054,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 24 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		await attachment.save() ;
@@ -4078,7 +4078,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				fileSize: 24 ,
 				hash: contentHash ,
 				hashType: 'sha256' ,
-				metadata: null ,
+				metadata: {} ,
 			}
 		} ) ;
 
@@ -4099,7 +4099,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				fileSize: 24 ,
 				hash: contentHash ,
 				hashType: 'sha256' ,
-				metadata: null ,
+				metadata: {} ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				incoming: null , lastExported: null ,
@@ -4117,7 +4117,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 24 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , lastExported: null ,
@@ -4161,7 +4161,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 24 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		await attachment.save() ;
@@ -4185,7 +4185,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				fileSize: 24 ,
 				hash: contentHash ,
 				hashType: 'sha256' ,
-				metadata: null ,
+				metadata: {} ,
 			}
 		} ) ;
 
@@ -4197,7 +4197,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 24 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , lastExported: null ,
@@ -4239,7 +4239,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			hash: null ,	// The hash is not yet computed since it is a stream!
 			//hash: contentHash ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		// It should be ok here
@@ -4264,7 +4264,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				fileSize: 40 ,
 				hash: contentHash ,
 				hashType: 'sha256' ,
-				metadata: null ,
+				metadata: {} ,
 			}
 		} ) ;
 
@@ -4276,7 +4276,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 40 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
@@ -4319,7 +4319,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 40 ,
 			hash: badContentHash ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		// It should throw here
@@ -4343,7 +4343,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 35 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		// It should throw here
@@ -4367,7 +4367,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 40 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		// It should be ok here
@@ -4392,7 +4392,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				fileSize: 40 ,
 				hash: contentHash ,
 				hashType: 'sha256' ,
-				metadata: null ,
+				metadata: {} ,
 			}
 		} ) ;
 
@@ -4404,7 +4404,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 40 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			incoming: null , lastExported: null ,
@@ -4481,7 +4481,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				fileSize: 40 ,
 				hash: contentHash[ 0 ] ,
 				hashType: 'sha256' ,
-				metadata: null ,
+				metadata: {} ,
 			} ,
 			avatar: {
 				filename: 'face.jpg' ,
@@ -4490,7 +4490,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				fileSize: 28 ,
 				hash: contentHash[ 1 ] ,
 				hashType: 'sha256' ,
-				metadata: null ,
+				metadata: {} ,
 			} ,
 			publicKey: {
 				filename: 'rsa.pub' ,
@@ -4499,7 +4499,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				fileSize: 21 ,
 				hash: contentHash[ 2 ] ,
 				hashType: 'sha256' ,
-				metadata: null ,
+				metadata: {} ,
 			}
 		} ) ;
 
@@ -4510,7 +4510,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 40 ,
 			hash: contentHash[ 0 ] ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -4523,7 +4523,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 28 ,
 			hash: contentHash[ 1 ] ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		await expect( avatarAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
@@ -4535,7 +4535,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 21 ,
 			hash: contentHash[ 2 ] ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
@@ -4684,7 +4684,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				fileSize: 40 ,
 				hash: contentHash[ 0 ] ,
 				hashType: 'sha256' ,
-				metadata: null ,
+				metadata: {} ,
 			} ,
 			avatar: {
 				filename: 'face.jpg' ,
@@ -4693,7 +4693,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				fileSize: 28 ,
 				hash: contentHash[ 1 ] ,
 				hashType: 'sha256' ,
-				metadata: null ,
+				metadata: {} ,
 			} ,
 			publicKey: {
 				filename: 'rsa.pub' ,
@@ -4702,7 +4702,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				fileSize: 21 ,
 				hash: contentHash[ 2 ] ,
 				hashType: 'sha256' ,
-				metadata: null ,
+				metadata: {} ,
 			}
 		} ) ;
 
@@ -4713,7 +4713,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 40 ,
 			hash: contentHash[ 0 ] ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		await expect( fileAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
@@ -4726,7 +4726,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 28 ,
 			hash: contentHash[ 1 ] ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		await expect( avatarAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
@@ -4738,7 +4738,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			fileSize: 21 ,
 			hash: contentHash[ 2 ] ,
 			hashType: 'sha256' ,
-			metadata: null ,
+			metadata: {} ,
 		} ) ;
 
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
