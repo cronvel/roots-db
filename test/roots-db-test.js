@@ -507,6 +507,7 @@ describe( "Document creation" , () => {
 			{
 				url: "mongodb://localhost:27017/rootsDb/users" ,
 				attachmentUrl: USERS_ATTACHMENT_URL ,
+				attachmentPublicBaseUrl: ATTACHMENT_PUBLIC_BASE_URL ,
 				properties: {
 					firstName: {
 						type: "string" , maxLength: 30 , default: "Joe" , tags: [ "content" ] , inputHint: "text"
@@ -3368,7 +3369,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				metadata: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , _incoming: null , lastExported: null ,
+				incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3386,7 +3387,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null , lastExported: null ,
+			incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3396,7 +3397,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
 	} ) ;
 
-	it( "should alter meta-data of an attachment" , async function() {
+	it( "should alter file (system) metadata of an attachment" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -3455,7 +3456,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				metadata: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , _incoming: null , lastExported: null ,
+				incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3473,7 +3474,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null , lastExported: null ,
+			incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3562,7 +3563,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				metadata: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , _incoming: null , lastExported: null ,
+				incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3580,7 +3581,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null , lastExported: null ,
+			incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3707,7 +3708,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null , lastExported: null ,
+			incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
@@ -3759,7 +3760,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null , lastExported: null ,
+			incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment2.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment2.id
@@ -3897,7 +3898,124 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
 	} ) ;
 
-	it( "metadata" ) ;
+	it( "should create, save, and load an attachment with (content) metadata, and modify (content) metadata" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+
+		var attachment = user.createAttachment( { filename: 'image.png' , contentType: 'image/png' , metadata: { width: 100 , height: 100 } } , "some bin data" ) ;
+		await user.setAttachment( 'file' , attachment ) ;
+		//log.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'image.png' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'image/png' ,
+			fileSize: 13 ,
+			hash: null ,
+			hashType: null ,
+			metadata: { width: 100 , height: 100 } ,
+		} ) ;
+
+		await attachment.save() ;
+		await user.save() ;
+
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'image.png' ,
+				id: user.file.id ,	// Unpredictable
+				contentType: 'image/png' ,
+				fileSize: 13 ,
+				hash: null ,
+				hashType: null ,
+				metadata: { width: 100 , height: 100 } ,
+			}
+		} ) ;
+
+		var details = dbUser.getAttachmentDetails( 'file' ) ;
+		expect( details ).to.be.like( {
+			type: 'attachment' ,
+			hostPath: 'file' ,
+			schema: {
+				optional: true ,
+				type: 'attachment' ,
+				tags: [ 'content' ] ,
+				inputHint: "file"
+			} ,
+			attachment: {
+				id: dbUser.file.id ,
+				filename: 'image.png' ,
+				contentType: 'image/png' ,
+				fileSize: 13 ,
+				hash: null ,
+				hashType: null ,
+				metadata: { width: 100 , height: 100 } ,
+				collectionName: 'users' ,
+				documentId: id.toString() ,
+				incoming: null , lastExported: null ,
+				driver: users.attachmentDriver ,
+				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
+			}
+		} ) ;
+
+		var dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.like( {
+			id: user.file.id ,
+			filename: 'image.png' ,
+			contentType: 'image/png' ,
+			fileSize: 13 ,
+			hash: null ,
+			hashType: null ,
+			metadata: { width: 100 , height: 100 } ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			incoming: null , lastExported: null ,
+			driver: users.attachmentDriver ,
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
+		} ) ;
+
+		var content = await dbAttachment.load() ;
+		expect( content.toString() ).to.be( "some bin data" ) ;
+		
+		dbUser = await users.get( id ) ;
+		dbUser.file.metadata.width = 120 ;
+		dbUser.file.metadata.height = 180 ;
+		await dbUser.save() ;
+
+		dbUser = await users.get( id ) ;
+		expect( dbUser ).to.equal( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'image.png' ,
+				id: user.file.id ,	// Unpredictable
+				contentType: 'image/png' ,
+				fileSize: 13 ,
+				hash: null ,
+				hashType: null ,
+				metadata: { width: 120 , height: 180 } ,
+			}
+		} ) ;
+	} ) ;
 } ) ;
 
 
@@ -3984,7 +4102,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				metadata: null ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , _incoming: null , lastExported: null ,
+				incoming: null , lastExported: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -4002,7 +4120,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null , lastExported: null ,
+			incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -4012,7 +4130,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
 	} ) ;
 
-	it( "should save attachment and expect a given checksum/hash" , async function() {
+	it( "should save attachment and expect a given checksum/hash + fileSize" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -4027,10 +4145,12 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			badContentHash = contentHash.slice( 0 , -3 ) + 'bad' ;
 
 		// With an incorrect hash
-		expect( () => user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: badContentHash } , "grigrigredin menufretin\n" ) ).to.throw( Error , { code: 'badHash' } ) ;
+		expect( () => user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: badContentHash , fileSize: 24 } , "grigrigredin menufretin\n" ) ).to.throw( Error , { code: 'badHash' } ) ;
+		// With an incorrect file size
+		expect( () => user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash , fileSize: 21 } , "grigrigredin menufretin\n" ) ).to.throw( Error , { code: 'badFileSize' } ) ;
 
 		// With the correct hash
-		attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash } , "grigrigredin menufretin\n" ) ;
+		attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash , fileSize: 24 } , "grigrigredin menufretin\n" ) ;
 		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
@@ -4080,7 +4200,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null , lastExported: null ,
+			incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + dbAttachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + dbAttachment.id
@@ -4167,7 +4287,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
 	} ) ;
 
-	it( "should save attachment as stream and expect a given checksum/hash" , async function() {
+	it( "should save attachment as stream and expect a given checksum/hash + fileSize" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -4188,7 +4308,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
 		} ) ;
 
-		attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: badContentHash } , stream ) ;
+		attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: badContentHash , fileSize: 40 } , stream ) ;
 		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
@@ -4196,7 +4316,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			filename: 'random.bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
-			fileSize: null ,
+			fileSize: 40 ,
 			hash: badContentHash ,
 			hashType: 'sha256' ,
 			metadata: null ,
@@ -4206,13 +4326,13 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		await expect( () => attachment.save() ).to.eventually.throw( Error , { code: 'badHash' } ) ;
 		
 		
-		// Now start over with the correct one
-		
+		// Then with a bad file size
+
 		stream = new streamKit.FakeReadable( {
 			timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
 		} ) ;
 
-		attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash } , stream ) ;
+		attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 35 } , stream ) ;
 		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
@@ -4220,7 +4340,31 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			filename: 'random.bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
-			fileSize: null ,
+			fileSize: 35 ,
+			hash: contentHash ,
+			hashType: 'sha256' ,
+			metadata: null ,
+		} ) ;
+
+		// It should throw here
+		await expect( () => attachment.save() ).to.eventually.throw( Error , { code: 'badFileSize' } ) ;
+		
+		
+		// Now start over with the correct one
+		
+		stream = new streamKit.FakeReadable( {
+			timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
+		} ) ;
+
+		attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 40 } , stream ) ;
+		await user.setAttachment( 'file' , attachment ) ;
+		//log.error( user.file ) ;
+
+		expect( user.file ).to.equal( {
+			filename: 'random.bin' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'bin/random' ,
+			fileSize: 40 ,
 			hash: contentHash ,
 			hashType: 'sha256' ,
 			metadata: null ,
@@ -4263,7 +4407,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			metadata: null ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , _incoming: null , lastExported: null ,
+			incoming: null , lastExported: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
@@ -4397,7 +4541,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
 	} ) ;
 
-	it( "should .save() a document with the 'attachmentStreams' option and expect given checksum/hash" , async function() {
+	it( "should .save() a document with the 'attachmentStreams' option and expect given checksum/hash + fileSize" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -4424,7 +4568,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				timeout: 20 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
 			} ) ,
 			'file' ,
-			{ filename: 'random.bin' , contentType: 'bin/random' , hash: badContentHash[ 0 ] }
+			{ filename: 'random.bin' , contentType: 'bin/random' , hash: badContentHash[ 0 ] , fileSize: 40 }
 		) ;
 
 		setTimeout( () => {
@@ -4433,7 +4577,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 					timeout: 20 , chunkSize: 7 , chunkCount: 4 , filler: 'b'.charCodeAt( 0 )
 				} ) ,
 				'avatar' ,
-				{ filename: 'face.jpg' , contentType: 'image/jpeg' , hash: badContentHash[ 1 ] }
+				{ filename: 'face.jpg' , contentType: 'image/jpeg' , hash: badContentHash[ 1 ] , fileSize: 28 }
 			) ;
 		} , 100 ) ;
 
@@ -4443,13 +4587,50 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 					timeout: 20 , chunkSize: 7 , chunkCount: 3 , filler: 'c'.charCodeAt( 0 )
 				} ) ,
 				'publicKey' ,
-				{ filename: 'rsa.pub' , contentType: 'application/x-pem-file' , hash: badContentHash[ 2 ] }
+				{ filename: 'rsa.pub' , contentType: 'application/x-pem-file' , hash: badContentHash[ 2 ] , fileSize: 21 }
 			) ;
 		} , 200 ) ;
 
 		setTimeout( () => badAttachmentStreams.end() , 300 ) ;
 
 		await expect( () => user.save( { attachmentStreams: badAttachmentStreams } ) ).to.eventually.throw( Error , { code: 'badHash' } ) ;
+		
+		
+		// Then with a bad file size
+
+		var badAttachmentStreams = new rootsDb.AttachmentStreams() ;
+
+		badAttachmentStreams.addStream(
+			new streamKit.FakeReadable( {
+				timeout: 20 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
+			} ) ,
+			'file' ,
+			{ filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash[ 0 ] , fileSize: 41 }
+		) ;
+
+		setTimeout( () => {
+			badAttachmentStreams.addStream(
+				new streamKit.FakeReadable( {
+					timeout: 20 , chunkSize: 7 , chunkCount: 4 , filler: 'b'.charCodeAt( 0 )
+				} ) ,
+				'avatar' ,
+				{ filename: 'face.jpg' , contentType: 'image/jpeg' , hash: contentHash[ 1 ] , fileSize: 14 }
+			) ;
+		} , 100 ) ;
+
+		setTimeout( () => {
+			badAttachmentStreams.addStream(
+				new streamKit.FakeReadable( {
+					timeout: 20 , chunkSize: 7 , chunkCount: 3 , filler: 'c'.charCodeAt( 0 )
+				} ) ,
+				'publicKey' ,
+				{ filename: 'rsa.pub' , contentType: 'application/x-pem-file' , hash: contentHash[ 2 ] , fileSize: 17 }
+			) ;
+		} , 200 ) ;
+
+		setTimeout( () => badAttachmentStreams.end() , 300 ) ;
+
+		await expect( () => user.save( { attachmentStreams: badAttachmentStreams } ) ).to.eventually.throw( Error , { code: 'badFileSize' } ) ;
 		
 		
 		// Now start over with the correct one
@@ -4461,7 +4642,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				timeout: 20 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
 			} ) ,
 			'file' ,
-			{ filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash[ 0 ] }
+			{ filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash[ 0 ] , fileSize: 40 }
 		) ;
 
 		setTimeout( () => {
@@ -4470,7 +4651,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 					timeout: 20 , chunkSize: 7 , chunkCount: 4 , filler: 'b'.charCodeAt( 0 )
 				} ) ,
 				'avatar' ,
-				{ filename: 'face.jpg' , contentType: 'image/jpeg' , hash: contentHash[ 1 ] }
+				{ filename: 'face.jpg' , contentType: 'image/jpeg' , hash: contentHash[ 1 ] , fileSize: 28 }
 			) ;
 		} , 100 ) ;
 
@@ -4480,7 +4661,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 					timeout: 20 , chunkSize: 7 , chunkCount: 3 , filler: 'c'.charCodeAt( 0 )
 				} ) ,
 				'publicKey' ,
-				{ filename: 'rsa.pub' , contentType: 'application/x-pem-file' , hash: contentHash[ 2 ] }
+				{ filename: 'rsa.pub' , contentType: 'application/x-pem-file' , hash: contentHash[ 2 ] , fileSize: 21 }
 			) ;
 		} , 200 ) ;
 
@@ -4562,8 +4743,6 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
 	} ) ;
-
-	it( "should .save() a document with the 'attachmentStreams' option and expect given fileSize" ) ;
 } ) ;
 
 
