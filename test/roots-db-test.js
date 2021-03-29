@@ -3300,7 +3300,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "zzz should create, save, and load an attachment" , async function() {
+	it( "should create, save, and load an attachment" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -3364,7 +3364,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		var details = dbUser.getAttachmentDetails( 'file' ) ;
-		expect( details ).to.be.like( {
+		expect( details ).to.be.partially.like( {
 			type: 'attachment' ,
 			hostPath: 'file' ,
 			schema: {
@@ -3383,7 +3383,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				metadata: {} ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , raw_: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3391,7 +3390,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		var dbAttachment = dbUser.getAttachment( 'file' ) ;
-		expect( dbAttachment ).to.be.like( {
+		expect( dbAttachment ).to.be.partially.like( {
 			id: user.file.id ,
 			filename: 'joke.txt' ,
 			contentType: 'text/plain' ,
@@ -3401,7 +3400,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3434,7 +3432,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		dbUser = await users.get( id ) ;
 
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
@@ -3451,7 +3449,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		var details = dbUser.getAttachmentDetails( 'file' ) ;
-		expect( details ).to.be.like( {
+		expect( details ).to.be.partially.like( {
 			type: 'attachment' ,
 			hostPath: 'file' ,
 			schema: {
@@ -3470,7 +3468,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				metadata: {} ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , raw_: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3478,7 +3475,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		var dbAttachment = dbUser.getAttachment( 'file' ) ;
-		expect( dbAttachment ).to.be.like( {
+		expect( dbAttachment ).to.be.partially.like( {
 			id: dbUser.file.id ,
 			filename: 'lol.txt' ,
 			contentType: 'text/joke' ,
@@ -3488,7 +3485,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3541,7 +3537,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		dbUser = await users.get( id ) ;
 
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
@@ -3558,7 +3554,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		var details = dbUser.getAttachmentDetails( 'file' ) ;
-		expect( details ).to.be.like( {
+		expect( details ).to.be.partially.like( {
 			type: 'attachment' ,
 			hostPath: 'file' ,
 			schema: {
@@ -3577,7 +3573,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				metadata: {} ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , raw_: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3585,7 +3580,8 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		var dbAttachment = dbUser.getAttachment( 'file' ) ;
-		expect( dbAttachment ).to.be.like( {
+		expect( dbAttachment ).to.be.a( rootsDb.Attachment ) ;
+		expect( dbAttachment ).to.be.partially.like( {
 			id: dbUser.file.id ,
 			filename: 'hello-world.html' ,
 			contentType: 'text/html' ,
@@ -3595,7 +3591,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3676,7 +3671,8 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
-		expect( user.file ).to.equal( {
+		expect( user.file ).to.be.a( rootsDb.Attachment ) ;
+		expect( user.file ).to.be.partially.like( {
 			filename: 'random.bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
@@ -3695,7 +3691,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		}
 
 		var dbUser = await users.get( id ) ;
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
@@ -3712,7 +3708,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		var dbAttachment = dbUser.getAttachment( 'file' ) ;
-		expect( dbAttachment ).to.be.like( {
+		expect( dbAttachment ).to.be.partially.like( {
 			id: dbUser.file.id ,
 			filename: 'random.bin' ,
 			contentType: 'bin/random' ,
@@ -3722,7 +3718,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
@@ -3747,7 +3742,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		dbUser = await users.get( id ) ;
 
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
@@ -3764,7 +3759,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		dbAttachment = dbUser.getAttachment( 'file' ) ;
-		expect( dbAttachment ).to.be.like( {
+		expect( dbAttachment ).to.be.partially.like( {
 			id: dbUser.file.id ,
 			filename: 'more-random.bin' ,
 			contentType: 'bin/random' ,
@@ -3774,7 +3769,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment2.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment2.id
@@ -3840,7 +3834,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		await user.save( { attachmentStreams: attachmentStreams } ) ;
 
 		var dbUser = await users.get( id ) ;
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
@@ -3926,7 +3920,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
-		expect( user.file ).to.equal( {
+		expect( user.file ).to.be.partially.like( {
 			filename: 'image.png' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'image/png' ,
@@ -3945,7 +3939,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		}
 
 		var dbUser = await users.get( id ) ;
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
@@ -3962,7 +3956,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		var details = dbUser.getAttachmentDetails( 'file' ) ;
-		expect( details ).to.be.like( {
+		expect( details ).to.be.partially.like( {
 			type: 'attachment' ,
 			hostPath: 'file' ,
 			schema: {
@@ -3981,7 +3975,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				metadata: { width: 100 , height: 100 } ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , raw_: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3989,7 +3982,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		var dbAttachment = dbUser.getAttachment( 'file' ) ;
-		expect( dbAttachment ).to.be.like( {
+		expect( dbAttachment ).to.be.partially.like( {
 			id: user.file.id ,
 			filename: 'image.png' ,
 			contentType: 'image/png' ,
@@ -3999,7 +3992,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: { width: 100 , height: 100 } ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -4014,7 +4006,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		await dbUser.save() ;
 
 		dbUser = await users.get( id ) ;
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
@@ -4061,7 +4053,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
-		expect( user.file ).to.equal( {
+		expect( user.file ).to.be.partially.like( {
 			filename: 'joke.txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain' ,
@@ -4080,7 +4072,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		}
 
 		var dbUser = await users.get( id ) ;
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
@@ -4097,7 +4089,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		var details = dbUser.getAttachmentDetails( 'file' ) ;
-		expect( details ).to.be.like( {
+		expect( details ).to.be.partially.like( {
 			type: 'attachment' ,
 			hostPath: 'file' ,
 			schema: {
@@ -4116,7 +4108,6 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				metadata: {} ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , raw_: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -4124,7 +4115,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		var dbAttachment = dbUser.getAttachment( 'file' ) ;
-		expect( dbAttachment ).to.be.like( {
+		expect( dbAttachment ).to.be.partially.like( {
 			id: user.file.id ,
 			filename: 'joke.txt' ,
 			contentType: 'text/plain' ,
@@ -4134,7 +4125,6 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -4168,7 +4158,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
-		expect( user.file ).to.equal( {
+		expect( user.file ).to.be.partially.like( {
 			filename: 'joke.txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain' ,
@@ -4187,7 +4177,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		}
 
 		var dbUser = await users.get( id ) ;
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
@@ -4204,7 +4194,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		var dbAttachment = dbUser.getAttachment( 'file' ) ;
-		expect( dbAttachment ).to.be.like( {
+		expect( dbAttachment ).to.be.partially.like( {
 			id: user.file.id ,
 			filename: 'joke.txt' ,
 			contentType: 'text/plain' ,
@@ -4214,7 +4204,6 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + dbAttachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + dbAttachment.id
@@ -4245,7 +4234,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
-		expect( user.file ).to.equal( {
+		expect( user.file ).to.be.partially.like( {
 			filename: 'random.bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
@@ -4266,7 +4255,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		}
 
 		var dbUser = await users.get( id ) ;
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
@@ -4326,7 +4315,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
-		expect( user.file ).to.equal( {
+		expect( user.file ).to.be.partially.like( {
 			filename: 'random.bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
@@ -4350,7 +4339,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
-		expect( user.file ).to.equal( {
+		expect( user.file ).to.be.partially.like( {
 			filename: 'random.bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
@@ -4374,7 +4363,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		await user.setAttachment( 'file' , attachment ) ;
 		//log.error( user.file ) ;
 
-		expect( user.file ).to.equal( {
+		expect( user.file ).to.be.partially.like( {
 			filename: 'random.bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
@@ -4394,7 +4383,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		}
 
 		var dbUser = await users.get( id ) ;
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
@@ -4411,7 +4400,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		var dbAttachment = dbUser.getAttachment( 'file' ) ;
-		expect( dbAttachment ).to.be.like( {
+		expect( dbAttachment ).to.be.partially.like( {
 			id: dbUser.file.id ,
 			filename: 'random.bin' ,
 			contentType: 'bin/random' ,
@@ -4421,7 +4410,6 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
@@ -4483,7 +4471,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		
 
 		var dbUser = await users.get( id ) ;
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
@@ -4686,7 +4674,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		
 
 		var dbUser = await users.get( id ) ;
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
