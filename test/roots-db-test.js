@@ -3312,7 +3312,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 		await user.setAttachment( 'file' , attachment ) ;
-		console.error( "\n\n>>> Unit $ >>>" , user.$.file , '\n' ) ;
 		//log.error( user.file ) ;
 
 		// Raw DB data
@@ -3327,7 +3326,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {}
 		} ) ;
 
-		console.error( "\n\n>>> Unit attachment >>>" , user.file , '\n' ) ;
+		//console.error( "\n\n>>> Unit attachment >>>" , user.file , '\n' ) ;
 		expect( user.file ).to.be.a( rootsDb.Attachment ) ;
 		expect( user.file ).to.be.partially.like( {
 			filename: 'joke.txt' ,
@@ -3384,7 +3383,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				metadata: {} ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , lastExported: null ,
+				incoming: null , raw_: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3402,7 +3401,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , lastExported: null ,
+			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3471,7 +3470,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				metadata: {} ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , lastExported: null ,
+				incoming: null , raw_: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3489,7 +3488,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , lastExported: null ,
+			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3578,7 +3577,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				metadata: {} ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , lastExported: null ,
+				incoming: null , raw_: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3596,7 +3595,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , lastExported: null ,
+			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -3723,7 +3722,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , lastExported: null ,
+			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
@@ -3775,7 +3774,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , lastExported: null ,
+			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment2.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment2.id
@@ -3982,7 +3981,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				metadata: { width: 100 , height: 100 } ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , lastExported: null ,
+				incoming: null , raw_: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -4000,7 +3999,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: { width: 100 , height: 100 } ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , lastExported: null ,
+			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -4117,7 +4116,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				metadata: {} ,
 				collectionName: 'users' ,
 				documentId: id.toString() ,
-				incoming: null , lastExported: null ,
+				incoming: null , raw_: null ,
 				driver: users.attachmentDriver ,
 				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -4135,7 +4134,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , lastExported: null ,
+			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
@@ -4215,7 +4214,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , lastExported: null ,
+			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + dbAttachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + dbAttachment.id
@@ -4422,7 +4421,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			metadata: {} ,
 			collectionName: 'users' ,
 			documentId: id.toString() ,
-			incoming: null , lastExported: null ,
+			incoming: null , raw_: null ,
 			driver: users.attachmentDriver ,
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
