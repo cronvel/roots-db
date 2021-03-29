@@ -3300,7 +3300,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should create, save, and load an attachment" , async function() {
+	it( "zzz should create, save, and load an attachment" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -3329,7 +3329,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		console.error( "\n\n>>> Unit attachment >>>" , user.file , '\n' ) ;
 		expect( user.file ).to.be.a( rootsDb.Attachment ) ;
-		expect( user.file ).to.partially.equal( {
+		expect( user.file ).to.be.partially.like( {
 			filename: 'joke.txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain' ,
@@ -3348,7 +3348,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		}
 
 		var dbUser = await users.get( id ) ;
-		expect( dbUser ).to.equal( {
+		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
 			lastName: 'Polson' ,
