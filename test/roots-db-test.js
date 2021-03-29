@@ -3312,9 +3312,24 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 		await user.setAttachment( 'file' , attachment ) ;
+		console.error( "\n\n>>> Unit $ >>>" , user.$.file , '\n' ) ;
 		//log.error( user.file ) ;
 
-		expect( user.file ).to.equal( {
+		// Raw DB data
+		expect( user.$.file ).not.to.be.a( rootsDb.Attachment ) ;
+		expect( user.$.file ).to.equal( {
+			filename: 'joke.txt' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'text/plain' ,
+			fileSize: 24 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {}
+		} ) ;
+
+		console.error( "\n\n>>> Unit attachment >>>" , user.file , '\n' ) ;
+		expect( user.file ).to.be.a( rootsDb.Attachment ) ;
+		expect( user.file ).to.partially.equal( {
 			filename: 'joke.txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain' ,
