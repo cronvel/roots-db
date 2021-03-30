@@ -1,4 +1,10 @@
 
+v0.32.1
+-------
+
+Attachment: make some property not-enumerable (to be out of JSON-stringify, useful for RestQuery)
+
+
 v0.32.0
 -------
 
