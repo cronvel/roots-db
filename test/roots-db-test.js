@@ -3409,7 +3409,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
 	} ) ;
 
-	it( "should use metadata of an attachment and alter them" , async function() {
+	it( "should use metadata of an attachment and alter it" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -3426,7 +3426,15 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		await user.save() ;
 
 		var dbUser = await users.get( id ) ;
+		
+		// There was a bug with proxy/restoreAttachment, so we check staging right now
+		expect( dbUser._.localChanges ).to.equal( null ) ;
+		dbUser.file ;
+		expect( dbUser._.localChanges ).to.equal( null ) ;
+		
 		dbUser.file.updateMeta( { filename: 'lol.txt' , contentType: 'text/joke' , metadata: { width: 100 } } ) ;
+		// Check if staging is correct
+		expect( dbUser._.localChanges ).to.equal( { file: { filename: null , contentType: null , metadata: { width: null } } } ) ;
 		await dbUser.save() ;
 
 		dbUser = await users.get( id ) ;
@@ -3448,7 +3456,9 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		dbUser = await users.get( id ) ;
-		dbUser.file.updateMeta( { filename: 'lol.txt' , contentType: 'text/joke' , metadata: { height: 120 } } ) ;
+		dbUser.file.updateMeta( { metadata: { height: 120 } } ) ;
+		// Check if staging is correct
+		expect( dbUser._.localChanges ).to.equal( { file: { metadata: { height: null } } } ) ;
 		await dbUser.save() ;
 
 		dbUser = await users.get( id ) ;
