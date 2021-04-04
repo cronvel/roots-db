@@ -3432,7 +3432,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		dbUser.file ;
 		expect( dbUser._.localChanges ).to.equal( null ) ;
 		
-		dbUser.file.updateMeta( { filename: 'lol.txt' , contentType: 'text/joke' , metadata: { width: 100 } } ) ;
+		dbUser.file.set( { filename: 'lol.txt' , contentType: 'text/joke' , metadata: { width: 100 } } ) ;
 		// Check if staging is correct
 		expect( dbUser._.localChanges ).to.equal( { file: { filename: null , contentType: null , metadata: { width: null } } } ) ;
 		await dbUser.save() ;
@@ -3456,7 +3456,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		dbUser = await users.get( id ) ;
-		dbUser.file.updateMeta( { metadata: { height: 120 } } ) ;
+		dbUser.file.set( { metadata: { height: 120 } } ) ;
 		// Check if staging is correct
 		expect( dbUser._.localChanges ).to.equal( { file: { metadata: { height: null } } } ) ;
 		await dbUser.save() ;
