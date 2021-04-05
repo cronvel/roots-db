@@ -4693,7 +4693,7 @@ describe( "Locks" , () => {
 		await expect( lockable.lock() ).to.eventually.be.a( mongodb.ObjectID ) ;
 	} ) ;
 
-	it( "should perform a .lockedPartialFind(): lock, retrieve locked document, then release locks" , async () => {
+	it( "should perform a .lockingFind(): lock, retrieve locked document, then release locks" , async () => {
 		var lockId ;
 
 		var batch = lockables.createBatch( [
@@ -4708,7 +4708,8 @@ describe( "Locks" , () => {
 		await batch.save() ;
 
 		await Promise.all( [
-			lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' ] } } , dbBatch => {
+			// First lock
+			lockables.lockingFind( { data: { $in: [ 'one' , 'two' ] } } , dbBatch => {
 				expect( dbBatch ).to.have.length( 2 ) ;
 
 				var map = {} ;
@@ -4723,22 +4724,35 @@ describe( "Locks" , () => {
 
 				return Promise.resolveTimeout( 30 ) ;
 			} ) ,
-			Promise.resolveTimeout( 0 , () => lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
+
+			// Second lock: should not lock item #1 and #2, only #3
+			Promise.resolveTimeout( 0 ).then( () => lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
 				expect( dbBatch ).to.have.length( 1 ) ;
 				expect( dbBatch ).to.be.partially.like( [ { data: 'three' } ] ) ;
 				return Promise.resolveTimeout( 30 ) ;
 			} ) ) ,
-			Promise.resolveTimeout( 10 , () => lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
+
+			// Thid lock: should not lock item #1 #2 and #3 but returns them as the 'other' batch, 'our' batch contains #4 #5
+			Promise.resolveTimeout( 0 ).then( () => lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' , 'four' , 'five' ] } } , { other: true } , ( ourDbBatch , otherDbBatch ) => {
+				expect( ourDbBatch ).to.have.length( 2 ) ;
+				expect( ourDbBatch ).to.be.partially.like( [ { data: 'four' } , { data: 'five' } ] ) ;
+				expect( otherDbBatch ).to.have.length( 3 ) ;
+				expect( otherDbBatch ).to.be.partially.like( [ { data: 'one' } , { data: 'two' } , { data: 'three' } ] ) ;
+				return Promise.resolveTimeout( 30 ) ;
+			} ) ) ,
+
+			// Fourth lock that lock/retrieve nothing
+			Promise.resolveTimeout( 10 ).then( () => lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
 				expect( dbBatch ).to.have.length( 0 ) ;
 			} ) )
 		] ) ;
 
-		await lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
+		await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
 			expect( dbBatch ).to.have.length( 3 ) ;
 		} ) ;
 
 		// Check that immediatley after 'await', the data are available
-		await lockables.lockedPartialFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
+		await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , dbBatch => {
 			expect( dbBatch ).to.have.length( 3 ) ;
 		} ) ;
 	} ) ;
