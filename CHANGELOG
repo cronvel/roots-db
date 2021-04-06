@@ -1,4 +1,10 @@
 
+v0.33.0
+-------
+
+BREAKING: Yet another attachment refacto (but for the better), now you are not creating/saving attachments all by yourself, but you are using only higher level methods
+
+
 v0.32.2
 -------
 

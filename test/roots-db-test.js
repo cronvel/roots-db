@@ -3300,7 +3300,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "zzz should create, save, and load an attachment" , async function() {
+	it( "should create, save, and load an attachment" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -4481,7 +4481,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
 	} ) ;
 
-	it( "www should .save() a document with the 'attachmentStreams' option and expect given checksum/hash + fileSize" , async function() {
+	it( "should .save() a document with the 'attachmentStreams' option and expect given checksum/hash + fileSize" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -4533,9 +4533,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		setTimeout( () => badAttachmentStreams.end() , 300 ) ;
 
-		console.error( "bob???1" ) ;
 		await expect( () => user.save( { attachmentStreams: badAttachmentStreams } ) ).to.eventually.throw( Error , { code: 'badHash' } ) ;
-		console.error( "bob!!!2" ) ;
 		
 		
 		// Then with a bad file size
@@ -4572,9 +4570,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		setTimeout( () => badAttachmentStreams.end() , 300 ) ;
 
-		console.error( "bob!!!3" ) ;
 		await expect( () => user.save( { attachmentStreams: badAttachmentStreams } ) ).to.eventually.throw( Error , { code: 'badFileSize' } ) ;
-		console.error( "bob!!!3b" ) ;
 		
 		
 		// Now start over with the correct one
@@ -4612,9 +4608,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		setTimeout( () => attachmentStreams.end() , 300 ) ;
 
 		// It should pass
-		console.error( "bob!!!4" ) ;
 		await user.save( { attachmentStreams: attachmentStreams } ) ;
-		console.error( "bob!!!4b" ) ;
 		
 
 		var dbUser = await users.get( id ) ;
