@@ -84,7 +84,7 @@ rootsDb.initExtensions() ;
 const world = new rootsDb.World() ;
 
 // Collections...
-var versions , users , jobs , schools , towns , lockables , nestedLinks , anyCollectionLinks , versionedItems , extendables ;
+var versions , users , jobs , schools , towns , lockables , nestedLinks , anyCollectionLinks , images , versionedItems , extendables ;
 
 const versionsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/versions' ,
@@ -283,6 +283,17 @@ const anyCollectionLinksDescriptor = {
 	indexes: []
 } ;
 
+const imagesDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/images' ,
+	attachmentUrl: USERS_ATTACHMENT_URL ,
+	attachmentPublicBaseUrl: ATTACHMENT_PUBLIC_BASE_URL ,
+	properties: {
+		name: { type: 'string' } ,
+		fileSet: { type: 'attachmentSet' }
+	} ,
+	indexes: []
+} ;
+
 const versionedItemsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/versionedItems' ,
 	versioning: true ,
@@ -362,6 +373,7 @@ function dropDBCollections() {
 		dropCollection( lockables ) ,
 		dropCollection( nestedLinks ) ,
 		dropCollection( anyCollectionLinks ) ,
+		dropCollection( images ) ,
 		dropCollection( versionedItems ) ,
 		dropCollection( extendables )
 	] ) ;
@@ -380,6 +392,7 @@ function clearDB() {
 		clearCollection( lockables ) ,
 		clearCollection( nestedLinks ) ,
 		clearCollection( anyCollectionLinks ) ,
+		clearCollection( images ) ,
 		clearCollection( versionedItems ) ,
 		clearCollection( extendables )
 	] ) ;
@@ -398,6 +411,7 @@ function clearDBIndexes() {
 		clearCollectionIndexes( lockables ) ,
 		clearCollectionIndexes( nestedLinks ) ,
 		clearCollectionIndexes( anyCollectionLinks ) ,
+		clearCollectionIndexes( images ) ,
 		clearCollectionIndexes( versionedItems ) ,
 		clearCollectionIndexes( extendables )
 	] ).then( () => { log.verbose( "All indexes cleared" ) ; } ) ;
@@ -468,6 +482,9 @@ before( async () => {
 	anyCollectionLinks = await world.createAndInitCollection( 'anyCollectionLinks' , anyCollectionLinksDescriptor ) ;
 	expect( anyCollectionLinks ).to.be.a( rootsDb.Collection ) ;
 
+	images = await world.createAndInitCollection( 'images' , imagesDescriptor ) ;
+	expect( images ).to.be.a( rootsDb.Collection ) ;
+
 	versionedItems = await world.createAndInitCollection( 'versionedItems' , versionedItemsDescriptor ) ;
 	expect( versionedItems ).to.be.a( rootsDb.Collection ) ;
 
@@ -534,13 +551,13 @@ describe( "Document creation" , () => {
 						optional: true , type: "string" , maxLength: 30 , tags: [ "id" ] , inputHint: "text"
 					} ,
 					avatar: {
-						type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file"
+						type: "attachment" , optional: true , tags: [ "content" ] , opaque: true , inputHint: "file"
 					} ,
 					publicKey: {
-						type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file"
+						type: "attachment" , optional: true , tags: [ "content" ] , opaque: true , inputHint: "file"
 					} ,
 					file: {
-						type: "attachment" , optional: true , tags: [ "content" ] , inputHint: "file"
+						type: "attachment" , optional: true , tags: [ "content" ] , opaque: true , inputHint: "file"
 					} ,
 					_id: {
 						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , tags: [ "id" ]
@@ -4682,6 +4699,134 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should create, save, and load attachments from an attachmentSet" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
+		var image = images.createDocument( { name: 'selfie' } ) ;
+		var id = image.getId() ;
+
+		// Exists by default
+		expect( image.$.fileSet ).not.to.be.a( rootsDb.AttachmentSet ) ;
+		expect( image.$.fileSet ).to.equal( {} ) ;
+
+		// Is always auto-populated
+		expect( image.fileSet ).to.be.a( rootsDb.AttachmentSet ) ;
+
+		var attachment = await image.fileSet.set( 'source' , { filename: 'source.png' , contentType: 'image/png' } , "not a png" ) ;
+
+		// Raw DB data
+		expect( image.$.fileSet ).not.to.be.a( rootsDb.AttachmentSet ) ;
+		expect( image.$.fileSet.attachments.source.id ).to.be.a( 'string' ) ;
+		expect( image.$.fileSet ).to.be.like( {
+			metadata: {} ,
+			attachments: {
+				source: {
+					id: image.$.fileSet.attachments.source.id ,	// Unpredictable
+					filename: 'source.png' ,
+					contentType: 'image/png' ,
+					fileSize: 9 ,
+					hash: null ,
+					hashType: null ,
+					metadata: {}
+				}
+			}
+		} ) ;
+
+		//console.error( "\n\n>>> Unit attachment >>>" , image.fileSet , '\n' ) ;
+		expect( image.fileSet ).to.be.a( rootsDb.AttachmentSet ) ;
+		expect( image.fileSet ).to.be.partially.like( {
+			metadata: {} ,
+			attachments: {
+				source: {
+					id: image.fileSet.attachments.source.id ,	// Unpredictable
+					filename: 'source.png' ,
+					contentType: 'image/png' ,
+					fileSize: 9 ,
+					hash: null ,
+					hashType: null ,
+					metadata: {}
+				}
+			}
+		} ) ;
+
+		await image.save() ;
+
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+		return;
+
+		var dbImage = await images.get( id ) ;
+		expect( dbImage ).to.be.partially.like( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			fileSet: {
+				filename: 'joke.txt' ,
+				id: image.fileSet.id ,	// Unpredictable
+				contentType: 'text/plain' ,
+				fileSize: 24 ,
+				hash: null ,
+				hashType: null ,
+				metadata: {}
+			}
+		} ) ;
+
+		var details = dbImage.getAttachmentDetails( 'fileSet' ) ;
+		expect( details ).to.be.partially.like( {
+			type: 'attachment' ,
+			hostPath: 'fileSet' ,
+			schema: {
+				optional: true ,
+				type: 'attachment' ,
+				tags: [ 'content' ] ,
+				inputHint: "fileSet"
+			} ,
+			attachment: {
+				id: dbImage.fileSet.id ,
+				filename: 'joke.txt' ,
+				contentType: 'text/plain' ,
+				fileSize: 24 ,
+				hash: null ,
+				hashType: null ,
+				metadata: {} ,
+				collectionName: 'images' ,
+				documentId: id.toString() ,
+				driver: images.attachmentDriver ,
+				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + details.attachment.id ,
+				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + details.attachment.id
+			}
+		} ) ;
+
+		var dbAttachment = dbImage.getAttachment( 'fileSet' ) ;
+		expect( dbAttachment ).to.be.partially.like( {
+			id: image.fileSet.id ,
+			filename: 'joke.txt' ,
+			contentType: 'text/plain' ,
+			fileSize: 24 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+			collectionName: 'images' ,
+			documentId: id.toString() ,
+			driver: images.attachmentDriver ,
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + details.attachment.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + details.attachment.id
+		} ) ;
+
+		var content = await dbAttachment.load() ;
+		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
 	} ) ;
 } ) ;
 
