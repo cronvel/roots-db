@@ -3300,7 +3300,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should create, save, and load an attachment" , async function() {
+	it( "zzz should create, save, and load an attachment" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -3310,8 +3310,9 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		var id = user.getId() ;
 
-		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		await user.setAttachment( 'file' , attachment ) ;
+		//var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		//await user.setAttachment( 'file' , attachment ) ;
+		var attachment = await user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 		//log.error( user.file ) ;
 
 		// Raw DB data
@@ -3338,7 +3339,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {}
 		} ) ;
 
-		await attachment.save() ;
 		await user.save() ;
 
 		// Check that the file exists
@@ -3419,10 +3419,11 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		var id = user.getId() ;
 
-		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		await user.setAttachment( 'file' , attachment ) ;
+		//var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		//await user.setAttachment( 'file' , attachment ) ;
+		var attachment = await user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 
-		await attachment.save() ;
+		//await attachment.save() ;
 		await user.save() ;
 
 		var dbUser = await users.get( id ) ;
@@ -3535,10 +3536,11 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		var id = user.getId() ;
 
-		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		await user.setAttachment( 'file' , attachment ) ;
+		//var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		//await user.setAttachment( 'file' , attachment ) ;
+		var attachment = await user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 
-		await attachment.save() ;
+		//await attachment.save() ;
 		await user.save() ;
 
 		// Check that the file exists
@@ -3551,19 +3553,27 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		await expect( dbUser.getAttachment( 'file' ).load()
 			.then( v => v.toString() ) ).to.eventually.be( "grigrigredin menufretin\n" ) ;
 
+		/*
 		var attachment2 = user.createAttachment(
 			{ filename: 'hello-world.html' , contentType: 'text/html' } ,
 			"<html><head></head><body>Hello world!</body></html>\n"
 		) ;
-
 		await dbUser.setAttachment( 'file' , attachment2 ) ;
+		*/
+
+		var attachment2 = await dbUser.setAttachment(
+			'file' ,
+			{ filename: 'hello-world.html' , contentType: 'text/html' } ,
+			"<html><head></head><body>Hello world!</body></html>\n"
+		) ;
+
 
 		// Check that the previous file has been deleted
 		if ( ATTACHMENT_MODE === 'file' ) {
 			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
 		}
 
-		await attachment2.save() ;
+		//await attachment2.save() ;
 		await dbUser.save() ;
 
 		dbUser = await users.get( id ) ;
@@ -3645,10 +3655,11 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		var id = user.getId() ;
 
-		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		await user.setAttachment( 'file' , attachment ) ;
+		//var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		//await user.setAttachment( 'file' , attachment ) ;
+		var attachment = await user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 
-		await attachment.save() ;
+		//await attachment.save() ;
 		await user.save() ;
 
 		// Check that the file exists
@@ -3698,8 +3709,9 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
 		} ) ;
 
-		var attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
-		await user.setAttachment( 'file' , attachment ) ;
+		//var attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
+		//await user.setAttachment( 'file' , attachment ) ;
+		var attachment = await user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.a( rootsDb.Attachment ) ;
@@ -3713,7 +3725,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			metadata: {} ,
 		} ) ;
 
-		await attachment.save() ;
+		//await attachment.save() ;
 		await user.save() ;
 		
 		// Check that the file exists
@@ -3759,16 +3771,17 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		stream = new streamKit.FakeReadable( {
 			timeout: 50 , chunkSize: 10 , chunkCount: 3 , filler: 'b'.charCodeAt( 0 )
 		} ) ;
-		var attachment2 = user.createAttachment( { filename: 'more-random.bin' , contentType: 'bin/random' } , stream ) ;
 
-		await dbUser.setAttachment( 'file' , attachment2 ) ;
+		//var attachment2 = user.createAttachment( { filename: 'more-random.bin' , contentType: 'bin/random' } , stream ) ;
+		//await dbUser.setAttachment( 'file' , attachment2 ) ;
+		var attachment2 = await dbUser.setAttachment( 'file' , { filename: 'more-random.bin' , contentType: 'bin/random' } , stream ) ;
 
 		// Check that the previous file has been deleted
 		if ( ATTACHMENT_MODE === 'file' ) {
 			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
 		}
 
-		await attachment2.save() ;
+		//await attachment2.save() ;
 		await dbUser.save() ;
 
 		dbUser = await users.get( id ) ;
@@ -3963,8 +3976,10 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		var id = user.getId() ;
 
 		var contentHash = crypto.createHash( 'sha256' ).update( 'grigrigredin menufretin\n' ).digest( 'base64' ) ;
-		var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		await user.setAttachment( 'file' , attachment ) ;
+
+		//var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		//await user.setAttachment( 'file' , attachment ) ;
+		var attachment = await user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.partially.like( {
@@ -3977,7 +3992,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			metadata: {} ,
 		} ) ;
 
-		await attachment.save() ;
+		//await attachment.save() ;
 		await user.save() ;
 
 		// Check that the file exists
@@ -4063,13 +4078,16 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			badContentHash = contentHash.slice( 0 , -3 ) + 'bad' ;
 
 		// With an incorrect hash
-		expect( () => user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: badContentHash , fileSize: 24 } , "grigrigredin menufretin\n" ) ).to.throw( Error , { code: 'badHash' } ) ;
+		//expect( () => user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: badContentHash , fileSize: 24 } , "grigrigredin menufretin\n" ) ).to.throw( Error , { code: 'badHash' } ) ;
+		expect( () => user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' , hash: badContentHash , fileSize: 24 } , "grigrigredin menufretin\n" ) ).to.eventually.throw( Error , { code: 'badHash' } ) ;
 		// With an incorrect file size
-		expect( () => user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash , fileSize: 21 } , "grigrigredin menufretin\n" ) ).to.throw( Error , { code: 'badFileSize' } ) ;
+		//expect( () => user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash , fileSize: 21 } , "grigrigredin menufretin\n" ) ).to.throw( Error , { code: 'badFileSize' } ) ;
+		expect( () => user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash , fileSize: 21 } , "grigrigredin menufretin\n" ) ).to.eventually.throw( Error , { code: 'badFileSize' } ) ;
 
 		// With the correct hash
-		attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash , fileSize: 24 } , "grigrigredin menufretin\n" ) ;
-		await user.setAttachment( 'file' , attachment ) ;
+		//attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash , fileSize: 24 } , "grigrigredin menufretin\n" ) ;
+		//await user.setAttachment( 'file' , attachment ) ;
+		attachment = await user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash , fileSize: 24 } , "grigrigredin menufretin\n" ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.partially.like( {
@@ -4082,7 +4100,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			metadata: {} ,
 		} ) ;
 
-		await attachment.save() ;
+		//await attachment.save() ;
 		await user.save() ;
 
 		// Check that the file exists
@@ -4144,8 +4162,9 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
 		} ) ;
 
-		attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
-		await user.setAttachment( 'file' , attachment ) ;
+		//attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
+		//await user.setAttachment( 'file' , attachment ) ;
+		attachment = await user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.partially.like( {
@@ -4160,7 +4179,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		// It should be ok here
-		await attachment.save() ;
+		//await attachment.save() ;
 		await user.save() ;
 
 		// Check that the file exists
@@ -4225,8 +4244,9 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
 		} ) ;
 
-		attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: badContentHash , fileSize: 40 } , stream ) ;
-		await user.setAttachment( 'file' , attachment ) ;
+		//attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: badContentHash , fileSize: 40 } , stream ) ;
+		//await user.setAttachment( 'file' , attachment ) ;
+		attachment = await user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' , hash: badContentHash , fileSize: 40 } , stream ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.partially.like( {
@@ -4240,7 +4260,8 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		// It should throw here
-		await expect( () => attachment.save() ).to.eventually.throw( Error , { code: 'badHash' } ) ;
+		//await expect( () => attachment.save() ).to.eventually.throw( Error , { code: 'badHash' } ) ;
+		await expect( () => user.save() ).to.eventually.throw( Error , { code: 'badHash' } ) ;
 		
 		
 		// Then with a bad file size
@@ -4249,8 +4270,9 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
 		} ) ;
 
-		attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 35 } , stream ) ;
-		await user.setAttachment( 'file' , attachment ) ;
+		//attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 35 } , stream ) ;
+		//await user.setAttachment( 'file' , attachment ) ;
+		attachment = await user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 35 } , stream ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.partially.like( {
@@ -4264,7 +4286,8 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		// It should throw here
-		await expect( () => attachment.save() ).to.eventually.throw( Error , { code: 'badFileSize' } ) ;
+		//await expect( () => attachment.save() ).to.eventually.throw( Error , { code: 'badFileSize' } ) ;
+		await expect( () => user.save() ).to.eventually.throw( Error , { code: 'badFileSize' } ) ;
 		
 		
 		// Now start over with the correct one
@@ -4273,8 +4296,9 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			timeout: 50 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
 		} ) ;
 
-		attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 40 } , stream ) ;
-		await user.setAttachment( 'file' , attachment ) ;
+		//attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 40 } , stream ) ;
+		//await user.setAttachment( 'file' , attachment ) ;
+		attachment = await user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 40 } , stream ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.partially.like( {
@@ -4288,7 +4312,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		// It should be ok here
-		await attachment.save() ;
+		//await attachment.save() ;
 		await user.save() ;
 
 		// Check that the file exists
@@ -4457,7 +4481,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
 	} ) ;
 
-	it( "should .save() a document with the 'attachmentStreams' option and expect given checksum/hash + fileSize" , async function() {
+	it( "www should .save() a document with the 'attachmentStreams' option and expect given checksum/hash + fileSize" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -4509,12 +4533,14 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		setTimeout( () => badAttachmentStreams.end() , 300 ) ;
 
+		console.error( "bob???1" ) ;
 		await expect( () => user.save( { attachmentStreams: badAttachmentStreams } ) ).to.eventually.throw( Error , { code: 'badHash' } ) ;
+		console.error( "bob!!!2" ) ;
 		
 		
 		// Then with a bad file size
 
-		var badAttachmentStreams = new rootsDb.AttachmentStreams() ;
+		badAttachmentStreams = new rootsDb.AttachmentStreams() ;
 
 		badAttachmentStreams.addStream(
 			new streamKit.FakeReadable( {
@@ -4546,7 +4572,9 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		setTimeout( () => badAttachmentStreams.end() , 300 ) ;
 
+		console.error( "bob!!!3" ) ;
 		await expect( () => user.save( { attachmentStreams: badAttachmentStreams } ) ).to.eventually.throw( Error , { code: 'badFileSize' } ) ;
+		console.error( "bob!!!3b" ) ;
 		
 		
 		// Now start over with the correct one
@@ -4584,7 +4612,9 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		setTimeout( () => attachmentStreams.end() , 300 ) ;
 
 		// It should pass
+		console.error( "bob!!!4" ) ;
 		await user.save( { attachmentStreams: attachmentStreams } ) ;
+		console.error( "bob!!!4b" ) ;
 		
 
 		var dbUser = await users.get( id ) ;
