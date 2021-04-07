@@ -3328,8 +3328,8 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		var id = user.getId() ;
 
 		//var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		//await user.setAttachment( 'file' , attachment ) ;
-		var attachment = await user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		//user.setAttachment( 'file' , attachment ) ;
+		var attachment = user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 		//log.error( user.file ) ;
 
 		// Raw DB data
@@ -3437,8 +3437,8 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		var id = user.getId() ;
 
 		//var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		//await user.setAttachment( 'file' , attachment ) ;
-		var attachment = await user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		//user.setAttachment( 'file' , attachment ) ;
+		var attachment = user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 
 		//await attachment.save() ;
 		await user.save() ;
@@ -3554,8 +3554,8 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		var id = user.getId() ;
 
 		//var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		//await user.setAttachment( 'file' , attachment ) ;
-		var attachment = await user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		//user.setAttachment( 'file' , attachment ) ;
+		var attachment = user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 
 		//await attachment.save() ;
 		await user.save() ;
@@ -3567,31 +3567,34 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		var dbUser = await users.get( id ) ;
 
-		await expect( dbUser.getAttachment( 'file' ).load()
-			.then( v => v.toString() ) ).to.eventually.be( "grigrigredin menufretin\n" ) ;
+		await expect( dbUser.getAttachment( 'file' ).load().then( v => v.toString() ) ).to.eventually.be( "grigrigredin menufretin\n" ) ;
 
 		/*
 		var attachment2 = user.createAttachment(
 			{ filename: 'hello-world.html' , contentType: 'text/html' } ,
 			"<html><head></head><body>Hello world!</body></html>\n"
 		) ;
-		await dbUser.setAttachment( 'file' , attachment2 ) ;
+		dbUser.setAttachment( 'file' , attachment2 ) ;
 		*/
 
-		var attachment2 = await dbUser.setAttachment(
+		var attachment2 = dbUser.setAttachment(
 			'file' ,
 			{ filename: 'hello-world.html' , contentType: 'text/html' } ,
 			"<html><head></head><body>Hello world!</body></html>\n"
 		) ;
 
-
-		// Check that the previous file has been deleted
+		// Check that the previous file has NOT been deleted YET
 		if ( ATTACHMENT_MODE === 'file' ) {
-			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
 		}
 
 		//await attachment2.save() ;
 		await dbUser.save() ;
+
+		// Check that the previous file has been deleted -- Should be done AFTER .save()
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		}
 
 		dbUser = await users.get( id ) ;
 
@@ -3673,8 +3676,8 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		var id = user.getId() ;
 
 		//var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		//await user.setAttachment( 'file' , attachment ) ;
-		var attachment = await user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		//user.setAttachment( 'file' , attachment ) ;
+		var attachment = user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 
 		//await attachment.save() ;
 		await user.save() ;
@@ -3727,8 +3730,8 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		//var attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
-		//await user.setAttachment( 'file' , attachment ) ;
-		var attachment = await user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
+		//user.setAttachment( 'file' , attachment ) ;
+		var attachment = user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.a( rootsDb.Attachment ) ;
@@ -3790,16 +3793,21 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		//var attachment2 = user.createAttachment( { filename: 'more-random.bin' , contentType: 'bin/random' } , stream ) ;
-		//await dbUser.setAttachment( 'file' , attachment2 ) ;
-		var attachment2 = await dbUser.setAttachment( 'file' , { filename: 'more-random.bin' , contentType: 'bin/random' } , stream ) ;
+		//dbUser.setAttachment( 'file' , attachment2 ) ;
+		var attachment2 = dbUser.setAttachment( 'file' , { filename: 'more-random.bin' , contentType: 'bin/random' } , stream ) ;
 
-		// Check that the previous file has been deleted
+		// Check that the previous file has NOT been deleted YET
 		if ( ATTACHMENT_MODE === 'file' ) {
-			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
 		}
 
 		//await attachment2.save() ;
 		await dbUser.save() ;
+
+		// Check that the previous file has been deleted -- SHOULD BE AFTER .save()
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		}
 
 		dbUser = await users.get( id ) ;
 
@@ -3995,8 +4003,8 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		var contentHash = crypto.createHash( 'sha256' ).update( 'grigrigredin menufretin\n' ).digest( 'base64' ) ;
 
 		//var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
-		//await user.setAttachment( 'file' , attachment ) ;
-		var attachment = await user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		//user.setAttachment( 'file' , attachment ) ;
+		var attachment = user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.partially.like( {
@@ -4103,8 +4111,8 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		// With the correct hash
 		//attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash , fileSize: 24 } , "grigrigredin menufretin\n" ) ;
-		//await user.setAttachment( 'file' , attachment ) ;
-		attachment = await user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash , fileSize: 24 } , "grigrigredin menufretin\n" ) ;
+		//user.setAttachment( 'file' , attachment ) ;
+		attachment = user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' , hash: contentHash , fileSize: 24 } , "grigrigredin menufretin\n" ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.partially.like( {
@@ -4180,8 +4188,8 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		//attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
-		//await user.setAttachment( 'file' , attachment ) ;
-		attachment = await user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
+		//user.setAttachment( 'file' , attachment ) ;
+		attachment = user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' } , stream ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.partially.like( {
@@ -4262,8 +4270,8 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		//attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: badContentHash , fileSize: 40 } , stream ) ;
-		//await user.setAttachment( 'file' , attachment ) ;
-		attachment = await user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' , hash: badContentHash , fileSize: 40 } , stream ) ;
+		//user.setAttachment( 'file' , attachment ) ;
+		attachment = user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' , hash: badContentHash , fileSize: 40 } , stream ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.partially.like( {
@@ -4288,8 +4296,8 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		//attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 35 } , stream ) ;
-		//await user.setAttachment( 'file' , attachment ) ;
-		attachment = await user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 35 } , stream ) ;
+		//user.setAttachment( 'file' , attachment ) ;
+		attachment = user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 35 } , stream ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.partially.like( {
@@ -4314,8 +4322,8 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		} ) ;
 
 		//attachment = user.createAttachment( { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 40 } , stream ) ;
-		//await user.setAttachment( 'file' , attachment ) ;
-		attachment = await user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 40 } , stream ) ;
+		//user.setAttachment( 'file' , attachment ) ;
+		attachment = user.setAttachment( 'file' , { filename: 'random.bin' , contentType: 'bin/random' , hash: contentHash , fileSize: 40 } , stream ) ;
 		//log.error( user.file ) ;
 
 		expect( user.file ).to.be.partially.like( {
@@ -4721,7 +4729,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		// Is always auto-populated
 		expect( image.fileSet ).to.be.a( rootsDb.AttachmentSet ) ;
 
-		var attachment = await image.fileSet.set( 'source' , { filename: 'source.png' , contentType: 'image/png' } , "not a png" ) ;
+		var attachment = image.fileSet.set( 'source' , { filename: 'source.png' , contentType: 'image/png' } , "not a png" ) ;
 
 		// Raw DB data
 		expect( image.$.fileSet ).not.to.be.a( rootsDb.AttachmentSet ) ;
@@ -4764,69 +4772,163 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		if ( ATTACHMENT_MODE === 'file' ) {
 			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
 		}
-		return;
 
 		var dbImage = await images.get( id ) ;
 		expect( dbImage ).to.be.partially.like( {
 			_id: id ,
-			firstName: 'Jilbert' ,
-			lastName: 'Polson' ,
-			memberSid: 'Jilbert Polson' ,
+			name: 'selfie' ,
 			fileSet: {
-				filename: 'joke.txt' ,
-				id: image.fileSet.id ,	// Unpredictable
-				contentType: 'text/plain' ,
-				fileSize: 24 ,
-				hash: null ,
-				hashType: null ,
-				metadata: {}
-			}
-		} ) ;
-
-		var details = dbImage.getAttachmentDetails( 'fileSet' ) ;
-		expect( details ).to.be.partially.like( {
-			type: 'attachment' ,
-			hostPath: 'fileSet' ,
-			schema: {
-				optional: true ,
-				type: 'attachment' ,
-				tags: [ 'content' ] ,
-				inputHint: "fileSet"
-			} ,
-			attachment: {
-				id: dbImage.fileSet.id ,
-				filename: 'joke.txt' ,
-				contentType: 'text/plain' ,
-				fileSize: 24 ,
-				hash: null ,
-				hashType: null ,
 				metadata: {} ,
-				collectionName: 'images' ,
-				documentId: id.toString() ,
-				driver: images.attachmentDriver ,
-				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + details.attachment.id ,
-				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + details.attachment.id
+				attachments: {
+					source: {
+						id: image.fileSet.attachments.source.id ,	// Unpredictable
+						filename: 'source.png' ,
+						contentType: 'image/png' ,
+						fileSize: 9 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					}
+				}
 			}
 		} ) ;
 
-		var dbAttachment = dbImage.getAttachment( 'fileSet' ) ;
-		expect( dbAttachment ).to.be.partially.like( {
-			id: image.fileSet.id ,
-			filename: 'joke.txt' ,
-			contentType: 'text/plain' ,
-			fileSize: 24 ,
-			hash: null ,
-			hashType: null ,
+		//var dbAttachment = dbImage.getAttachment( 'fileSet' ) ;
+		expect( dbImage.fileSet ).to.be.a( rootsDb.AttachmentSet ) ;
+		expect( dbImage.fileSet ).to.be.partially.like( {
 			metadata: {} ,
-			collectionName: 'images' ,
-			documentId: id.toString() ,
-			driver: images.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + details.attachment.id ,
-			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + details.attachment.id
+			attachments: {
+				source: {
+					id: dbImage.fileSet.id ,
+					filename: 'source.png' ,
+					contentType: 'image/png' ,
+					fileSize: 9 ,
+					hash: null ,
+					hashType: null ,
+					metadata: {} ,
+					collectionName: 'images' ,
+					documentId: id.toString() ,
+					driver: images.attachmentDriver ,
+					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
+				}
+			}
 		} ) ;
 
-		var content = await dbAttachment.load() ;
-		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
+		var content = await dbImage.fileSet.get( 'source' ).load() ;
+		expect( content.toString() ).to.be( "not a png" ) ;
+
+
+
+		// Now add 2 variant
+
+		var thumbnail = dbImage.fileSet.set( 'thumbnail' , { filename: 'thumbnail.png' , contentType: 'image/png' } , "not a thumbnail png" ) ;
+		var small = dbImage.fileSet.set( 'small' , { filename: 'small.png' , contentType: 'image/png' } , "not a small png" ) ;
+
+		await dbImage.save() ;
+
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( thumbnail.path , fs.R_OK ) ; } ).not.to.throw() ;
+			expect( () => { fs.accessSync( small.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		dbImage = await images.get( id ) ;
+		expect( dbImage ).to.be.partially.like( {
+			_id: id ,
+			name: 'selfie' ,
+			fileSet: {
+				metadata: {} ,
+				attachments: {
+					source: {
+						id: dbImage.fileSet.attachments.source.id ,	// Unpredictable
+						filename: 'source.png' ,
+						contentType: 'image/png' ,
+						fileSize: 9 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					} ,
+					thumbnail: {
+						id: dbImage.fileSet.attachments.thumbnail.id ,	// Unpredictable
+						filename: 'thumbnail.png' ,
+						contentType: 'image/png' ,
+						fileSize: 19 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					} ,
+					small: {
+						id: dbImage.fileSet.attachments.small.id ,	// Unpredictable
+						filename: 'small.png' ,
+						contentType: 'image/png' ,
+						fileSize: 15 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					} ,
+				}
+			}
+		} ) ;
+
+		//var dbAttachment = dbImage.getAttachment( 'fileSet' ) ;
+		expect( dbImage.fileSet ).to.be.a( rootsDb.AttachmentSet ) ;
+		expect( dbImage.fileSet ).to.be.partially.like( {
+			metadata: {} ,
+			attachments: {
+				source: {
+					id: dbImage.fileSet.id ,
+					filename: 'source.png' ,
+					contentType: 'image/png' ,
+					fileSize: 9 ,
+					hash: null ,
+					hashType: null ,
+					metadata: {} ,
+					collectionName: 'images' ,
+					documentId: id.toString() ,
+					driver: images.attachmentDriver ,
+					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
+				} ,
+				thumbnail: {
+					id: dbImage.fileSet.id ,
+					filename: 'thumbnail.png' ,
+					contentType: 'image/png' ,
+					fileSize: 19 ,
+					hash: null ,
+					hashType: null ,
+					metadata: {} ,
+					collectionName: 'images' ,
+					documentId: id.toString() ,
+					driver: images.attachmentDriver ,
+					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.thumbnail.id ,
+					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.thumbnail.id
+				} ,
+				small: {
+					id: dbImage.fileSet.id ,
+					filename: 'small.png' ,
+					contentType: 'image/png' ,
+					fileSize: 15 ,
+					hash: null ,
+					hashType: null ,
+					metadata: {} ,
+					collectionName: 'images' ,
+					documentId: id.toString() ,
+					driver: images.attachmentDriver ,
+					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id ,
+					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id
+				}
+			}
+		} ) ;
+
+		content = await dbImage.fileSet.get( 'source' ).load() ;
+		expect( content.toString() ).to.be( "not a png" ) ;
+
+		content = await dbImage.fileSet.get( 'thumbnail' ).load() ;
+		expect( content.toString() ).to.be( "not a thumbnail png" ) ;
+
+		content = await dbImage.fileSet.get( 'small' ).load() ;
+		expect( content.toString() ).to.be( "not a small png" ) ;
 	} ) ;
 } ) ;
 
