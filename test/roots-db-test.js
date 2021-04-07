@@ -3665,7 +3665,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		}
 	} ) ;
 
-	it( "Delete an attachment" , async function() {
+	it( "should delete an attachment" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -4716,7 +4716,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "should create, save, and load attachments from an attachmentSet" , async function() {
+	it( "should create, save, load, and delete attachments from an attachmentSet" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var image = images.createDocument( { name: 'selfie' } ) ;
