@@ -4935,13 +4935,10 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		// Now remove 2 variants
 
-		console.error( "bob? a" , dbImage.fileSet.attachments.source.upstreamExists ) ;
 		dbImage.fileSet.delete( 'source' ) ;
 		dbImage.fileSet.delete( 'thumbnail' ) ;
 
-		console.error( "bob? b" ) ; //, dbImage.fileSet.attachments.source.upstreamExists ) ;
 		await dbImage.save() ;
-		console.error( "bob? c" ) ; //, dbImage.fileSet.attachments.source.upstreamExists ) ;
 
 		// Check that the file exists
 		if ( ATTACHMENT_MODE === 'file' ) {
