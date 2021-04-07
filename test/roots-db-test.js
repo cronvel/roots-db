@@ -4729,7 +4729,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		// Is always auto-populated
 		expect( image.fileSet ).to.be.a( rootsDb.AttachmentSet ) ;
 
-		var attachment = image.fileSet.set( 'source' , { filename: 'source.png' , contentType: 'image/png' } , "not a png" ) ;
+		var source = image.fileSet.set( 'source' , { filename: 'source.png' , contentType: 'image/png' } , "not a png" ) ;
 
 		// Raw DB data
 		expect( image.$.fileSet ).not.to.be.a( rootsDb.AttachmentSet ) ;
@@ -4770,7 +4770,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		// Check that the file exists
 		if ( ATTACHMENT_MODE === 'file' ) {
-			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+			expect( () => { fs.accessSync( source.path , fs.R_OK ) ; } ).not.to.throw() ;
 		}
 
 		var dbImage = await images.get( id ) ;
@@ -4820,7 +4820,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 
 
-		// Now add 2 variant
+		// Now add 2 variants
 
 		var thumbnail = dbImage.fileSet.set( 'thumbnail' , { filename: 'thumbnail.png' , contentType: 'image/png' } , "not a thumbnail png" ) ;
 		var small = dbImage.fileSet.set( 'small' , { filename: 'small.png' , contentType: 'image/png' } , "not a small png" ) ;
@@ -4829,6 +4829,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		// Check that the file exists
 		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( source.path , fs.R_OK ) ; } ).not.to.throw() ;
 			expect( () => { fs.accessSync( thumbnail.path , fs.R_OK ) ; } ).not.to.throw() ;
 			expect( () => { fs.accessSync( small.path , fs.R_OK ) ; } ).not.to.throw() ;
 		}
@@ -4926,6 +4927,75 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		content = await dbImage.fileSet.get( 'thumbnail' ).load() ;
 		expect( content.toString() ).to.be( "not a thumbnail png" ) ;
+
+		content = await dbImage.fileSet.get( 'small' ).load() ;
+		expect( content.toString() ).to.be( "not a small png" ) ;
+
+
+
+		// Now remove 2 variants
+
+		console.error( "bob? a" , dbImage.fileSet.attachments.source.upstreamExists ) ;
+		dbImage.fileSet.delete( 'source' ) ;
+		dbImage.fileSet.delete( 'thumbnail' ) ;
+
+		console.error( "bob? b" ) ; //, dbImage.fileSet.attachments.source.upstreamExists ) ;
+		await dbImage.save() ;
+		console.error( "bob? c" ) ; //, dbImage.fileSet.attachments.source.upstreamExists ) ;
+
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( source.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+			expect( () => { fs.accessSync( thumbnail.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+			expect( () => { fs.accessSync( small.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		dbImage = await images.get( id ) ;
+		expect( dbImage.fileSet.attachments.source ).to.be.undefined() ;
+		expect( dbImage.fileSet.attachments.thumbnail ).to.be.undefined() ;
+		expect( dbImage ).to.be.partially.like( {
+			_id: id ,
+			name: 'selfie' ,
+			fileSet: {
+				metadata: {} ,
+				attachments: {
+					small: {
+						id: dbImage.fileSet.attachments.small.id ,	// Unpredictable
+						filename: 'small.png' ,
+						contentType: 'image/png' ,
+						fileSize: 15 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					} ,
+				}
+			}
+		} ) ;
+
+		//var dbAttachment = dbImage.getAttachment( 'fileSet' ) ;
+		expect( dbImage.fileSet ).to.be.a( rootsDb.AttachmentSet ) ;
+		expect( dbImage.fileSet ).to.be.partially.like( {
+			metadata: {} ,
+			attachments: {
+				small: {
+					id: dbImage.fileSet.id ,
+					filename: 'small.png' ,
+					contentType: 'image/png' ,
+					fileSize: 15 ,
+					hash: null ,
+					hashType: null ,
+					metadata: {} ,
+					collectionName: 'images' ,
+					documentId: id.toString() ,
+					driver: images.attachmentDriver ,
+					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id ,
+					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id
+				}
+			}
+		} ) ;
+
+		expect( dbImage.fileSet.get( 'source' ) ).to.be( undefined ) ;
+		expect( dbImage.fileSet.get( 'thumbnail' ) ).to.be( undefined ) ;
 
 		content = await dbImage.fileSet.get( 'small' ).load() ;
 		expect( content.toString() ).to.be( "not a small png" ) ;
