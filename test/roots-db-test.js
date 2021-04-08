@@ -5387,6 +5387,326 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 
 
+describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" , () => {
+
+	// Here we change the 'users' collection before performing the test, so it forces hash computation
+	beforeEach( () => {
+		clearDB() ;
+		images.attachmentHashType = 'sha256' ;
+	} ) ;
+
+	afterEach( () => {
+		images.attachmentHashType = null ;
+	} ) ;
+
+	it( "should create, save, and load attachments from an attachmentSet with a checksum/hash" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
+		var image = images.createDocument( { name: 'selfie' } ) ;
+		var id = image.getId() ;
+
+		// Exists by default
+		expect( image.$.fileSet ).not.to.be.a( rootsDb.AttachmentSet ) ;
+		expect( image.$.fileSet ).to.equal( {} ) ;
+
+		// Is always auto-populated
+		expect( image.fileSet ).to.be.a( rootsDb.AttachmentSet ) ;
+
+		var source = image.fileSet.set( 'source' , { filename: 'source.png' , contentType: 'image/png' } , "not a png" ) ;
+		var contentHash = crypto.createHash( 'sha256' ).update( "not a png" ).digest( 'base64' ) ;
+
+		expect( image.fileSet ).to.be.partially.like( {
+			metadata: {} ,
+			attachments: {
+				source: {
+					id: image.fileSet.attachments.source.id ,	// Unpredictable
+					filename: 'source.png' ,
+					contentType: 'image/png' ,
+					fileSize: 9 ,
+					hash: contentHash ,
+					hashType: 'sha256' ,
+					metadata: {}
+				}
+			}
+		} ) ;
+
+		await image.save() ;
+
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( source.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		var dbImage = await images.get( id ) ;
+		expect( dbImage ).to.be.partially.like( {
+			_id: id ,
+			name: 'selfie' ,
+			fileSet: {
+				metadata: {} ,
+				attachments: {
+					source: {
+						id: image.fileSet.attachments.source.id ,	// Unpredictable
+						filename: 'source.png' ,
+						contentType: 'image/png' ,
+						fileSize: 9 ,
+						hash: contentHash ,
+						hashType: 'sha256' ,
+						metadata: {}
+					}
+				}
+			}
+		} ) ;
+
+		//var dbAttachment = dbImage.getAttachment( 'fileSet' ) ;
+		expect( dbImage.fileSet ).to.be.a( rootsDb.AttachmentSet ) ;
+		expect( dbImage.fileSet ).to.be.partially.like( {
+			metadata: {} ,
+			attachments: {
+				source: {
+					id: dbImage.fileSet.id ,
+					filename: 'source.png' ,
+					contentType: 'image/png' ,
+					fileSize: 9 ,
+					hash: contentHash ,
+					hashType: 'sha256' ,
+					metadata: {} ,
+					collectionName: 'images' ,
+					documentId: id.toString() ,
+					driver: images.attachmentDriver ,
+					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
+				}
+			}
+		} ) ;
+
+		var content = await dbImage.fileSet.get( 'source' ).load() ;
+		expect( content.toString() ).to.be( "not a png" ) ;
+	} ) ;
+
+	it( "using .getAttachment()/.setAttachment() API with attachmentSet and checksum/hash" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
+		var image = images.createDocument( { name: 'selfie' } ) ;
+		var id = image.getId() ;
+
+		var source = image.setAttachment( 'fileSet' , 'source' , { filename: 'source.png' , contentType: 'image/png' } , "not a png" ) ;
+		var contentHash = crypto.createHash( 'sha256' ).update( "not a png" ).digest( 'base64' ) ;
+
+		expect( image.getAttachment( 'fileSet' ) ).to.be.a( rootsDb.AttachmentSet ) ;
+		expect( image.getAttachment( 'fileSet' ) ).to.be.partially.like( {
+			metadata: {} ,
+			attachments: {
+				source: {
+					id: image.fileSet.attachments.source.id ,	// Unpredictable
+					filename: 'source.png' ,
+					contentType: 'image/png' ,
+					fileSize: 9 ,
+					hash: contentHash ,
+					hashType: 'sha256' ,
+					metadata: {}
+				}
+			}
+		} ) ;
+		expect( image.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
+			id: image.fileSet.attachments.source.id ,	// Unpredictable
+			filename: 'source.png' ,
+			contentType: 'image/png' ,
+			fileSize: 9 ,
+			hash: contentHash ,
+			hashType: 'sha256' ,
+			metadata: {}
+		} ) ;
+
+		await image.save() ;
+
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( source.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		var dbImage = await images.get( id ) ;
+		expect( dbImage ).to.be.partially.like( {
+			_id: id ,
+			name: 'selfie' ,
+			fileSet: {
+				metadata: {} ,
+				attachments: {
+					source: {
+						id: image.fileSet.attachments.source.id ,	// Unpredictable
+						filename: 'source.png' ,
+						contentType: 'image/png' ,
+						fileSize: 9 ,
+						hash: contentHash ,
+						hashType: 'sha256' ,
+						metadata: {}
+					}
+				}
+			}
+		} ) ;
+
+		expect( dbImage.getAttachment( 'fileSet' ) ).to.be.a( rootsDb.AttachmentSet ) ;
+		expect( dbImage.getAttachment( 'fileSet' ) ).to.be.partially.like( {
+			metadata: {} ,
+			attachments: {
+				source: {
+					id: dbImage.fileSet.id ,
+					filename: 'source.png' ,
+					contentType: 'image/png' ,
+					fileSize: 9 ,
+					hash: contentHash ,
+					hashType: 'sha256' ,
+					metadata: {} ,
+					collectionName: 'images' ,
+					documentId: id.toString() ,
+					driver: images.attachmentDriver ,
+					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
+				}
+			}
+		} ) ;
+		expect( dbImage.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
+			id: dbImage.fileSet.id ,
+			filename: 'source.png' ,
+			contentType: 'image/png' ,
+			fileSize: 9 ,
+			hash: contentHash ,
+			hashType: 'sha256' ,
+			metadata: {} ,
+			collectionName: 'images' ,
+			documentId: id.toString() ,
+			driver: images.attachmentDriver ,
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
+		} ) ;
+
+		var content = await dbImage.getAttachment( 'fileSet' , 'source' ).load() ;
+		expect( content.toString() ).to.be( "not a png" ) ;
+		content = await dbImage.getAttachment( 'fileSet' ).get( 'source' ).load() ;
+		expect( content.toString() ).to.be( "not a png" ) ;
+	} ) ;
+
+	it( "should .save() a document with the 'attachmentStreams' option targeting an attachmentSet" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
+		var image = images.createDocument( { name: 'selfie' } ) ;
+
+		var id = image.getId() ;
+
+		var contentHash = [
+				crypto.createHash( 'sha256' ).update( 'a'.repeat( 40 ) ).digest( 'base64' ) ,
+				crypto.createHash( 'sha256' ).update( 'b'.repeat( 28 ) ).digest( 'base64' ) ,
+				crypto.createHash( 'sha256' ).update( 'c'.repeat( 21 ) ).digest( 'base64' )
+			] ;
+
+		var attachmentStreams = new rootsDb.AttachmentStreams() ;
+
+		attachmentStreams.addStream(
+			new streamKit.FakeReadable( {
+				timeout: 20 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
+			} ) ,
+			'fileSet' , 'source' ,
+			{ filename: 'source.png' , contentType: 'image/png' }
+		) ;
+
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( {
+					timeout: 20 , chunkSize: 7 , chunkCount: 4 , filler: 'b'.charCodeAt( 0 )
+				} ) ,
+				'fileSet' , 'small' ,
+				{ filename: 'small.jpg' , contentType: 'image/jpeg' }
+			) ;
+		} , 100 ) ;
+
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( {
+					timeout: 20 , chunkSize: 7 , chunkCount: 3 , filler: 'c'.charCodeAt( 0 )
+				} ) ,
+				'fileSet' , 'thumbnail' ,
+				{ filename: 'thumbnail.jpg' , contentType: 'image/jpeg' }
+			) ;
+		} , 200 ) ;
+
+		setTimeout( () => attachmentStreams.end() , 300 ) ;
+
+		await image.save( { attachmentStreams: attachmentStreams } ) ;
+
+		var dbImage = await images.get( id ) ;
+		expect( dbImage ).to.be.partially.like( {
+			_id: id ,
+			name: 'selfie' ,
+			fileSet: {
+				metadata: {} ,
+				attachments: {
+					source: {
+						id: dbImage.fileSet.attachments.source.id ,	// Unpredictable
+						filename: 'source.png' ,
+						contentType: 'image/png' ,
+						fileSize: 40 ,
+						hash: contentHash[ 0 ] ,
+						hashType: 'sha256' ,
+						metadata: {}
+					} ,
+					small: {
+						id: dbImage.fileSet.attachments.small.id ,	// Unpredictable
+						filename: 'small.jpg' ,
+						contentType: 'image/jpeg' ,
+						fileSize: 28 ,
+						hash: contentHash[ 1 ] ,
+						hashType: 'sha256' ,
+						metadata: {}
+					} ,
+					thumbnail: {
+						id: dbImage.fileSet.attachments.thumbnail.id ,	// Unpredictable
+						filename: 'thumbnail.jpg' ,
+						contentType: 'image/jpeg' ,
+						fileSize: 21 ,
+						hash: contentHash[ 2 ] ,
+						hashType: 'sha256' ,
+						metadata: {}
+					}
+				}
+			}
+		} ) ;
+
+		expect( dbImage.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
+			filename: 'source.png' ,
+			contentType: 'image/png' ,
+			fileSize: 40 ,
+			hash: contentHash[ 0 ] ,
+			hashType: 'sha256' ,
+			metadata: {} ,
+		} ) ;
+
+		await expect( dbImage.getAttachment( 'fileSet' , 'source' ).load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
+
+		expect( dbImage.getAttachment( 'fileSet' , 'small' ) ).to.be.partially.like( {
+			filename: 'small.jpg' ,
+			contentType: 'image/jpeg' ,
+			fileSize: 28 ,
+			hash: contentHash[ 1 ] ,
+			hashType: 'sha256' ,
+			metadata: {} ,
+		} ) ;
+
+		await expect( dbImage.getAttachment( 'fileSet' , 'small' ).load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
+
+		expect( dbImage.getAttachment( 'fileSet' , 'thumbnail' ) ).to.be.partially.like( {
+			filename: 'thumbnail.jpg' ,
+			contentType: 'image/jpeg' ,
+			fileSize: 21 ,
+			hash: contentHash[ 2 ] ,
+			hashType: 'sha256' ,
+			metadata: {} ,
+		} ) ;
+
+		await expect( dbImage.getAttachment( 'fileSet' , 'thumbnail' ).load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
+	} ) ;
+} ) ;
+
+
+
 describe( "Locks" , () => {
 
 	beforeEach( clearDB ) ;

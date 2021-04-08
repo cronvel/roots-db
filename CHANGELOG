@@ -1,4 +1,10 @@
 
+v0.35.2
+-------
+
+Fix missing checksum/hash when using an AttachmentSet
+
+
 v0.35.1
 -------
 
