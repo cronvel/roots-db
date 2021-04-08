@@ -1,4 +1,10 @@
 
+v0.35.0
+-------
+
+Breaking: API changed for .getLink() and .getLinkDetails(): acceptAttachment argument have move to options.attachment
+
+
 v0.34.2
 -------
 
