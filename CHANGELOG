@@ -1,4 +1,10 @@
 
+v0.34.1
+-------
+
+.getLink() with acceptAttachment arg set to true can return AttachmentSet now
+
+
 v0.34.0
 -------
 
