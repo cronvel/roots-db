@@ -1,4 +1,10 @@
 
+v0.34.2
+-------
+
+AttachmentStream: destroy stream when added to an ended attachmentStream
+
+
 v0.34.1
 -------
 
