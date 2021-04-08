@@ -3689,10 +3689,16 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		var dbUser = await users.get( id ) ;
 
-		await expect( dbUser.getAttachment( 'file' ).load()
-			.then( v => v.toString() ) ).to.eventually.be( "grigrigredin menufretin\n" ) ;
+		await expect( dbUser.getAttachment( 'file' ).load().then( v => v.toString() ) ).to.eventually.be( "grigrigredin menufretin\n" ) ;
 
-		await dbUser.removeAttachment( 'file' ) ;
+		dbUser.removeAttachment( 'file' ) ;
+
+		// Check that the previous file has NOT been deleted YET
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		await dbUser.save() ;
 
 		// Check that the previous file has been deleted
 		if ( ATTACHMENT_MODE === 'file' ) {
@@ -4995,6 +5001,274 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( dbImage.fileSet.get( 'thumbnail' ) ).to.be( undefined ) ;
 
 		content = await dbImage.fileSet.get( 'small' ).load() ;
+		expect( content.toString() ).to.be( "not a small png" ) ;
+	} ) ;
+
+	it( "using .getAttachment()/.setAttachment()/.removeAttachment() API with attachmentSet" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
+		var image = images.createDocument( { name: 'selfie' } ) ;
+		var id = image.getId() ;
+
+		var source = image.setAttachment( 'fileSet' , 'source' , { filename: 'source.png' , contentType: 'image/png' } , "not a png" ) ;
+
+		expect( image.getAttachment( 'fileSet' ) ).to.be.a( rootsDb.AttachmentSet ) ;
+		expect( image.getAttachment( 'fileSet' ) ).to.be.partially.like( {
+			metadata: {} ,
+			attachments: {
+				source: {
+					id: image.fileSet.attachments.source.id ,	// Unpredictable
+					filename: 'source.png' ,
+					contentType: 'image/png' ,
+					fileSize: 9 ,
+					hash: null ,
+					hashType: null ,
+					metadata: {}
+				}
+			}
+		} ) ;
+		expect( image.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
+			id: image.fileSet.attachments.source.id ,	// Unpredictable
+			filename: 'source.png' ,
+			contentType: 'image/png' ,
+			fileSize: 9 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {}
+		} ) ;
+
+		await image.save() ;
+
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( source.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		var dbImage = await images.get( id ) ;
+		expect( dbImage ).to.be.partially.like( {
+			_id: id ,
+			name: 'selfie' ,
+			fileSet: {
+				metadata: {} ,
+				attachments: {
+					source: {
+						id: image.fileSet.attachments.source.id ,	// Unpredictable
+						filename: 'source.png' ,
+						contentType: 'image/png' ,
+						fileSize: 9 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					}
+				}
+			}
+		} ) ;
+
+		expect( dbImage.getAttachment( 'fileSet' ) ).to.be.a( rootsDb.AttachmentSet ) ;
+		expect( dbImage.getAttachment( 'fileSet' ) ).to.be.partially.like( {
+			metadata: {} ,
+			attachments: {
+				source: {
+					id: dbImage.fileSet.id ,
+					filename: 'source.png' ,
+					contentType: 'image/png' ,
+					fileSize: 9 ,
+					hash: null ,
+					hashType: null ,
+					metadata: {} ,
+					collectionName: 'images' ,
+					documentId: id.toString() ,
+					driver: images.attachmentDriver ,
+					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
+				}
+			}
+		} ) ;
+		expect( dbImage.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
+			id: dbImage.fileSet.id ,
+			filename: 'source.png' ,
+			contentType: 'image/png' ,
+			fileSize: 9 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+			collectionName: 'images' ,
+			documentId: id.toString() ,
+			driver: images.attachmentDriver ,
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
+		} ) ;
+
+		var content = await dbImage.getAttachment( 'fileSet' , 'source' ).load() ;
+		expect( content.toString() ).to.be( "not a png" ) ;
+		content = await dbImage.getAttachment( 'fileSet' ).get( 'source' ).load() ;
+		expect( content.toString() ).to.be( "not a png" ) ;
+
+
+
+		// Now add 2 variants
+
+		var thumbnail = dbImage.setAttachment( 'fileSet' , 'thumbnail' , { filename: 'thumbnail.png' , contentType: 'image/png' } , "not a thumbnail png" ) ;
+		var small = dbImage.setAttachment( 'fileSet' , 'small' , { filename: 'small.png' , contentType: 'image/png' } , "not a small png" ) ;
+
+		await dbImage.save() ;
+
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( source.path , fs.R_OK ) ; } ).not.to.throw() ;
+			expect( () => { fs.accessSync( thumbnail.path , fs.R_OK ) ; } ).not.to.throw() ;
+			expect( () => { fs.accessSync( small.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		dbImage = await images.get( id ) ;
+		expect( dbImage ).to.be.partially.like( {
+			_id: id ,
+			name: 'selfie' ,
+			fileSet: {
+				metadata: {} ,
+				attachments: {
+					source: {
+						id: dbImage.fileSet.attachments.source.id ,	// Unpredictable
+						filename: 'source.png' ,
+						contentType: 'image/png' ,
+						fileSize: 9 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					} ,
+					thumbnail: {
+						id: dbImage.fileSet.attachments.thumbnail.id ,	// Unpredictable
+						filename: 'thumbnail.png' ,
+						contentType: 'image/png' ,
+						fileSize: 19 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					} ,
+					small: {
+						id: dbImage.fileSet.attachments.small.id ,	// Unpredictable
+						filename: 'small.png' ,
+						contentType: 'image/png' ,
+						fileSize: 15 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					} ,
+				}
+			}
+		} ) ;
+
+		expect( dbImage.getAttachment( 'fileSet' ) ).to.be.a( rootsDb.AttachmentSet ) ;
+		expect( dbImage.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
+			id: dbImage.fileSet.id ,
+			filename: 'source.png' ,
+			contentType: 'image/png' ,
+			fileSize: 9 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+			collectionName: 'images' ,
+			documentId: id.toString() ,
+			driver: images.attachmentDriver ,
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
+		} ) ;
+		expect( dbImage.getAttachment( 'fileSet' , 'thumbnail' ) ).to.be.partially.like( {
+			id: dbImage.fileSet.id ,
+			filename: 'thumbnail.png' ,
+			contentType: 'image/png' ,
+			fileSize: 19 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+			collectionName: 'images' ,
+			documentId: id.toString() ,
+			driver: images.attachmentDriver ,
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.thumbnail.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.thumbnail.id
+		} ) ;
+		expect( dbImage.getAttachment( 'fileSet' , 'small' ) ).to.be.partially.like( {
+			id: dbImage.fileSet.id ,
+			filename: 'small.png' ,
+			contentType: 'image/png' ,
+			fileSize: 15 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+			collectionName: 'images' ,
+			documentId: id.toString() ,
+			driver: images.attachmentDriver ,
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id
+		} ) ;
+
+		content = await dbImage.getAttachment( 'fileSet' , 'source' ).load() ;
+		expect( content.toString() ).to.be( "not a png" ) ;
+
+		content = await dbImage.getAttachment( 'fileSet' , 'thumbnail' ).load() ;
+		expect( content.toString() ).to.be( "not a thumbnail png" ) ;
+
+		content = await dbImage.getAttachment( 'fileSet' , 'small' ).load() ;
+		expect( content.toString() ).to.be( "not a small png" ) ;
+
+
+
+		// Now remove 2 variants
+
+		dbImage.removeAttachment( 'fileSet' , 'source' ) ;
+		dbImage.removeAttachment( 'fileSet' , 'thumbnail' ) ;
+
+		await dbImage.save() ;
+
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( source.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+			expect( () => { fs.accessSync( thumbnail.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+			expect( () => { fs.accessSync( small.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		dbImage = await images.get( id ) ;
+		expect( dbImage.fileSet.attachments.source ).to.be.undefined() ;
+		expect( dbImage.fileSet.attachments.thumbnail ).to.be.undefined() ;
+		expect( dbImage ).to.be.partially.like( {
+			_id: id ,
+			name: 'selfie' ,
+			fileSet: {
+				metadata: {} ,
+				attachments: {
+					small: {
+						id: dbImage.fileSet.attachments.small.id ,	// Unpredictable
+						filename: 'small.png' ,
+						contentType: 'image/png' ,
+						fileSize: 15 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					} ,
+				}
+			}
+		} ) ;
+
+		expect( dbImage.getAttachment( 'fileSet' ) ).to.be.a( rootsDb.AttachmentSet ) ;
+		expect( dbImage.getAttachment( 'fileSet' , 'small' ) ).to.be.partially.like( {
+			id: dbImage.fileSet.id ,
+			filename: 'small.png' ,
+			contentType: 'image/png' ,
+			fileSize: 15 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+			collectionName: 'images' ,
+			documentId: id.toString() ,
+			driver: images.attachmentDriver ,
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id
+		} ) ;
+
+		expect( () => dbImage.getAttachment( 'fileSet' , 'source' ) ).to.throw( ErrorStatus , { type: 'notFound' } ) ;
+		expect( () => dbImage.getAttachment( 'fileSet' , 'thumbnail' ) ).to.throw( ErrorStatus , { type: 'notFound' } ) ;
+
+		content = await dbImage.getAttachment( 'fileSet' , 'small' ).load() ;
 		expect( content.toString() ).to.be( "not a small png" ) ;
 	} ) ;
 } ) ;

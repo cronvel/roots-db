@@ -1,4 +1,10 @@
 
+v0.34.0
+-------
+
+Maybe breaking: .setAttachment()/.getAttachment()/.removeAttachment() are now sync and compatible with AttachmentSet, saving is delayed upon Document's .commit() or .save()
+
+
 v0.33.1
 -------
 
