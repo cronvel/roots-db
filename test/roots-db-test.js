@@ -5153,7 +5153,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 						hash: null ,
 						hashType: null ,
 						metadata: {}
-					} ,
+					}
 				}
 			}
 		} ) ;
@@ -5270,6 +5270,118 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		content = await dbImage.getAttachment( 'fileSet' , 'small' ).load() ;
 		expect( content.toString() ).to.be( "not a small png" ) ;
+	} ) ;
+
+	it( "should .save() a document with the 'attachmentStreams' option targeting an attachmentSet" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
+		var image = images.createDocument( { name: 'selfie' } ) ;
+
+		var id = image.getId() ;
+		var attachmentStreams = new rootsDb.AttachmentStreams() ;
+
+		attachmentStreams.addStream(
+			new streamKit.FakeReadable( {
+				timeout: 20 , chunkSize: 10 , chunkCount: 4 , filler: 'a'.charCodeAt( 0 )
+			} ) ,
+			'fileSet' , 'source' ,
+			{ filename: 'source.png' , contentType: 'image/png' }
+		) ;
+
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( {
+					timeout: 20 , chunkSize: 7 , chunkCount: 4 , filler: 'b'.charCodeAt( 0 )
+				} ) ,
+				'fileSet' , 'small' ,
+				{ filename: 'small.jpg' , contentType: 'image/jpeg' }
+			) ;
+		} , 100 ) ;
+
+		setTimeout( () => {
+			attachmentStreams.addStream(
+				new streamKit.FakeReadable( {
+					timeout: 20 , chunkSize: 7 , chunkCount: 3 , filler: 'c'.charCodeAt( 0 )
+				} ) ,
+				'fileSet' , 'thumbnail' ,
+				{ filename: 'thumbnail.jpg' , contentType: 'image/jpeg' }
+			) ;
+		} , 200 ) ;
+
+		setTimeout( () => attachmentStreams.end() , 300 ) ;
+
+		await image.save( { attachmentStreams: attachmentStreams } ) ;
+
+		var dbImage = await images.get( id ) ;
+		expect( dbImage ).to.be.partially.like( {
+			_id: id ,
+			name: 'selfie' ,
+			fileSet: {
+				metadata: {} ,
+				attachments: {
+					source: {
+						id: dbImage.fileSet.attachments.source.id ,	// Unpredictable
+						filename: 'source.png' ,
+						contentType: 'image/png' ,
+						fileSize: 40 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					} ,
+					small: {
+						id: dbImage.fileSet.attachments.small.id ,	// Unpredictable
+						filename: 'small.jpg' ,
+						contentType: 'image/jpeg' ,
+						fileSize: 28 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					} ,
+					thumbnail: {
+						id: dbImage.fileSet.attachments.thumbnail.id ,	// Unpredictable
+						filename: 'thumbnail.jpg' ,
+						contentType: 'image/jpeg' ,
+						fileSize: 21 ,
+						hash: null ,
+						hashType: null ,
+						metadata: {}
+					}
+				}
+			}
+		} ) ;
+
+		expect( dbImage.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
+			filename: 'source.png' ,
+			contentType: 'image/png' ,
+			fileSize: 40 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+		} ) ;
+
+		await expect( dbImage.getAttachment( 'fileSet' , 'source' ).load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
+
+		expect( dbImage.getAttachment( 'fileSet' , 'small' ) ).to.be.partially.like( {
+			filename: 'small.jpg' ,
+			contentType: 'image/jpeg' ,
+			fileSize: 28 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+		} ) ;
+
+		await expect( dbImage.getAttachment( 'fileSet' , 'small' ).load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 28 ) ) ;
+
+		expect( dbImage.getAttachment( 'fileSet' , 'thumbnail' ) ).to.be.partially.like( {
+			filename: 'thumbnail.jpg' ,
+			contentType: 'image/jpeg' ,
+			fileSize: 21 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+		} ) ;
+
+		await expect( dbImage.getAttachment( 'fileSet' , 'thumbnail' ).load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
 	} ) ;
 } ) ;
 
