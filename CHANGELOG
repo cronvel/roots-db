@@ -1,4 +1,10 @@
 
+v0.35.1
+-------
+
+Patch bad behavior of .getLink()/.getLinkDetails() with options.attachment:true
+
+
 v0.35.0
 -------
 
