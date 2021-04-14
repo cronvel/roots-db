@@ -5737,7 +5737,7 @@ describe( "Locks" , () => {
 		await expect( lockable.lock() ).to.eventually.be.a( mongodb.ObjectID ) ;
 	} ) ;
 
-	it( "should perform a .lockingFind(): lock, retrieve locked document, then manually release locks" , async () => {
+	it( "should perform a Collection#lockingFind(): lock, retrieve locked document, then manually release locks" , async () => {
 		var batch = lockables.createBatch( [
 			{ data: 'one' } ,
 			{ data: 'two' } ,
@@ -5844,7 +5844,46 @@ describe( "Locks" , () => {
 		expect( dbBatch4[ 0 ]._.meta.lockId ).to.be( lockId4 ) ;
 	} ) ;
 
-	it( "should perform a .lockingFind() with the action callback variant: lock, retrieve locked document, then auto release locks" , async () => {
+	it( "mixing Collection#lockingFind() and Document#unlock()" , async () => {
+		var batch = lockables.createBatch( [
+			{ data: 'one' } ,
+			{ data: 'two' } ,
+			{ data: 'three' } ,
+			{ data: 'four' } ,
+			{ data: 'five' } ,
+			{ data: 'six' }
+		] ) ;
+
+		await batch.save() ;
+
+		var { lockId: lockId1 , batch: dbBatch1 } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ;
+		expect( dbBatch1 ).to.have.length( 3 ) ;
+		expect( dbBatch1.meta.lockId ).to.be( lockId1 ) ;
+		expect( dbBatch1[ 0 ]._.meta.lockId ).to.be( lockId1 ) ;
+		var index = dbBatch1.findIndex( e => e.data === 'two' ) ;
+		await dbBatch1[ index ].unlock() ;
+
+		var { lockId: lockId2 , batch: dbBatch2 } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ;
+		expect( dbBatch2 ).to.have.length( 1 ) ;
+		expect( dbBatch2.meta.lockId ).to.be( lockId2 ) ;
+		expect( dbBatch2[ 0 ]._.meta.lockId ).to.be( lockId2 ) ;
+		expect( dbBatch2[ 0 ].data ).to.be( 'two' ) ;
+
+		await dbBatch1.releaseLocks() ;
+		expect( dbBatch1[ 0 ]._.meta.lockId ).to.be( null ) ;
+		expect( dbBatch1[ 1 ]._.meta.lockId ).to.be( null ) ;
+		expect( dbBatch1[ 2 ]._.meta.lockId ).to.be( null ) ;
+		await dbBatch2.releaseLocks() ;
+		expect( dbBatch2[ 0 ]._.meta.lockId ).to.be( null ) ;
+
+		// Check that immediately after releasing the lock, the data are available
+		var { lockId: lockId3 , batch: dbBatch3 } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ;
+		expect( dbBatch3 ).to.have.length( 3 ) ;
+		expect( dbBatch3.meta.lockId ).to.be( lockId3 ) ;
+		expect( dbBatch3[ 0 ]._.meta.lockId ).to.be( lockId3 ) ;
+	} ) ;
+
+	it( "should perform a Collection#lockingFind() with the action callback variant: lock, retrieve locked document, then auto release locks" , async () => {
 		var batch = lockables.createBatch( [
 			{ data: 'one' } ,
 			{ data: 'two' } ,
