@@ -1,4 +1,10 @@
 
+v0.36.3
+-------
+
+Fix a schema bug with lockable collection
+
+
 v0.36.2
 -------
 
