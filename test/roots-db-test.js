@@ -5738,8 +5738,6 @@ describe( "Locks" , () => {
 	} ) ;
 
 	it( "should perform a .lockingFind(): lock, retrieve locked document, then manually release locks" , async () => {
-		var lockId , dbBatch , otherDbBatch , dbBatch_ ;
-
 		var batch = lockables.createBatch( [
 			{ data: 'one' } ,
 			{ data: 'two' } ,
@@ -5754,7 +5752,7 @@ describe( "Locks" , () => {
 		await Promise.all( [
 			// First lock
 			( async () => {
-				( { lockId , batch: dbBatch } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' ] } } ) ) ;
+				let { lockId , batch: dbBatch } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' ] } } ) ;
 
 				expect( dbBatch ).to.be.a( rootsDb.Batch ) ;
 				expect( dbBatch ).to.have.length( 2 ) ;
@@ -5762,10 +5760,11 @@ describe( "Locks" , () => {
 				expect( dbBatch.meta.lockId ).to.be.an( mongodb.ObjectID ) ;
 				expect( dbBatch.meta.lockId ).to.be( lockId ) ;
 
+				// Check that the lockId is set on the document
+				expect( dbBatch[ 0 ]._.meta.lockId ).to.be( lockId ) ;
+
 				var map = {} ;
-				dbBatch.forEach( doc => {
-					map[ doc.data ] = doc ;
-				} ) ;
+				dbBatch.forEach( doc => map[ doc.data ] = doc ) ;
 
 				expect( map ).to.partially.equal( {
 					one: { data: 'one' } ,
@@ -5779,13 +5778,16 @@ describe( "Locks" , () => {
 			// Second lock: should not lock item #1 and #2, only #3
 			( async () => {
 				await Promise.resolveTimeout( 0 ) ;
-				( { lockId , batch: dbBatch } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ) ;
+				let { lockId , batch: dbBatch } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ;
 
 				expect( dbBatch ).to.have.length( 1 ) ;
 				expect( dbBatch ).to.be.partially.like( [ { data: 'three' } ] ) ;
 				expect( lockId ).to.be.an( mongodb.ObjectID ) ;
 				expect( dbBatch.meta.lockId ).to.be( lockId ) ;
 				
+				// Check that the lockId is set on the document
+				expect( dbBatch[ 0 ]._.meta.lockId ).to.be( lockId ) ;
+
 				await Promise.resolveTimeout( 30 ) ;
 				await dbBatch.releaseLocks() ;
 			} )() ,
@@ -5793,13 +5795,17 @@ describe( "Locks" , () => {
 			// Thid lock: should not lock item #1 #2 and #3 but returns them as the 'other' batch, 'our' batch contains #4 #5
 			( async () => {
 				await Promise.resolveTimeout( 0 ) ;
-				( { lockId , batch: dbBatch , otherBatch: otherDbBatch } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' , 'four' , 'five' ] } } , { other: true } ) ) ;
+				let { lockId , batch: dbBatch , otherBatch: otherDbBatch } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' , 'four' , 'five' ] } } , { other: true } ) ;
 
 				expect( dbBatch ).to.be.a( rootsDb.Batch ) ;
 				expect( dbBatch ).to.have.length( 2 ) ;
 				expect( dbBatch ).to.be.partially.like( [ { data: 'four' } , { data: 'five' } ] ) ;
 				expect( dbBatch.meta.lockId ).to.be.an( mongodb.ObjectID ) ;
 				expect( dbBatch.meta.lockId ).to.be( lockId ) ;
+
+				// Check that the lockId is set on the document
+				expect( dbBatch[ 0 ]._.meta.lockId ).to.be( lockId ) ;
+
 				expect( otherDbBatch ).to.be.a( rootsDb.Batch ) ;
 				expect( otherDbBatch ).to.have.length( 3 ) ;
 				expect( otherDbBatch ).to.be.partially.like( [ { data: 'one' } , { data: 'two' } , { data: 'three' } ] ) ;
@@ -5813,26 +5819,29 @@ describe( "Locks" , () => {
 			// Fourth lock that lock/retrieve nothing
 			( async () => {
 				await Promise.resolveTimeout( 10 ) ;
-				( { lockId , batch: dbBatch } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ) ;
+				let { lockId , batch: dbBatch } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ;
 				
 				expect( dbBatch ).to.have.length( 0 ) ;
 			} )()
 		] ) ;
 		
-		// /!\ For some reason, it needs sometime an extra micro delay
-		//await Promise.resolveTimeout( 10 ) ;
-
-		( { lockId , batch: dbBatch } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ) ;
-		expect( dbBatch ).to.have.length( 3 ) ;
+		var { lockId: lockId2 , batch: dbBatch2 } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ;
+		expect( dbBatch2 ).to.have.length( 3 ) ;
+		expect( dbBatch2.meta.lockId ).to.be( lockId2 ) ;
+		expect( dbBatch2[ 0 ]._.meta.lockId ).to.be( lockId2 ) ;
 
 		// Check that immediately after, the data are NOT available
-		( { lockId , batch: dbBatch_ } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ) ;
-		expect( dbBatch_ ).to.have.length( 0 ) ;
+		var { lockId: lockId3 , batch: dbBatch3 } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ;
+		expect( lockId3 ).to.be( null ) ;
+		expect( dbBatch3.meta.lockId ).to.be( null ) ;
+		expect( dbBatch3 ).to.have.length( 0 ) ;
 
 		// Check that immediately after releasing the lock, the data are available
-		await dbBatch.releaseLocks() ;
-		( { lockId , batch: dbBatch } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ) ;
-		expect( dbBatch ).to.have.length( 3 ) ;
+		await dbBatch2.releaseLocks() ;
+		var { lockId: lockId4 , batch: dbBatch4 } = await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } ) ;
+		expect( dbBatch4 ).to.have.length( 3 ) ;
+		expect( dbBatch4.meta.lockId ).to.be( lockId4 ) ;
+		expect( dbBatch4[ 0 ]._.meta.lockId ).to.be( lockId4 ) ;
 	} ) ;
 
 	it( "should perform a .lockingFind() with the action callback variant: lock, retrieve locked document, then auto release locks" , async () => {
@@ -5857,9 +5866,7 @@ describe( "Locks" , () => {
 				expect( dbBatch.meta.lockId ).to.be( lockId ) ;
 
 				var map = {} ;
-				dbBatch.forEach( doc => {
-					map[ doc.data ] = doc ;
-				} ) ;
+				dbBatch.forEach( doc => map[ doc.data ] = doc ) ;
 
 				expect( map ).to.partially.equal( {
 					one: { data: 'one' } ,
