@@ -5737,6 +5737,30 @@ describe( "Locks" , () => {
 		await expect( lockable.lock() ).to.eventually.be.a( mongodb.ObjectID ) ;
 	} ) ;
 
+	it( "Document#lock() on a local (non-upstream) document" , async () => {
+		var lockable = lockables.createDocument( { data: 'something' } ) ,
+			id = lockable.getId();
+
+		var lockId = await lockable.lock() ;
+		expect( lockId ).to.be.truthy() ;
+		expect( lockId ).to.be.a( mongodb.ObjectID ) ;
+		expect( lockable._.meta.lockId ).to.be( lockId ) ;
+		await lockable.save() ;
+
+		var dbLockable2 = await lockables.get( id ) ;
+		expect( dbLockable2.data ).to.equal( 'something' ) ;
+		expect( '' + dbLockable2._lockedBy ).to.equal( '' + lockId ) ;
+
+		var lockId2 = await dbLockable2.lock() ;
+		expect( lockId2 ).to.be( null ) ;
+		
+		await lockable.unlock() ;
+		expect( lockable._.meta.lockId ).to.be( null ) ;
+		
+		lockId2 = await dbLockable2.lock() ;
+		expect( lockId2 ).to.be.a( mongodb.ObjectID ) ;
+	} ) ;
+
 	it( "should perform a Collection#lockingFind(): lock, retrieve locked document, then manually release locks" , async () => {
 		var batch = lockables.createBatch( [
 			{ data: 'one' } ,

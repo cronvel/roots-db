@@ -1,4 +1,10 @@
 
+v0.36.2
+-------
+
+Now we can lock local (non-upstream) documents, they will be created/saved locked on the first .save()
+
+
 v0.36.1
 -------
 
