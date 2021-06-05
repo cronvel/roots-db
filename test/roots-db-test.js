@@ -35,6 +35,7 @@ const util = require( 'util' ) ;
 const mongodb = require( 'mongodb' ) ;
 const fs = require( 'fs' ) ;
 
+const path = require( 'path' ) ;
 const crypto = require( 'crypto' ) ;
 const hash = require( 'hash-kit' ) ;
 const string = require( 'string-kit' ) ;
@@ -3316,6 +3317,9 @@ describe( "Any-collection links" , () => {
 describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 	beforeEach( clearDB ) ;
+	beforeEach( () => {
+		users.attachmentDriver.appendExtension = users.attachmentAppendExtension ;
+	} ) ;
 
 	it( "should create, save, and load an attachment" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
@@ -3336,6 +3340,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( user.$.file ).not.to.be.a( rootsDb.Attachment ) ;
 		expect( user.$.file ).to.equal( {
 			filename: 'joke.txt' ,
+			extension: 'txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain' ,
 			fileSize: 24 ,
@@ -3348,6 +3353,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( user.file ).to.be.a( rootsDb.Attachment ) ;
 		expect( user.file ).to.be.partially.like( {
 			filename: 'joke.txt' ,
+			extension: 'txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain' ,
 			fileSize: 24 ,
@@ -3371,6 +3377,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'joke.txt' ,
+				extension: 'txt' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'text/plain' ,
 				fileSize: 24 ,
@@ -3393,6 +3400,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			attachment: {
 				id: dbUser.file.id ,
 				filename: 'joke.txt' ,
+				extension: 'txt' ,
 				contentType: 'text/plain' ,
 				fileSize: 24 ,
 				hash: null ,
@@ -3410,6 +3418,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( dbAttachment ).to.be.partially.like( {
 			id: user.file.id ,
 			filename: 'joke.txt' ,
+			extension: 'txt' ,
 			contentType: 'text/plain' ,
 			fileSize: 24 ,
 			hash: null ,
@@ -3421,6 +3430,94 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
+
+		expect( path.extname( dbAttachment.id ) ).not.to.be( '.txt' ) ;
+		expect( path.extname( dbAttachment.path ) ).not.to.be( '.txt' ) ;
+		expect( path.extname( dbAttachment.publicUrl ) ).not.to.be( '.txt' ) ;
+
+		var content = await dbAttachment.load() ;
+		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
+	} ) ;
+
+	it( "with the 'attachmentAppendExtension' option, it should be stored with the extension" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+		// We force append extension here
+		users.attachmentDriver.appendExtension = true ;
+
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+
+		//var attachment = user.createAttachment( { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		//user.setAttachment( 'file' , attachment ) ;
+		var attachment = user.setAttachment( 'file' , { filename: 'joke.txt' , contentType: 'text/plain' } , "grigrigredin menufretin\n" ) ;
+		//log.error( user.file ) ;
+
+		// Raw DB data
+		expect( user.$.file ).not.to.be.a( rootsDb.Attachment ) ;
+		expect( user.$.file ).to.equal( {
+			filename: 'joke.txt' ,
+			extension: 'txt' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'text/plain' ,
+			fileSize: 24 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {}
+		} ) ;
+
+		await user.save() ;
+
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+		
+		expect( path.extname( attachment.path ) ).to.be( '.txt' ) ;
+
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.be.partially.like( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'joke.txt' ,
+				extension: 'txt' ,
+				id: user.file.id ,	// Unpredictable
+				contentType: 'text/plain' ,
+				fileSize: 24 ,
+				hash: null ,
+				hashType: null ,
+				metadata: {}
+			}
+		} ) ;
+
+		expect( path.extname( dbUser.file.id ) ).to.be( '.txt' ) ;
+
+		var dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.partially.like( {
+			id: user.file.id ,
+			filename: 'joke.txt' ,
+			extension: 'txt' ,
+			contentType: 'text/plain' ,
+			fileSize: 24 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			driver: users.attachmentDriver ,
+			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + user.file.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + user.file.id
+		} ) ;
+
+		expect( path.extname( dbAttachment.id ) ).to.be( '.txt' ) ;
+		expect( path.extname( dbAttachment.path ) ).to.be( '.txt' ) ;
+		expect( path.extname( dbAttachment.publicUrl ) ).to.be( '.txt' ) ;
 
 		var content = await dbAttachment.load() ;
 		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
@@ -3452,7 +3549,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		
 		dbUser.file.set( { filename: 'lol.txt' , contentType: 'text/joke' , metadata: { width: 100 } } ) ;
 		// Check if staging is correct
-		expect( dbUser._.localChanges ).to.equal( { file: { filename: null , contentType: null , metadata: { width: null } } } ) ;
+		expect( dbUser._.localChanges ).to.equal( { file: { filename: null , extension: null , contentType: null , metadata: { width: null } } } ) ;
 		await dbUser.save() ;
 
 		dbUser = await users.get( id ) ;
@@ -3464,6 +3561,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'lol.txt' ,
+				extension: 'txt' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'text/joke' ,
 				fileSize: 24 ,
@@ -3488,6 +3586,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'lol.txt' ,
+				extension: 'txt' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'text/joke' ,
 				fileSize: 24 ,
@@ -3510,6 +3609,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			attachment: {
 				id: dbUser.file.id ,
 				filename: 'lol.txt' ,
+				extension: 'txt' ,
 				contentType: 'text/joke' ,
 				fileSize: 24 ,
 				hash: null ,
@@ -3527,6 +3627,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( dbAttachment ).to.be.partially.like( {
 			id: dbUser.file.id ,
 			filename: 'lol.txt' ,
+			extension: 'txt' ,
 			contentType: 'text/joke' ,
 			fileSize: 24 ,
 			hash: null ,
@@ -3538,6 +3639,10 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
+
+		expect( path.extname( dbAttachment.id ) ).not.to.be( '.txt' ) ;
+		expect( path.extname( dbAttachment.path ) ).not.to.be( '.txt' ) ;
+		expect( path.extname( dbAttachment.publicUrl ) ).not.to.be( '.txt' ) ;
 
 		var content = await dbAttachment.load() ;
 		expect( content.toString() ).to.be( "grigrigredin menufretin\n" ) ;
@@ -3605,6 +3710,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'hello-world.html' ,
+				extension: 'html' ,
 				id: dbUser.file.id ,	// Unpredictable
 				contentType: 'text/html' ,
 				fileSize: 52 ,
@@ -3627,6 +3733,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			attachment: {
 				id: dbUser.file.id ,
 				filename: 'hello-world.html' ,
+				extension: 'html' ,
 				contentType: 'text/html' ,
 				fileSize: 52 ,
 				hash: null ,
@@ -3645,6 +3752,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( dbAttachment ).to.be.partially.like( {
 			id: dbUser.file.id ,
 			filename: 'hello-world.html' ,
+			extension: 'html' ,
 			contentType: 'text/html' ,
 			fileSize: 52 ,
 			hash: null ,
@@ -3743,6 +3851,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( user.file ).to.be.a( rootsDb.Attachment ) ;
 		expect( user.file ).to.be.partially.like( {
 			filename: 'random.bin' ,
+			extension: 'bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
 			fileSize: null ,
@@ -3767,6 +3876,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'random.bin' ,
+				extension: 'bin' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
 				fileSize: 40 ,
@@ -3780,6 +3890,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( dbAttachment ).to.be.partially.like( {
 			id: dbUser.file.id ,
 			filename: 'random.bin' ,
+			extension: 'bin' ,
 			contentType: 'bin/random' ,
 			fileSize: 40 ,
 			hash: null ,
@@ -3824,6 +3935,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'more-random.bin' ,
+				extension: 'bin' ,
 				id: dbUser.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
 				fileSize: 30 ,
@@ -3837,6 +3949,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( dbAttachment ).to.be.partially.like( {
 			id: dbUser.file.id ,
 			filename: 'more-random.bin' ,
+			extension: 'bin' ,
 			contentType: 'bin/random' ,
 			fileSize: 30 ,
 			hash: null ,
@@ -3916,6 +4029,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'random.bin' ,
+				extension: 'bin' ,
 				id: dbUser.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
 				fileSize: 40 ,
@@ -3925,6 +4039,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			} ,
 			avatar: {
 				filename: 'face.jpg' ,
+				extension: 'jpg' ,
 				id: dbUser.avatar.id ,	// Unpredictable
 				contentType: 'image/jpeg' ,
 				fileSize: 28 ,
@@ -3934,6 +4049,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			} ,
 			publicKey: {
 				filename: 'rsa.pub' ,
+				extension: 'pub' ,
 				id: dbUser.publicKey.id ,	// Unpredictable
 				contentType: 'application/x-pem-file' ,
 				fileSize: 21 ,
@@ -3946,6 +4062,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		var fileAttachment = dbUser.getAttachment( 'file' ) ;
 		expect( fileAttachment ).to.be.partially.like( {
 			filename: 'random.bin' ,
+			extension: 'bin' ,
 			contentType: 'bin/random' ,
 			fileSize: 40 ,
 			hash: null ,
@@ -3959,6 +4076,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		expect( avatarAttachment ).to.be.partially.like( {
 			filename: 'face.jpg' ,
+			extension: 'jpg' ,
 			contentType: 'image/jpeg' ,
 			fileSize: 28 ,
 			hash: null ,
@@ -3971,6 +4089,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		var publicKeyAttachment = dbUser.getAttachment( 'publicKey' ) ;
 		expect( publicKeyAttachment ).to.be.partially.like( {
 			filename: 'rsa.pub' ,
+			extension: 'pub' ,
 			contentType: 'application/x-pem-file' ,
 			fileSize: 21 ,
 			hash: null ,
@@ -4015,6 +4134,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		expect( user.file ).to.be.partially.like( {
 			filename: 'joke.txt' ,
+			extension: 'txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain' ,
 			fileSize: 24 ,
@@ -4039,6 +4159,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'joke.txt' ,
+				extension: 'txt' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'text/plain' ,
 				fileSize: 24 ,
@@ -4061,6 +4182,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			attachment: {
 				id: dbUser.file.id ,
 				filename: 'joke.txt' ,
+				extension: 'txt' ,
 				contentType: 'text/plain' ,
 				fileSize: 24 ,
 				hash: contentHash ,
@@ -4078,6 +4200,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		expect( dbAttachment ).to.be.partially.like( {
 			id: user.file.id ,
 			filename: 'joke.txt' ,
+			extension: 'txt' ,
 			contentType: 'text/plain' ,
 			fileSize: 24 ,
 			hash: contentHash ,
@@ -4123,6 +4246,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		expect( user.file ).to.be.partially.like( {
 			filename: 'joke.txt' ,
+			extension: 'txt' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'text/plain' ,
 			fileSize: 24 ,
@@ -4147,6 +4271,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'joke.txt' ,
+				extension: 'txt' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'text/plain' ,
 				fileSize: 24 ,
@@ -4160,6 +4285,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		expect( dbAttachment ).to.be.partially.like( {
 			id: user.file.id ,
 			filename: 'joke.txt' ,
+			extension: 'txt' ,
 			contentType: 'text/plain' ,
 			fileSize: 24 ,
 			hash: contentHash ,
@@ -4200,6 +4326,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		expect( user.file ).to.be.partially.like( {
 			filename: 'random.bin' ,
+			extension: 'bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
 			fileSize: null ,	// The size is not yet computed since it is a stream!
@@ -4226,6 +4353,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'random.bin' ,
+				extension: 'bin' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
 				fileSize: 40 ,
@@ -4239,6 +4367,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		expect( dbAttachment ).to.be.partially.like( {
 			id: dbUser.file.id ,
 			filename: 'random.bin' ,
+			extension: 'bin' ,
 			contentType: 'bin/random' ,
 			fileSize: 40 ,
 			hash: contentHash ,
@@ -4282,6 +4411,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		expect( user.file ).to.be.partially.like( {
 			filename: 'random.bin' ,
+			extension: 'bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
 			fileSize: 40 ,
@@ -4308,6 +4438,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		expect( user.file ).to.be.partially.like( {
 			filename: 'random.bin' ,
+			extension: 'bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
 			fileSize: 35 ,
@@ -4334,6 +4465,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		expect( user.file ).to.be.partially.like( {
 			filename: 'random.bin' ,
+			extension: 'bin' ,
 			id: user.file.id ,	// Unpredictable
 			contentType: 'bin/random' ,
 			fileSize: 40 ,
@@ -4359,6 +4491,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'random.bin' ,
+				extension: 'bin' ,
 				id: user.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
 				fileSize: 40 ,
@@ -4372,6 +4505,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		expect( dbAttachment ).to.be.partially.like( {
 			id: dbUser.file.id ,
 			filename: 'random.bin' ,
+			extension: 'bin' ,
 			contentType: 'bin/random' ,
 			fileSize: 40 ,
 			hash: contentHash ,
@@ -4447,6 +4581,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'random.bin' ,
+				extension: 'bin' ,
 				id: dbUser.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
 				fileSize: 40 ,
@@ -4456,6 +4591,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			} ,
 			avatar: {
 				filename: 'face.jpg' ,
+				extension: 'jpg' ,
 				id: dbUser.avatar.id ,	// Unpredictable
 				contentType: 'image/jpeg' ,
 				fileSize: 28 ,
@@ -4465,6 +4601,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			} ,
 			publicKey: {
 				filename: 'rsa.pub' ,
+				extension: 'pub' ,
 				id: dbUser.publicKey.id ,	// Unpredictable
 				contentType: 'application/x-pem-file' ,
 				fileSize: 21 ,
@@ -4477,6 +4614,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		var fileAttachment = dbUser.getAttachment( 'file' ) ;
 		expect( fileAttachment ).to.be.partially.like( {
 			filename: 'random.bin' ,
+			extension: 'bin' ,
 			contentType: 'bin/random' ,
 			fileSize: 40 ,
 			hash: contentHash[ 0 ] ,
@@ -4490,6 +4628,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		expect( avatarAttachment ).to.be.partially.like( {
 			filename: 'face.jpg' ,
+			extension: 'jpg' ,
 			contentType: 'image/jpeg' ,
 			fileSize: 28 ,
 			hash: contentHash[ 1 ] ,
@@ -4502,6 +4641,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		var publicKeyAttachment = dbUser.getAttachment( 'publicKey' ) ;
 		expect( publicKeyAttachment ).to.be.partially.like( {
 			filename: 'rsa.pub' ,
+			extension: 'pub' ,
 			contentType: 'application/x-pem-file' ,
 			fileSize: 21 ,
 			hash: contentHash[ 2 ] ,
@@ -4650,6 +4790,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			memberSid: 'Jilbert Polson' ,
 			file: {
 				filename: 'random.bin' ,
+				extension: 'bin' ,
 				id: dbUser.file.id ,	// Unpredictable
 				contentType: 'bin/random' ,
 				fileSize: 40 ,
@@ -4659,6 +4800,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			} ,
 			avatar: {
 				filename: 'face.jpg' ,
+				extension: 'jpg' ,
 				id: dbUser.avatar.id ,	// Unpredictable
 				contentType: 'image/jpeg' ,
 				fileSize: 28 ,
@@ -4668,6 +4810,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			} ,
 			publicKey: {
 				filename: 'rsa.pub' ,
+				extension: 'pub' ,
 				id: dbUser.publicKey.id ,	// Unpredictable
 				contentType: 'application/x-pem-file' ,
 				fileSize: 21 ,
@@ -4680,6 +4823,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		var fileAttachment = dbUser.getAttachment( 'file' ) ;
 		expect( fileAttachment ).to.be.partially.like( {
 			filename: 'random.bin' ,
+			extension: 'bin' ,
 			contentType: 'bin/random' ,
 			fileSize: 40 ,
 			hash: contentHash[ 0 ] ,
@@ -4693,6 +4837,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 
 		expect( avatarAttachment ).to.be.partially.like( {
 			filename: 'face.jpg' ,
+			extension: 'jpg' ,
 			contentType: 'image/jpeg' ,
 			fileSize: 28 ,
 			hash: contentHash[ 1 ] ,
@@ -4705,6 +4850,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 		var publicKeyAttachment = dbUser.getAttachment( 'publicKey' ) ;
 		expect( publicKeyAttachment ).to.be.partially.like( {
 			filename: 'rsa.pub' ,
+			extension: 'pub' ,
 			contentType: 'application/x-pem-file' ,
 			fileSize: 21 ,
 			hash: contentHash[ 2 ] ,
@@ -4746,6 +4892,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				source: {
 					id: image.$.fileSet.attachments.source.id ,	// Unpredictable
 					filename: 'source.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 9 ,
 					hash: null ,
@@ -4763,6 +4910,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				source: {
 					id: image.fileSet.attachments.source.id ,	// Unpredictable
 					filename: 'source.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 9 ,
 					hash: null ,
@@ -4789,6 +4937,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					source: {
 						id: image.fileSet.attachments.source.id ,	// Unpredictable
 						filename: 'source.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 9 ,
 						hash: null ,
@@ -4807,6 +4956,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				source: {
 					id: dbImage.fileSet.id ,
 					filename: 'source.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 9 ,
 					hash: null ,
@@ -4850,6 +5000,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					source: {
 						id: dbImage.fileSet.attachments.source.id ,	// Unpredictable
 						filename: 'source.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 9 ,
 						hash: null ,
@@ -4859,6 +5010,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					thumbnail: {
 						id: dbImage.fileSet.attachments.thumbnail.id ,	// Unpredictable
 						filename: 'thumbnail.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 19 ,
 						hash: null ,
@@ -4868,6 +5020,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					small: {
 						id: dbImage.fileSet.attachments.small.id ,	// Unpredictable
 						filename: 'small.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 15 ,
 						hash: null ,
@@ -4886,6 +5039,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				source: {
 					id: dbImage.fileSet.id ,
 					filename: 'source.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 9 ,
 					hash: null ,
@@ -4900,6 +5054,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				thumbnail: {
 					id: dbImage.fileSet.id ,
 					filename: 'thumbnail.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 19 ,
 					hash: null ,
@@ -4914,6 +5069,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				small: {
 					id: dbImage.fileSet.id ,
 					filename: 'small.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 15 ,
 					hash: null ,
@@ -4965,6 +5121,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					small: {
 						id: dbImage.fileSet.attachments.small.id ,	// Unpredictable
 						filename: 'small.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 15 ,
 						hash: null ,
@@ -4983,6 +5140,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				small: {
 					id: dbImage.fileSet.id ,
 					filename: 'small.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 15 ,
 					hash: null ,
@@ -5019,6 +5177,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				source: {
 					id: image.fileSet.attachments.source.id ,	// Unpredictable
 					filename: 'source.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 9 ,
 					hash: null ,
@@ -5030,6 +5189,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( image.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
 			id: image.fileSet.attachments.source.id ,	// Unpredictable
 			filename: 'source.png' ,
+			extension: 'png' ,
 			contentType: 'image/png' ,
 			fileSize: 9 ,
 			hash: null ,
@@ -5054,6 +5214,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					source: {
 						id: image.fileSet.attachments.source.id ,	// Unpredictable
 						filename: 'source.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 9 ,
 						hash: null ,
@@ -5071,6 +5232,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				source: {
 					id: dbImage.fileSet.id ,
 					filename: 'source.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 9 ,
 					hash: null ,
@@ -5087,6 +5249,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( dbImage.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
 			id: dbImage.fileSet.id ,
 			filename: 'source.png' ,
+			extension: 'png' ,
 			contentType: 'image/png' ,
 			fileSize: 9 ,
 			hash: null ,
@@ -5130,6 +5293,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					source: {
 						id: dbImage.fileSet.attachments.source.id ,	// Unpredictable
 						filename: 'source.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 9 ,
 						hash: null ,
@@ -5139,6 +5303,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					thumbnail: {
 						id: dbImage.fileSet.attachments.thumbnail.id ,	// Unpredictable
 						filename: 'thumbnail.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 19 ,
 						hash: null ,
@@ -5148,6 +5313,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					small: {
 						id: dbImage.fileSet.attachments.small.id ,	// Unpredictable
 						filename: 'small.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 15 ,
 						hash: null ,
@@ -5162,6 +5328,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( dbImage.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
 			id: dbImage.fileSet.id ,
 			filename: 'source.png' ,
+			extension: 'png' ,
 			contentType: 'image/png' ,
 			fileSize: 9 ,
 			hash: null ,
@@ -5176,6 +5343,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( dbImage.getAttachment( 'fileSet' , 'thumbnail' ) ).to.be.partially.like( {
 			id: dbImage.fileSet.id ,
 			filename: 'thumbnail.png' ,
+			extension: 'png' ,
 			contentType: 'image/png' ,
 			fileSize: 19 ,
 			hash: null ,
@@ -5190,6 +5358,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( dbImage.getAttachment( 'fileSet' , 'small' ) ).to.be.partially.like( {
 			id: dbImage.fileSet.id ,
 			filename: 'small.png' ,
+			extension: 'png' ,
 			contentType: 'image/png' ,
 			fileSize: 15 ,
 			hash: null ,
@@ -5239,6 +5408,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					small: {
 						id: dbImage.fileSet.attachments.small.id ,	// Unpredictable
 						filename: 'small.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 15 ,
 						hash: null ,
@@ -5253,6 +5423,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		expect( dbImage.getAttachment( 'fileSet' , 'small' ) ).to.be.partially.like( {
 			id: dbImage.fileSet.id ,
 			filename: 'small.png' ,
+			extension: 'png' ,
 			contentType: 'image/png' ,
 			fileSize: 15 ,
 			hash: null ,
@@ -5322,6 +5493,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					source: {
 						id: dbImage.fileSet.attachments.source.id ,	// Unpredictable
 						filename: 'source.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 40 ,
 						hash: null ,
@@ -5331,6 +5503,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					small: {
 						id: dbImage.fileSet.attachments.small.id ,	// Unpredictable
 						filename: 'small.jpg' ,
+						extension: 'jpg' ,
 						contentType: 'image/jpeg' ,
 						fileSize: 28 ,
 						hash: null ,
@@ -5340,6 +5513,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					thumbnail: {
 						id: dbImage.fileSet.attachments.thumbnail.id ,	// Unpredictable
 						filename: 'thumbnail.jpg' ,
+						extension: 'jpg' ,
 						contentType: 'image/jpeg' ,
 						fileSize: 21 ,
 						hash: null ,
@@ -5352,6 +5526,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		expect( dbImage.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
 			filename: 'source.png' ,
+			extension: 'png' ,
 			contentType: 'image/png' ,
 			fileSize: 40 ,
 			hash: null ,
@@ -5363,6 +5538,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		expect( dbImage.getAttachment( 'fileSet' , 'small' ) ).to.be.partially.like( {
 			filename: 'small.jpg' ,
+			extension: 'jpg' ,
 			contentType: 'image/jpeg' ,
 			fileSize: 28 ,
 			hash: null ,
@@ -5374,6 +5550,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		expect( dbImage.getAttachment( 'fileSet' , 'thumbnail' ) ).to.be.partially.like( {
 			filename: 'thumbnail.jpg' ,
+			extension: 'jpg' ,
 			contentType: 'image/jpeg' ,
 			fileSize: 21 ,
 			hash: null ,
@@ -5421,6 +5598,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 				source: {
 					id: image.fileSet.attachments.source.id ,	// Unpredictable
 					filename: 'source.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 9 ,
 					hash: contentHash ,
@@ -5447,6 +5625,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 					source: {
 						id: image.fileSet.attachments.source.id ,	// Unpredictable
 						filename: 'source.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 9 ,
 						hash: contentHash ,
@@ -5465,6 +5644,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 				source: {
 					id: dbImage.fileSet.id ,
 					filename: 'source.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 9 ,
 					hash: contentHash ,
@@ -5499,6 +5679,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 				source: {
 					id: image.fileSet.attachments.source.id ,	// Unpredictable
 					filename: 'source.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 9 ,
 					hash: contentHash ,
@@ -5510,6 +5691,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 		expect( image.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
 			id: image.fileSet.attachments.source.id ,	// Unpredictable
 			filename: 'source.png' ,
+			extension: 'png' ,
 			contentType: 'image/png' ,
 			fileSize: 9 ,
 			hash: contentHash ,
@@ -5534,6 +5716,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 					source: {
 						id: image.fileSet.attachments.source.id ,	// Unpredictable
 						filename: 'source.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 9 ,
 						hash: contentHash ,
@@ -5551,6 +5734,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 				source: {
 					id: dbImage.fileSet.id ,
 					filename: 'source.png' ,
+					extension: 'png' ,
 					contentType: 'image/png' ,
 					fileSize: 9 ,
 					hash: contentHash ,
@@ -5567,6 +5751,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 		expect( dbImage.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
 			id: dbImage.fileSet.id ,
 			filename: 'source.png' ,
+			extension: 'png' ,
 			contentType: 'image/png' ,
 			fileSize: 9 ,
 			hash: contentHash ,
@@ -5642,6 +5827,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 					source: {
 						id: dbImage.fileSet.attachments.source.id ,	// Unpredictable
 						filename: 'source.png' ,
+						extension: 'png' ,
 						contentType: 'image/png' ,
 						fileSize: 40 ,
 						hash: contentHash[ 0 ] ,
@@ -5651,6 +5837,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 					small: {
 						id: dbImage.fileSet.attachments.small.id ,	// Unpredictable
 						filename: 'small.jpg' ,
+						extension: 'jpg' ,
 						contentType: 'image/jpeg' ,
 						fileSize: 28 ,
 						hash: contentHash[ 1 ] ,
@@ -5660,6 +5847,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 					thumbnail: {
 						id: dbImage.fileSet.attachments.thumbnail.id ,	// Unpredictable
 						filename: 'thumbnail.jpg' ,
+						extension: 'jpg' ,
 						contentType: 'image/jpeg' ,
 						fileSize: 21 ,
 						hash: contentHash[ 2 ] ,
@@ -5672,6 +5860,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 
 		expect( dbImage.getAttachment( 'fileSet' , 'source' ) ).to.be.partially.like( {
 			filename: 'source.png' ,
+			extension: 'png' ,
 			contentType: 'image/png' ,
 			fileSize: 40 ,
 			hash: contentHash[ 0 ] ,
@@ -5683,6 +5872,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 
 		expect( dbImage.getAttachment( 'fileSet' , 'small' ) ).to.be.partially.like( {
 			filename: 'small.jpg' ,
+			extension: 'jpg' ,
 			contentType: 'image/jpeg' ,
 			fileSize: 28 ,
 			hash: contentHash[ 1 ] ,
@@ -5694,6 +5884,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 
 		expect( dbImage.getAttachment( 'fileSet' , 'thumbnail' ) ).to.be.partially.like( {
 			filename: 'thumbnail.jpg' ,
+			extension: 'jpg' ,
 			contentType: 'image/jpeg' ,
 			fileSize: 21 ,
 			hash: contentHash[ 2 ] ,
