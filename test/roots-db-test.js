@@ -696,8 +696,8 @@ describe( "Document creation" , () => {
 		expect( user ).to.be.an( Object ) ;
 		expect( user.$ ).to.be.an( Object ) ;
 		expect( user._ ).to.be.a( rootsDb.Document ) ;
-		expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( user.getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( user._id ).to.be.an( mongodb.ObjectId ) ;
+		expect( user.getId() ).to.be.an( mongodb.ObjectId ) ;
 		expect( user._id ).to.be( user.getId() ) ;
 
 		expect( user ).to.partially.equal( expectedDefaultUser ) ;
@@ -719,8 +719,8 @@ describe( "Document creation" , () => {
 		expect( user ).to.be.an( Object ) ;
 		expect( user.$ ).to.be.an( Object ) ;
 		expect( user._ ).to.be.a( rootsDb.Document ) ;
-		expect( user._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( user.getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( user._id ).to.be.an( mongodb.ObjectId ) ;
+		expect( user.getId() ).to.be.an( mongodb.ObjectId ) ;
 		expect( user._id ).to.be( user.getId() ) ;
 
 		expect( user ).to.equal( {
@@ -880,7 +880,7 @@ describe( "Clone documents" , () => {
 			lastName: 'Fischer'
 		} ) ;
 
-		expect( user.getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( user.getId() ).to.be.an( mongodb.ObjectId ) ;
 		expect( user._id ).to.be( user.getId() ) ;
 
 		expect( user ).to.equal( {
@@ -892,7 +892,7 @@ describe( "Clone documents" , () => {
 
 		var clone = user.clone() ;
 
-		expect( clone.getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( clone.getId() ).to.be.an( mongodb.ObjectId ) ;
 		expect( clone._id ).to.be( clone.getId() ) ;
 
 		// The ID should be different
@@ -942,7 +942,7 @@ describe( "Get documents" , () => {
 
 		expect( dbUser ).to.be.an( Object ) ;
 		expect( dbUser._ ).to.be.a( rootsDb.Document ) ;
-		expect( dbUser._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( dbUser._id ).to.be.an( mongodb.ObjectId ) ;
 		expect( dbUser._id ).to.equal( id ) ;
 		expect( dbUser ).to.equal( {
 			_id: dbUser._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor'
@@ -951,7 +951,7 @@ describe( "Get documents" , () => {
 
 	it( "when trying to get an unexistant document, an ErrorStatus (type: notFound) should be issued" , async () => {
 		// Unexistant ID
-		var id = new mongodb.ObjectID() ;
+		var id = new mongodb.ObjectId() ;
 
 		await expect( () => users.get( id ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
 		await expect( () => users.get( id , { raw: true } ) ).to.reject.with.an( ErrorStatus , { type: 'notFound' } ) ;
@@ -970,7 +970,7 @@ describe( "Get documents" , () => {
 		var rawDbUser = await users.get( id , { raw: true } ) ;
 
 		expect( rawDbUser._ ).not.to.be.a( rootsDb.Document ) ;
-		expect( rawDbUser._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( rawDbUser._id ).to.be.an( mongodb.ObjectId ) ;
 		expect( rawDbUser._id ).to.equal( id ) ;
 		expect( rawDbUser ).to.equal( {
 			_id: rawDbUser._id , firstName: 'John' , lastName: 'McGregor' , memberSid: 'John McGregor'
@@ -1600,8 +1600,8 @@ describe( "Batch creation" , () => {
 		expect( userBatch[ 0 ] ).to.be.an( Object ) ;
 		expect( userBatch[ 0 ].$ ).to.be.an( Object ) ;
 		expect( userBatch[ 0 ]._ ).to.be.a( rootsDb.Document ) ;
-		expect( userBatch[ 0 ]._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( userBatch[ 0 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 0 ]._id ).to.be.an( mongodb.ObjectId ) ;
+		expect( userBatch[ 0 ].getId() ).to.be.an( mongodb.ObjectId ) ;
 		expect( userBatch[ 0 ]._id ).to.be( userBatch[ 0 ].getId() ) ;
 		expect( userBatch[ 0 ] ).to.partially.equal( expectedDefaultUser ) ;
 		expect( userBatch[ 0 ].$ ).to.partially.equal( expectedDefaultUser ) ;
@@ -1609,8 +1609,8 @@ describe( "Batch creation" , () => {
 		expect( userBatch[ 1 ] ).to.be.an( Object ) ;
 		expect( userBatch[ 1 ].$ ).to.be.an( Object ) ;
 		expect( userBatch[ 1 ]._ ).to.be.a( rootsDb.Document ) ;
-		expect( userBatch[ 1 ]._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( userBatch[ 1 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 1 ]._id ).to.be.an( mongodb.ObjectId ) ;
+		expect( userBatch[ 1 ].getId() ).to.be.an( mongodb.ObjectId ) ;
 		expect( userBatch[ 1 ]._id ).to.be( userBatch[ 1 ].getId() ) ;
 		expect( userBatch[ 1 ] ).to.partially.equal( expectedDefaultUser ) ;
 		expect( userBatch[ 1 ].$ ).to.partially.equal( expectedDefaultUser ) ;
@@ -1630,8 +1630,8 @@ describe( "Batch creation" , () => {
 		expect( userBatch[ 0 ] ).to.be.an( Object ) ;
 		expect( userBatch[ 0 ].$ ).to.be.an( Object ) ;
 		expect( userBatch[ 0 ]._ ).to.be.a( rootsDb.Document ) ;
-		expect( userBatch[ 0 ]._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( userBatch[ 0 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 0 ]._id ).to.be.an( mongodb.ObjectId ) ;
+		expect( userBatch[ 0 ].getId() ).to.be.an( mongodb.ObjectId ) ;
 		expect( userBatch[ 0 ]._id ).to.be( userBatch[ 0 ].getId() ) ;
 		expect( userBatch[ 0 ] ).to.equal( {
 			_id: userBatch[ 0 ].getId() , firstName: 'Bobby' , lastName: 'Fischer' , memberSid: 'Bobby Fischer'
@@ -1640,8 +1640,8 @@ describe( "Batch creation" , () => {
 		expect( userBatch[ 1 ] ).to.be.an( Object ) ;
 		expect( userBatch[ 1 ].$ ).to.be.an( Object ) ;
 		expect( userBatch[ 1 ]._ ).to.be.a( rootsDb.Document ) ;
-		expect( userBatch[ 1 ]._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( userBatch[ 1 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 1 ]._id ).to.be.an( mongodb.ObjectId ) ;
+		expect( userBatch[ 1 ].getId() ).to.be.an( mongodb.ObjectId ) ;
 		expect( userBatch[ 1 ]._id ).to.be( userBatch[ 1 ].getId() ) ;
 		expect( userBatch[ 1 ] ).to.partially.equal( {
 			_id: userBatch[ 1 ].getId() , firstName: 'John' , lastName: 'Smith' , memberSid: 'John Smith'
@@ -1662,8 +1662,8 @@ describe( "Batch creation" , () => {
 		expect( userBatch[ 2 ] ).to.be.an( Object ) ;
 		expect( userBatch[ 2 ].$ ).to.be.an( Object ) ;
 		expect( userBatch[ 2 ]._ ).to.be.a( rootsDb.Document ) ;
-		expect( userBatch[ 2 ]._id ).to.be.an( mongodb.ObjectID ) ;
-		expect( userBatch[ 2 ].getId() ).to.be.an( mongodb.ObjectID ) ;
+		expect( userBatch[ 2 ]._id ).to.be.an( mongodb.ObjectId ) ;
+		expect( userBatch[ 2 ].getId() ).to.be.an( mongodb.ObjectId ) ;
 		expect( userBatch[ 2 ]._id ).to.be( userBatch[ 2 ].getId() ) ;
 		expect( userBatch[ 2 ] ).to.partially.equal( {
 			_id: userBatch[ 2 ].getId() , firstName: 'Kurisu' , lastName: 'Makise' , memberSid: 'Kurisu Makise'
@@ -5913,8 +5913,8 @@ describe( "Locks" , () => {
 		} ) ;
 
 		lockId = await lockable.lock() ;
-		expect( lockId ).to.be.an( mongodb.ObjectID ) ;
-		expect( lockable._.meta.lockId ).to.be.an( mongodb.ObjectID ) ;
+		expect( lockId ).to.be.an( mongodb.ObjectId ) ;
+		expect( lockable._.meta.lockId ).to.be.an( mongodb.ObjectId ) ;
 		expect( lockable._.meta.lockId ).to.be( lockId ) ;
 
 		dbLockable = await lockables.get( id ) ;
@@ -5925,7 +5925,7 @@ describe( "Locks" , () => {
 
 		await expect( lockable.lock() ).to.eventually.be( null ) ;
 		await expect( lockable.unlock() ).to.eventually.be( true ) ;
-		await expect( lockable.lock() ).to.eventually.be.a( mongodb.ObjectID ) ;
+		await expect( lockable.lock() ).to.eventually.be.a( mongodb.ObjectId ) ;
 	} ) ;
 
 	it( "Document#lock() on a local (non-upstream) document" , async () => {
@@ -5934,7 +5934,7 @@ describe( "Locks" , () => {
 
 		var lockId = await lockable.lock() ;
 		expect( lockId ).to.be.truthy() ;
-		expect( lockId ).to.be.a( mongodb.ObjectID ) ;
+		expect( lockId ).to.be.a( mongodb.ObjectId ) ;
 		expect( lockable._.meta.lockId ).to.be( lockId ) ;
 		await lockable.save() ;
 
@@ -5949,7 +5949,7 @@ describe( "Locks" , () => {
 		expect( lockable._.meta.lockId ).to.be( null ) ;
 		
 		lockId2 = await dbLockable2.lock() ;
-		expect( lockId2 ).to.be.a( mongodb.ObjectID ) ;
+		expect( lockId2 ).to.be.a( mongodb.ObjectId ) ;
 	} ) ;
 
 	it( "should perform a Collection#lockingFind(): lock, retrieve locked document, then manually release locks" , async () => {
@@ -5971,8 +5971,8 @@ describe( "Locks" , () => {
 
 				expect( dbBatch ).to.be.a( rootsDb.Batch ) ;
 				expect( dbBatch ).to.have.length( 2 ) ;
-				expect( lockId ).to.be.an( mongodb.ObjectID ) ;
-				expect( dbBatch.meta.lockId ).to.be.an( mongodb.ObjectID ) ;
+				expect( lockId ).to.be.an( mongodb.ObjectId ) ;
+				expect( dbBatch.meta.lockId ).to.be.an( mongodb.ObjectId ) ;
 				expect( dbBatch.meta.lockId ).to.be( lockId ) ;
 
 				// Check that the lockId is set on the document
@@ -5997,7 +5997,7 @@ describe( "Locks" , () => {
 
 				expect( dbBatch ).to.have.length( 1 ) ;
 				expect( dbBatch ).to.be.partially.like( [ { data: 'three' } ] ) ;
-				expect( lockId ).to.be.an( mongodb.ObjectID ) ;
+				expect( lockId ).to.be.an( mongodb.ObjectId ) ;
 				expect( dbBatch.meta.lockId ).to.be( lockId ) ;
 				
 				// Check that the lockId is set on the document
@@ -6015,7 +6015,7 @@ describe( "Locks" , () => {
 				expect( dbBatch ).to.be.a( rootsDb.Batch ) ;
 				expect( dbBatch ).to.have.length( 2 ) ;
 				expect( dbBatch ).to.be.partially.like( [ { data: 'four' } , { data: 'five' } ] ) ;
-				expect( dbBatch.meta.lockId ).to.be.an( mongodb.ObjectID ) ;
+				expect( dbBatch.meta.lockId ).to.be.an( mongodb.ObjectId ) ;
 				expect( dbBatch.meta.lockId ).to.be( lockId ) ;
 
 				// Check that the lockId is set on the document
@@ -6115,8 +6115,8 @@ describe( "Locks" , () => {
 			lockables.lockingFind( { data: { $in: [ 'one' , 'two' ] } } , ( lockId , dbBatch ) => {
 				expect( dbBatch ).to.be.a( rootsDb.Batch ) ;
 				expect( dbBatch ).to.have.length( 2 ) ;
-				expect( lockId ).to.be.an( mongodb.ObjectID ) ;
-				expect( dbBatch.meta.lockId ).to.be.an( mongodb.ObjectID ) ;
+				expect( lockId ).to.be.an( mongodb.ObjectId ) ;
+				expect( dbBatch.meta.lockId ).to.be.an( mongodb.ObjectId ) ;
 				expect( dbBatch.meta.lockId ).to.be( lockId ) ;
 
 				var map = {} ;
@@ -6134,7 +6134,7 @@ describe( "Locks" , () => {
 			Promise.resolveTimeout( 0 ).then( () => lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( lockId , dbBatch ) => {
 				expect( dbBatch ).to.have.length( 1 ) ;
 				expect( dbBatch ).to.be.partially.like( [ { data: 'three' } ] ) ;
-				expect( lockId ).to.be.an( mongodb.ObjectID ) ;
+				expect( lockId ).to.be.an( mongodb.ObjectId ) ;
 				expect( dbBatch.meta.lockId ).to.be( lockId ) ;
 				return Promise.resolveTimeout( 30 ) ;
 			} ) ) ,
@@ -6144,7 +6144,7 @@ describe( "Locks" , () => {
 				expect( dbBatch ).to.be.a( rootsDb.Batch ) ;
 				expect( dbBatch ).to.have.length( 2 ) ;
 				expect( dbBatch ).to.be.partially.like( [ { data: 'four' } , { data: 'five' } ] ) ;
-				expect( dbBatch.meta.lockId ).to.be.an( mongodb.ObjectID ) ;
+				expect( dbBatch.meta.lockId ).to.be.an( mongodb.ObjectId ) ;
 				expect( dbBatch.meta.lockId ).to.be( lockId ) ;
 				expect( otherDbBatch ).to.be.a( rootsDb.Batch ) ;
 				expect( otherDbBatch ).to.have.length( 3 ) ;
@@ -8504,8 +8504,8 @@ describe( "Historical bugs" , () => {
 		var dbUser = await users.get( userId ) ;
 
 		// Forbid access to internal properties of a link: link are "opaque"
-		expect( () => dbUser.patch( { "job._id": '' + jobId } , { validate: true } ) ).to.throw.a( doormen.ValidatorError ) ;
-		dbUser.patch( { job: { _id: '' + jobId } } , { validate: true } ) ;
+		expect( () => dbUser.patch( { "job._id": jobId } , { validate: true } ) ).to.throw.a( doormen.ValidatorError ) ;
+		dbUser.patch( { job: { _id: jobId } } , { validate: true } ) ;
 		//log.hdebug( "%Y" , dbUser._.raw ) ;
 		expect( dbUser.job._id ).to.equal( jobId ) ;
 		await expect( dbUser.getLink( 'job' ) ).to.eventually.equal( {
@@ -8696,7 +8696,7 @@ describe( "Slow tests" , () => {
 
 		expect( dbDoc ).to.be.an( Object ) ;
 		expect( dbDoc._ ).to.be.a( rootsDb.Document ) ;
-		expect( dbDoc._id ).to.be.an( mongodb.ObjectID ) ;
+		expect( dbDoc._id ).to.be.an( mongodb.ObjectId ) ;
 		expect( dbDoc._id ).to.equal( id ) ;
 		expect( dbDoc ).to.equal( { _id: doc._id , prop1: 'v1' , prop2: 'v2' } ) ;
 

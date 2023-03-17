@@ -16,7 +16,7 @@
     "fs-kit": "^0.6.5",
     "hash-kit": "^0.3.10",
     "logfella": "^1.4.3",
-    "mongodb": "^3.7.3",
+    "mongodb": "^5.1.0",
     "nested-proxies": "^0.2.1",
     "seventh": "^0.8.2",
     "stream-kit": "^0.4.15",
