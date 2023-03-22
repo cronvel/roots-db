@@ -61,9 +61,10 @@ const log = logfella.global.use( 'unit-test' ) ;
 
 // Test options
 //testOption( 'driver' , 'attachment-driver' ) ;
-testOption( 'attachment-driver' ) ;
+testOption( 'attachment-driver' , 'fake-data-generator' ) ;
 
-var ATTACHMENT_MODE , USERS_ATTACHMENT_URL ;
+var ATTACHMENT_MODE , USERS_ATTACHMENT_URL , FAKE_DATA_GENERATOR ;
+const FAKE_DATA_GENERATOR_LOCALE = 'fr' ;
 const ATTACHMENT_PUBLIC_BASE_URL = 'http://example.cdn.net/example' ;
 
 switch ( getTestOption( 'attachment-driver' ) ) {
@@ -75,6 +76,14 @@ switch ( getTestOption( 'attachment-driver' ) ) {
 	default :
 		ATTACHMENT_MODE = 'file' ;
 		USERS_ATTACHMENT_URL = 'file://' + __dirname + '/tmp/' ;
+		break ;
+}
+
+switch ( getTestOption( 'fake-data-generator' ) ) {
+	case 'faker' :
+		FAKE_DATA_GENERATOR = 'faker' ;
+		break ;
+	default :
 		break ;
 }
 
@@ -96,15 +105,21 @@ const usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
 	attachmentUrl: USERS_ATTACHMENT_URL ,
 	attachmentPublicBaseUrl: ATTACHMENT_PUBLIC_BASE_URL ,
+	fakeDataGenerator: {
+		type: FAKE_DATA_GENERATOR ,
+		locale: FAKE_DATA_GENERATOR_LOCALE
+	} ,
 	properties: {
 		firstName: {
 			type: 'string' ,
 			maxLength: 30 ,
+			fake: 'name.firstName' ,
 			default: 'Joe'
 		} ,
 		lastName: {
 			type: 'string' ,
 			maxLength: 30 ,
+			fake: 'name.lastName' ,
 			default: 'Doe'
 		} ,
 		godfather: {
@@ -526,12 +541,16 @@ describe( "Document creation" , () => {
 				url: "mongodb://localhost:27017/rootsDb/users" ,
 				attachmentUrl: USERS_ATTACHMENT_URL ,
 				attachmentPublicBaseUrl: ATTACHMENT_PUBLIC_BASE_URL ,
+				fakeDataGenerator: {
+					type: FAKE_DATA_GENERATOR ,
+					locale: FAKE_DATA_GENERATOR_LOCALE
+				} ,
 				properties: {
 					firstName: {
-						type: "string" , maxLength: 30 , default: "Joe" , tags: [ "content" ] , inputHint: "text"
+						type: "string" , maxLength: 30 , default: "Joe" , tags: [ "content" ] , fake: "name.firstName" , inputHint: "text"
 					} ,
 					lastName: {
-						type: "string" , maxLength: 30 , default: "Doe" , tags: [ "content" ] , inputHint: "text"
+						type: "string" , maxLength: 30 , default: "Doe" , tags: [ "content" ] , fake: "name.lastName" , inputHint: "text"
 					} ,
 					godfather: {
 						type: "link" , optional: true , collection: "users" , tags: [ "content" ] , sanitize: [ "toLink" ] , opaque: true , inputHint: "embedded"
@@ -8607,6 +8626,32 @@ describe( "Historical bugs" , () => {
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
 	} ) ;
 } ) ;
+
+
+
+if ( FAKE_DATA_GENERATOR ) {
+	describe( "Fake data generation" , () => {
+
+		beforeEach( clearDB ) ;
+
+		it( "should generate fake document on a collection" , async () => {
+			var user = users.createFakeDocument() ;
+			log.info( "User: %I" , user ) ;
+
+			expect( user ).to.be.an( Object ) ;
+			expect( user.$ ).to.be.an( Object ) ;
+			expect( user._ ).to.be.a( rootsDb.Document ) ;
+			expect( user._id ).to.be.an( mongodb.ObjectId ) ;
+			expect( user.getId() ).to.be.an( mongodb.ObjectId ) ;
+			expect( user._id ).to.be( user.getId() ) ;
+
+			expect( user.firstName ).not.to.be.empty() ;
+			expect( user.firstName ).to.be.a( 'string' ) ;
+			expect( user.lastName ).not.to.be.empty() ;
+			expect( user.lastName ).to.be.a( 'string' ) ;
+		} ) ;
+	} ) ;
+}
 
 
 
