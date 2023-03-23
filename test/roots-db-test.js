@@ -536,6 +536,7 @@ describe( "ID" , () => {
 describe( "Document creation" , () => {
 
 	it( "document's schema test" , () => {
+		const fakeFn = users.documentSchema.properties.firstName.fakeFn ;
 		expect( users.documentSchema ).to.equal(
 			{
 				url: "mongodb://localhost:27017/rootsDb/users" ,
@@ -547,10 +548,10 @@ describe( "Document creation" , () => {
 				} ,
 				properties: {
 					firstName: {
-						type: "string" , maxLength: 30 , default: "Joe" , tags: [ "content" ] , fake: "name.firstName" , inputHint: "text"
+						type: "string" , maxLength: 30 , default: "Joe" , tags: [ "content" ] , fake: "name.firstName" , fakeFn , inputHint: "text"
 					} ,
 					lastName: {
-						type: "string" , maxLength: 30 , default: "Doe" , tags: [ "content" ] , fake: "name.lastName" , inputHint: "text"
+						type: "string" , maxLength: 30 , default: "Doe" , tags: [ "content" ] , fake: "name.lastName" , fakeFn , inputHint: "text"
 					} ,
 					godfather: {
 						type: "link" , optional: true , collection: "users" , tags: [ "content" ] , sanitize: [ "toLink" ] , opaque: true , inputHint: "embedded"
