@@ -1,4 +1,10 @@
 
+v0.37.2
+-------
+
+New method: Collection#createBatch( count )
+
+
 v0.37.1
 -------
 

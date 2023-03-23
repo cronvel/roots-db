@@ -8650,6 +8650,67 @@ if ( FAKE_DATA_GENERATOR ) {
 			expect( user.firstName ).to.be.a( 'string' ) ;
 			expect( user.lastName ).not.to.be.empty() ;
 			expect( user.lastName ).to.be.a( 'string' ) ;
+
+			await user.save() ;
+			
+			var dbUser = await users.get( user._id ) ;
+			log.info( "DB User: %I" , dbUser ) ;
+			expect( dbUser ).to.be.an( Object ) ;
+			expect( dbUser.$ ).to.be.an( Object ) ;
+			expect( dbUser._ ).to.be.a( rootsDb.Document ) ;
+			expect( dbUser._id ).to.be.an( mongodb.ObjectId ) ;
+			expect( dbUser.getId() ).to.be.an( mongodb.ObjectId ) ;
+			expect( dbUser._id ).to.be( dbUser.getId() ) ;
+
+			expect( dbUser.firstName ).not.to.be.empty() ;
+			expect( dbUser.firstName ).to.be.a( 'string' ) ;
+			expect( dbUser.lastName ).not.to.be.empty() ;
+			expect( dbUser.lastName ).to.be.a( 'string' ) ;
+		} ) ;
+
+		it( "should generate fake batch of documents on a collection" , async () => {
+			var userBatch = users.createFakeBatch( 3 ) ;
+			log.info( "User batch: %I" , userBatch ) ;
+
+			expect( Array.isArray( userBatch ) ).to.be.ok() ;
+			expect( userBatch ).to.be.an( Array ) ;
+			expect( userBatch ).to.be.a( rootsDb.Batch ) ;
+			expect( userBatch ).to.have.length( 3 ) ;
+
+			for ( let index = 0 ; index < 3 ; index ++ ) {
+				expect( userBatch[ index ] ).to.be.an( Object ) ;
+				expect( userBatch[ index ].$ ).to.be.an( Object ) ;
+				expect( userBatch[ index ]._ ).to.be.a( rootsDb.Document ) ;
+				expect( userBatch[ index ]._id ).to.be.an( mongodb.ObjectId ) ;
+				expect( userBatch[ index ].getId() ).to.be.an( mongodb.ObjectId ) ;
+				expect( userBatch[ index ]._id ).to.be( userBatch[ index ].getId() ) ;
+				expect( userBatch[ index ].firstName ).not.to.be.empty() ;
+				expect( userBatch[ index ].firstName ).to.be.a( 'string' ) ;
+				expect( userBatch[ index ].lastName ).not.to.be.empty() ;
+				expect( userBatch[ index ].lastName ).to.be.a( 'string' ) ;
+			}
+
+			await userBatch.save() ;
+			
+			var dbUserBatch = await users.find( {} ) ;
+			log.info( "DB User Batch: %I" , dbUserBatch ) ;
+			expect( Array.isArray( dbUserBatch ) ).to.be.ok() ;
+			expect( dbUserBatch ).to.be.an( Array ) ;
+			expect( dbUserBatch ).to.be.a( rootsDb.Batch ) ;
+			expect( dbUserBatch ).to.have.length( 3 ) ;
+
+			for ( let index = 0 ; index < 3 ; index ++ ) {
+				expect( dbUserBatch[ index ] ).to.be.an( Object ) ;
+				expect( dbUserBatch[ index ].$ ).to.be.an( Object ) ;
+				expect( dbUserBatch[ index ]._ ).to.be.a( rootsDb.Document ) ;
+				expect( dbUserBatch[ index ]._id ).to.be.an( mongodb.ObjectId ) ;
+				expect( dbUserBatch[ index ].getId() ).to.be.an( mongodb.ObjectId ) ;
+				expect( dbUserBatch[ index ]._id ).to.be( dbUserBatch[ index ].getId() ) ;
+				expect( dbUserBatch[ index ].firstName ).not.to.be.empty() ;
+				expect( dbUserBatch[ index ].firstName ).to.be.a( 'string' ) ;
+				expect( dbUserBatch[ index ].lastName ).not.to.be.empty() ;
+				expect( dbUserBatch[ index ].lastName ).to.be.a( 'string' ) ;
+			}
 		} ) ;
 	} ) ;
 }
