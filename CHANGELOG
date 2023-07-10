@@ -1,4 +1,10 @@
 
+v0.37.3
+-------
+
+When the connection string is like mongodb+srv://... remove the +srv part to get the correct driver
+
+
 v0.37.2
 -------
 
