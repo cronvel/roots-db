@@ -1,8 +1,8 @@
 {
   "name": "roots-db",
-  "version": "0.37.3",
+  "version": "0.38.0",
   "engines": {
-    "node": ">=14.15.0"
+    "node": ">=16.13.0"
   },
   "description": "A minimalistic ODM",
   "main": "lib/rootsDb.js",
@@ -15,15 +15,15 @@
     "exm": "^0.5.12",
     "fs-kit": "^0.6.5",
     "hash-kit": "^0.3.10",
-    "logfella": "^1.4.3",
-    "mongodb": "^5.1.0",
+    "logfella": "^2.0.1",
+    "mongodb": "^5.7.0",
     "nested-proxies": "^0.2.1",
     "seventh": "^0.8.2",
     "stream-kit": "^0.4.15",
-    "tree-kit": "^0.7.4"
+    "tree-kit": "^0.8.1"
   },
   "devDependencies": {
-    "string-kit": "^0.17.8"
+    "string-kit": "^0.17.10"
   },
   "scripts": {
     "test": "tea-time -R dot"
