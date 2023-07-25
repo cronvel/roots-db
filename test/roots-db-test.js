@@ -113,13 +113,13 @@ const usersDescriptor = {
 		firstName: {
 			type: 'string' ,
 			maxLength: 30 ,
-			fake: 'name.firstName' ,
+			fake: 'person.firstName' ,
 			default: 'Joe'
 		} ,
 		lastName: {
 			type: 'string' ,
 			maxLength: 30 ,
-			fake: 'name.lastName' ,
+			fake: 'person.lastName' ,
 			default: 'Doe'
 		} ,
 		godfather: {
@@ -172,10 +172,16 @@ const expectedDefaultUser = { firstName: 'Joe' , lastName: 'Doe' , memberSid: 'J
 
 const jobsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/jobs' ,
+	fakeDataGenerator: {
+		type: FAKE_DATA_GENERATOR ,
+		locale: FAKE_DATA_GENERATOR_LOCALE
+	} ,
 	properties: {
 		title: {
 			type: 'string' ,
 			maxLength: 50 ,
+			fake: 'enum' ,
+			fakeParams: [ 'frontend-dev' , 'backend-dev' , 'sysadmin' ] ,
 			default: 'unemployed'
 		} ,
 		salary: {
@@ -548,10 +554,10 @@ describe( "Document creation" , () => {
 				} ,
 				properties: {
 					firstName: {
-						type: "string" , maxLength: 30 , default: "Joe" , tags: [ "content" ] , fake: "name.firstName" , fakeFn , inputHint: "text"
+						type: "string" , maxLength: 30 , default: "Joe" , tags: [ "content" ] , fake: "person.firstName" , fakeFn , inputHint: "text"
 					} ,
 					lastName: {
-						type: "string" , maxLength: 30 , default: "Doe" , tags: [ "content" ] , fake: "name.lastName" , fakeFn , inputHint: "text"
+						type: "string" , maxLength: 30 , default: "Doe" , tags: [ "content" ] , fake: "person.lastName" , fakeFn , inputHint: "text"
 					} ,
 					godfather: {
 						type: "link" , optional: true , collection: "users" , tags: [ "content" ] , sanitize: [ "toLink" ] , opaque: true , inputHint: "embedded"
@@ -8638,7 +8644,6 @@ if ( FAKE_DATA_GENERATOR ) {
 		it( "should generate fake document on a collection" , async () => {
 			var user = users.createFakeDocument() ;
 			log.info( "User: %I" , user ) ;
-
 			expect( user ).to.be.an( Object ) ;
 			expect( user.$ ).to.be.an( Object ) ;
 			expect( user._ ).to.be.a( rootsDb.Document ) ;
@@ -8666,6 +8671,14 @@ if ( FAKE_DATA_GENERATOR ) {
 			expect( dbUser.firstName ).to.be.a( 'string' ) ;
 			expect( dbUser.lastName ).not.to.be.empty() ;
 			expect( dbUser.lastName ).to.be.a( 'string' ) ;
+
+
+			var job = jobs.createFakeDocument() ;
+			log.info( "Job: %I" , job ) ;
+			expect( job ).to.be.an( Object ) ;
+			expect( job._ ).to.be.a( rootsDb.Document ) ;
+			expect( job.title ).not.to.be.empty() ;
+			expect( job.title ).to.be.a( 'string' ) ;
 		} ) ;
 
 		it( "should generate fake batch of documents on a collection" , async () => {
