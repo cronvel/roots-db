@@ -2100,6 +2100,56 @@ describe( "Find each document with a query object (serialized)" , () => {
 
 
 
+describe( "Find IDs with a query object" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should find documents (in a batch) using a queryObject" , async () => {
+		var localBatch = users.createBatch( [
+			{ firstName: 'Bob' , lastName: 'Marley' } ,
+			{ firstName: 'Julian' , lastName: 'Marley' } ,
+			{ firstName: 'Mr' , lastName: 'X' } ,
+			{ firstName: 'Stephen' , lastName: 'Marley' } ,
+			{ firstName: 'Ziggy' , lastName: 'Marley' } ,
+			{ firstName: 'Thomas' , lastName: 'Jefferson' } ,
+			{ firstName: 'Rita' , lastName: 'Marley' }
+		] ) ;
+
+		expect( localBatch ).to.have.length( 7 ) ;
+
+		await localBatch.save() ;
+
+		var idList = await users.findIdList( { firstName: { $regex: /^[thomasstepn]+$/ , $options: 'i' } } ) ;
+
+		expect( idList ).to.be.an( Array ) ;
+		expect( idList ).to.have.length( 2 ) ;
+		expect( idList ).to.equal.unordered( [ localBatch[ 3 ].getId() , localBatch[ 5 ].getId() ] ) ;
+	} ) ;
+
+	it( "skip, limit and sort" , async () => {
+		var localBatch = users.createBatch( [
+			{ firstName: 'Bob' , lastName: 'Marley' } ,
+			{ firstName: 'Julian' , lastName: 'Marley' } ,
+			{ firstName: 'Stephen' , lastName: 'Marley' } ,
+			{ firstName: 'Ziggy' , lastName: 'Marley' } ,
+			{ firstName: 'Thomas' , lastName: 'Jefferson' } ,
+			{ firstName: 'Rita' , lastName: 'Marley' }
+		] ) ;
+
+		expect( localBatch ).to.have.length( 6 ) ;
+
+		await localBatch.save() ;
+
+		var idList = await users.findIdList( {} , { skip: 1 , limit: 2 , sort: { firstName: 1 } } ) ;
+
+		expect( idList ).to.be.an( Array ) ;
+		expect( idList ).to.have.length( 2 ) ;
+		expect( idList ).to.equal.unordered( [ localBatch[ 1 ].getId() , localBatch[ 5 ].getId() ] ) ;
+	} ) ;
+} ) ;
+
+
+
 describe( "Links" , () => {
 
 	beforeEach( clearDB ) ;

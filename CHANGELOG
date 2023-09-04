@@ -1,4 +1,10 @@
 
+v0.38.3
+-------
+
+New: Collection#findIdList()
+
+
 v0.37.3
 -------
 
