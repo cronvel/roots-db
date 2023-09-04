@@ -2124,6 +2124,13 @@ describe( "Find IDs with a query object" , () => {
 		expect( idList ).to.be.an( Array ) ;
 		expect( idList ).to.have.length( 2 ) ;
 		expect( idList ).to.equal.unordered( [ localBatch[ 3 ].getId() , localBatch[ 5 ].getId() ] ) ;
+
+		
+		idList = await users.findIdList( { firstName: { $regex: /^[thomasstepn]+$/ , $options: 'i' } } , { partial: true } ) ;
+
+		expect( idList ).to.be.an( Array ) ;
+		expect( idList ).to.have.length( 2 ) ;
+		expect( idList ).to.equal.unordered( [ { _id: localBatch[ 3 ].getId() } , { _id: localBatch[ 5 ].getId() } ] ) ;
 	} ) ;
 
 	it( "skip, limit and sort" , async () => {
@@ -2145,6 +2152,13 @@ describe( "Find IDs with a query object" , () => {
 		expect( idList ).to.be.an( Array ) ;
 		expect( idList ).to.have.length( 2 ) ;
 		expect( idList ).to.equal.unordered( [ localBatch[ 1 ].getId() , localBatch[ 5 ].getId() ] ) ;
+
+
+		idList = await users.findIdList( {} , { skip: 1 , limit: 2 , sort: { firstName: 1 } , partial: true } ) ;
+
+		expect( idList ).to.be.an( Array ) ;
+		expect( idList ).to.have.length( 2 ) ;
+		expect( idList ).to.equal.unordered( [ { _id: localBatch[ 1 ].getId() } , { _id: localBatch[ 5 ].getId() } ] ) ;
 	} ) ;
 } ) ;
 

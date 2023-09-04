@@ -1,4 +1,10 @@
 
+v0.38.4
+-------
+
+New: Collection#findIdList() have the 'partial' option returning a sort of partial document
+
+
 v0.38.3
 -------
 
