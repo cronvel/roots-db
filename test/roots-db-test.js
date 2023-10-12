@@ -61,9 +61,9 @@ const log = logfella.global.use( 'unit-test' ) ;
 
 // Test options
 //testOption( 'driver' , 'attachment-driver' ) ;
-testOption( 'attachment-driver' , 'fake-data-generator' ) ;
+testOption( 'attachment-driver' , 'importer' , 'fake-data-generator' ) ;
 
-var ATTACHMENT_MODE , USERS_ATTACHMENT_URL , FAKE_DATA_GENERATOR ;
+var ATTACHMENT_MODE , USERS_ATTACHMENT_URL , IMPORTER , FAKE_DATA_GENERATOR ;
 const FAKE_DATA_GENERATOR_LOCALE = 'fr' ;
 const ATTACHMENT_PUBLIC_BASE_URL = 'http://example.cdn.net/example' ;
 
@@ -76,6 +76,14 @@ switch ( getTestOption( 'attachment-driver' ) ) {
 	default :
 		ATTACHMENT_MODE = 'file' ;
 		USERS_ATTACHMENT_URL = 'file://' + __dirname + '/tmp/' ;
+		break ;
+}
+
+switch ( getTestOption( 'importer' ) ) {
+	case 'csv' :
+		IMPORTER = 'csv' ;
+		break ;
+	default :
 		break ;
 }
 
@@ -8697,6 +8705,23 @@ describe( "Historical bugs" , () => {
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
 	} ) ;
 } ) ;
+
+
+
+if ( IMPORTER ) {
+	describe( "Importer" , () => {
+
+		beforeEach( clearDB ) ;
+
+		it( "should import data" , async () => {
+			await world.import( path.join( __dirname , 'importer' , 'mapping.json' ) ) ;
+			
+			var batch = await jobs.collect( {} ) ;
+
+			log.info( "Jobs: %I" , [ ... batch ] ) ;
+		} ) ;
+	} ) ;
+}
 
 
 
