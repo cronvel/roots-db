@@ -1,5 +1,16 @@
 {
-	"jobs": {
-		"sources": [ "jobs.csv" ]
-	}
+	"format": {
+		"csv": {
+			"separator": ","
+		}
+	} ,
+	"sources": [
+		{
+			"collection": "jobs" ,
+			"file": "jobs.csv" ,
+			"keyMapping": {
+				"title": "name"
+			}
+		}
+	]
 }
