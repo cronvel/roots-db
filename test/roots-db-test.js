@@ -8718,7 +8718,22 @@ if ( IMPORTER ) {
 			
 			var batch = await jobs.collect( {} ) ;
 
-			log.info( "Jobs: %I" , [ ... batch ] ) ;
+			//log.info( "Jobs: %I" , [ ... batch ] ) ;
+
+			// MongoDB may shuffle things up, so we don't use an array here
+			var map = {} ;
+			batch.forEach( doc => map[ doc.title ] = doc ) ;
+
+			expect( map ).to.only.have.own.keys( 'dev' , 'devops' ) ;
+			expect( map ).to.partially.equal( {
+				dev: {
+					_id: map.dev.getId() , title: 'dev' , salary: 3500
+				} ,
+				devops: {
+					_id: map.devops.getId() , title: 'devops' , salary: 3200
+				}
+			} ) ;
+			
 		} ) ;
 	} ) ;
 }

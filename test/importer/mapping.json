@@ -8,8 +8,9 @@
 		{
 			"collection": "jobs" ,
 			"file": "jobs.csv" ,
-			"keyMapping": {
-				"title": "name"
+			"propertyMapping": {
+				"name": "title" ,
+				"paid": "salary"
 			}
 		}
 	]
