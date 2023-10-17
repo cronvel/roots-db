@@ -9,8 +9,8 @@
 			"collection": "jobs" ,
 			"file": "jobs.csv" ,
 			"propertyMapping": {
-				"name": "title" ,
-				"paid": "salary"
+				"title": "name" ,
+				"salary": "paid"
 			}
 		}
 	]
