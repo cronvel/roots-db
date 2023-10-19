@@ -63,19 +63,19 @@ const log = logfella.global.use( 'unit-test' ) ;
 //testOption( 'driver' , 'attachment-driver' ) ;
 testOption( 'attachment-driver' , 'importer' , 'fake-data-generator' ) ;
 
-var ATTACHMENT_MODE , USERS_ATTACHMENT_URL , IMPORTER , FAKE_DATA_GENERATOR ;
+var ATTACHMENT_MODE , BASE_ATTACHMENT_URL , IMPORTER , FAKE_DATA_GENERATOR ;
 const FAKE_DATA_GENERATOR_LOCALE = 'fr' ;
 const ATTACHMENT_PUBLIC_BASE_URL = 'http://example.cdn.net/example' ;
 
 switch ( getTestOption( 'attachment-driver' ) ) {
 	case 's3' :
 		ATTACHMENT_MODE = 's3' ;
-		USERS_ATTACHMENT_URL = require( './s3-config.local.json' ).attachmentUrl ;
+		BASE_ATTACHMENT_URL = require( './s3-config.local.json' ).attachmentUrl ;
 		break ;
 	case 'file' :
 	default :
 		ATTACHMENT_MODE = 'file' ;
-		USERS_ATTACHMENT_URL = 'file://' + __dirname + '/tmp/' ;
+		BASE_ATTACHMENT_URL = 'file://' + __dirname + '/tmp' ;
 		break ;
 }
 
@@ -106,12 +106,12 @@ var versions , users , jobs , schools , towns , lockables , nestedLinks , anyCol
 
 const versionsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/versions' ,
-	attachmentUrl: 'file://' + __dirname + '/tmp/'
+	attachmentUrl: BASE_ATTACHMENT_URL + '/versions'
 } ;
 
 const usersDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/users' ,
-	attachmentUrl: USERS_ATTACHMENT_URL ,
+	attachmentUrl: BASE_ATTACHMENT_URL + '/users' ,
 	attachmentPublicBaseUrl: ATTACHMENT_PUBLIC_BASE_URL ,
 	fakeDataGenerator: {
 		type: FAKE_DATA_GENERATOR ,
@@ -315,7 +315,7 @@ const anyCollectionLinksDescriptor = {
 
 const imagesDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/images' ,
-	attachmentUrl: USERS_ATTACHMENT_URL ,
+	attachmentUrl: BASE_ATTACHMENT_URL + '/images' ,
 	attachmentPublicBaseUrl: ATTACHMENT_PUBLIC_BASE_URL ,
 	properties: {
 		name: { type: 'string' } ,
@@ -341,6 +341,10 @@ const versionedItemsDescriptor = {
 	} ,
 	indexes: []
 } ;
+
+// Only used for assertion tests:
+const USERS_ATTACHMENT_DIR = ( BASE_ATTACHMENT_URL + '/users/' ).slice( 7 ) ;		// .slice(7) to remove the file:// part
+const IMAGES_ATTACHMENT_DIR = ( BASE_ATTACHMENT_URL + '/images/' ).slice( 7 ) ;
 
 
 
@@ -554,7 +558,7 @@ describe( "Document creation" , () => {
 		expect( users.documentSchema ).to.equal(
 			{
 				url: "mongodb://localhost:27017/rootsDb/users" ,
-				attachmentUrl: USERS_ATTACHMENT_URL ,
+				attachmentUrl: USERS_ATTACHMENT_DIR ,
 				attachmentPublicBaseUrl: ATTACHMENT_PUBLIC_BASE_URL ,
 				fakeDataGenerator: {
 					type: FAKE_DATA_GENERATOR ,
@@ -673,7 +677,7 @@ describe( "Document creation" , () => {
 		expect( versions.documentSchema ).to.equal(
 			{
 				url: "mongodb://localhost:27017/rootsDb/versions" ,
-				attachmentUrl: 'file://' + __dirname + '/tmp/' ,
+				attachmentUrl: BASE_ATTACHMENT_URL + '/versions' ,
 				extraProperties: true ,
 				properties: {
 					_activeVersion: {
@@ -3507,7 +3511,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				driver: users.attachmentDriver ,
-				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+				path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
@@ -3525,7 +3529,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
@@ -3609,7 +3613,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + user.file.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + user.file.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + user.file.id
 		} ) ;
 
@@ -3716,7 +3720,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				driver: users.attachmentDriver ,
-				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+				path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
@@ -3734,7 +3738,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
@@ -3840,7 +3844,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				driver: users.attachmentDriver ,
-				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+				path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
@@ -3859,7 +3863,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
@@ -3997,7 +4001,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
 		} ) ;
 
@@ -4056,7 +4060,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment2.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + attachment2.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment2.id
 		} ) ;
 
@@ -4289,7 +4293,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 				collectionName: 'users' ,
 				documentId: id.toString() ,
 				driver: users.attachmentDriver ,
-				path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+				path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 				publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 			}
 		} ) ;
@@ -4307,7 +4311,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + details.attachment.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + details.attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + details.attachment.id
 		} ) ;
 
@@ -4392,7 +4396,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + dbAttachment.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + dbAttachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + dbAttachment.id
 		} ) ;
 
@@ -4474,7 +4478,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
 		} ) ;
 
@@ -4612,7 +4616,7 @@ describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")
 			collectionName: 'users' ,
 			documentId: id.toString() ,
 			driver: users.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbUser.getId() + '/' + attachment.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + attachment.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
 		} ) ;
 
@@ -5063,7 +5067,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					collectionName: 'images' ,
 					documentId: id.toString() ,
 					driver: images.attachmentDriver ,
-					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+					path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
 					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
 				}
 			}
@@ -5146,7 +5150,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					collectionName: 'images' ,
 					documentId: id.toString() ,
 					driver: images.attachmentDriver ,
-					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+					path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
 					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
 				} ,
 				thumbnail: {
@@ -5161,7 +5165,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					collectionName: 'images' ,
 					documentId: id.toString() ,
 					driver: images.attachmentDriver ,
-					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.thumbnail.id ,
+					path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.thumbnail.id ,
 					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.thumbnail.id
 				} ,
 				small: {
@@ -5176,7 +5180,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					collectionName: 'images' ,
 					documentId: id.toString() ,
 					driver: images.attachmentDriver ,
-					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id ,
+					path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id ,
 					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id
 				}
 			}
@@ -5247,7 +5251,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					collectionName: 'images' ,
 					documentId: id.toString() ,
 					driver: images.attachmentDriver ,
-					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id ,
+					path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id ,
 					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id
 				}
 			}
@@ -5339,7 +5343,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 					collectionName: 'images' ,
 					documentId: id.toString() ,
 					driver: images.attachmentDriver ,
-					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+					path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
 					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
 				}
 			}
@@ -5356,7 +5360,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			collectionName: 'images' ,
 			documentId: id.toString() ,
 			driver: images.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
 		} ) ;
 
@@ -5435,7 +5439,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			collectionName: 'images' ,
 			documentId: id.toString() ,
 			driver: images.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
 		} ) ;
 		expect( dbImage.getAttachment( 'fileSet' , 'thumbnail' ) ).to.be.partially.like( {
@@ -5450,7 +5454,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			collectionName: 'images' ,
 			documentId: id.toString() ,
 			driver: images.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.thumbnail.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.thumbnail.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.thumbnail.id
 		} ) ;
 		expect( dbImage.getAttachment( 'fileSet' , 'small' ) ).to.be.partially.like( {
@@ -5465,7 +5469,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			collectionName: 'images' ,
 			documentId: id.toString() ,
 			driver: images.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id
 		} ) ;
 
@@ -5530,7 +5534,7 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			collectionName: 'images' ,
 			documentId: id.toString() ,
 			driver: images.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.small.id
 		} ) ;
 
@@ -5751,7 +5755,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 					collectionName: 'images' ,
 					documentId: id.toString() ,
 					driver: images.attachmentDriver ,
-					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+					path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
 					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
 				}
 			}
@@ -5841,7 +5845,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 					collectionName: 'images' ,
 					documentId: id.toString() ,
 					driver: images.attachmentDriver ,
-					path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+					path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
 					publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
 				}
 			}
@@ -5858,7 +5862,7 @@ describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" ,
 			collectionName: 'images' ,
 			documentId: id.toString() ,
 			driver: images.attachmentDriver ,
-			path: ( ATTACHMENT_MODE === 'file' ? __dirname + '/tmp/' : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
+			path: ( ATTACHMENT_MODE === 'file' ? IMAGES_ATTACHMENT_DIR : '' ) + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id ,
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbImage.getId() + '/' + dbImage.fileSet.attachments.source.id
 		} ) ;
 
