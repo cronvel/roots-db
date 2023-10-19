@@ -418,17 +418,17 @@ function dropDBCollections() {
 // clear DB: remove every item, so we can safely test
 function clearDB() {
 	return Promise.all( [
-		clearCollection( versions ) ,
-		clearCollection( users ) ,
-		clearCollection( jobs ) ,
-		clearCollection( schools ) ,
-		clearCollection( towns ) ,
-		clearCollection( lockables ) ,
-		clearCollection( nestedLinks ) ,
-		clearCollection( anyCollectionLinks ) ,
-		clearCollection( images ) ,
-		clearCollection( versionedItems ) ,
-		clearCollection( extendables )
+		versions.clear() ,
+		users.clear() ,
+		jobs.clear() ,
+		schools.clear() ,
+		towns.clear() ,
+		lockables.clear() ,
+		nestedLinks.clear() ,
+		anyCollectionLinks.clear() ,
+		images.clear() ,
+		versionedItems.clear() ,
+		extendables.clear()
 	] ) ;
 }
 
@@ -458,17 +458,6 @@ function dropCollection( collection ) {
 		.then( () => collection.driver.raw.drop() )
 		.catch( error => {
 			if ( error.code === 26 ) { return ; }	// NS not found, nothing to drop!
-			throw error ;
-		} ) ;
-}
-
-
-
-function clearCollection( collection ) {
-	return collection.driver.rawInit()
-		.then( () => collection.driver.raw.deleteMany() )
-		.catch( error => {
-			if ( error.code === 26 ) { return ; }	// NS not found, nothing to clear!
 			throw error ;
 		} ) ;
 }
@@ -4208,8 +4197,8 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 describe( "Attachment links and checksum/hash (driver: "  + ATTACHMENT_MODE + ")" , () => {
 
 	// Here we change the 'users' collection before performing the test, so it forces hash computation
+	beforeEach( clearDB ) ;
 	beforeEach( () => {
-		clearDB() ;
 		users.attachmentHashType = 'sha256' ;
 	} ) ;
 
@@ -5669,8 +5658,8 @@ describe( "AttachmentSet links (driver: " + ATTACHMENT_MODE + ")" , () => {
 describe( "AttachmentSet links and checksum (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 	// Here we change the 'users' collection before performing the test, so it forces hash computation
+	beforeEach( clearDB ) ;
 	beforeEach( () => {
-		clearDB() ;
 		images.attachmentHashType = 'sha256' ;
 	} ) ;
 
