@@ -344,6 +344,7 @@ const versionedItemsDescriptor = {
 
 // Only used for assertion tests:
 const USERS_ATTACHMENT_DIR = ( BASE_ATTACHMENT_URL + '/users/' ).slice( 7 ) ;		// .slice(7) to remove the file:// part
+const USERS_ATTACHMENT_URL = BASE_ATTACHMENT_URL + '/users' ;
 const IMAGES_ATTACHMENT_DIR = ( BASE_ATTACHMENT_URL + '/images/' ).slice( 7 ) ;
 
 
@@ -547,7 +548,7 @@ describe( "Document creation" , () => {
 		expect( users.documentSchema ).to.equal(
 			{
 				url: "mongodb://localhost:27017/rootsDb/users" ,
-				attachmentUrl: USERS_ATTACHMENT_DIR ,
+				attachmentUrl: USERS_ATTACHMENT_URL ,
 				attachmentPublicBaseUrl: ATTACHMENT_PUBLIC_BASE_URL ,
 				fakeDataGenerator: {
 					type: FAKE_DATA_GENERATOR ,
@@ -589,6 +590,29 @@ describe( "Document creation" , () => {
 					} ,
 					_id: {
 						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , tags: [ "id" ]
+					} ,
+					_import: {
+						extraProperties: true ,
+						inputHint: "embedded" ,
+						optional: true ,
+						properties: {
+							_foreignId: {
+								inputHint: "text" ,
+								optional: true ,
+								system: true ,
+								tags: [ "system" ] ,
+								type: "string"
+							} ,
+							_importId: {
+								inputHint: "text" ,
+								system: true ,
+								tags: [ "system" ] ,
+								type: "string"
+							}
+						} ,
+						system: true ,
+						tags: [ "system" ] ,
+						type: "object"
 					}
 				} ,
 				indexes: [
@@ -616,6 +640,29 @@ describe( "Document creation" , () => {
 				properties: {
 					_id: {
 						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , tags: [ "id" ]
+					} ,
+					_import: {
+						extraProperties: true ,
+						inputHint: "embedded" ,
+						optional: true ,
+						properties: {
+							_foreignId: {
+								inputHint: "text" ,
+								optional: true ,
+								system: true ,
+								tags: [ "system" ] ,
+								type: "string"
+							} ,
+							_importId: {
+								inputHint: "text" ,
+								system: true ,
+								tags: [ "system" ] ,
+								type: "string"
+							}
+						} ,
+						system: true ,
+						tags: [ "system" ] ,
+						type: "object"
 					} ,
 					title: {
 						type: 'string' ,
@@ -674,6 +721,29 @@ describe( "Document creation" , () => {
 					} ,
 					_id: {
 						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , tags: [ "id" ]
+					} ,
+					_import: {
+						extraProperties: true ,
+						inputHint: "embedded" ,
+						optional: true ,
+						properties: {
+							_foreignId: {
+								inputHint: "text" ,
+								optional: true ,
+								system: true ,
+								tags: [ "system" ] ,
+								type: "string"
+							} ,
+							_importId: {
+								inputHint: "text" ,
+								system: true ,
+								tags: [ "system" ] ,
+								type: "string"
+							}
+						} ,
+						system: true ,
+						tags: [ "system" ] ,
+						type: "object"
 					} ,
 					_lastModified: {
 						defaultFn: "now" , inputHint: "date" , sanitize: [ "toDate" ] , system: true , tags: [ "system-content" ] , type: "date"
