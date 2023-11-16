@@ -1,4 +1,10 @@
 
+v0.39.0
+-------
+
+MAYBE BREAKING: the Collection instance now have a .url and .connectionUrl properties, the former does not contain the user:password part while the later does (before this release, only .url existed and it had user:password)
+
+
 v0.38.5
 -------
 
