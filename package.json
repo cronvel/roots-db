@@ -1,6 +1,6 @@
 {
   "name": "roots-db",
-  "version": "0.39.0",
+  "version": "0.39.1",
   "engines": {
     "node": ">=16.13.0"
   },
@@ -23,7 +23,7 @@
     "tree-kit": "^0.8.1"
   },
   "devDependencies": {
-    "string-kit": "^0.17.10"
+    "string-kit": "^0.18.0"
   },
   "scripts": {
     "test": "tea-time -R dot"
