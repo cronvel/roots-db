@@ -102,7 +102,7 @@ rootsDb.initExtensions() ;
 const world = new rootsDb.World() ;
 
 // Collections...
-var versions , users , jobs , schools , towns , lockables , nestedLinks , anyCollectionLinks , images , versionedItems , extendables ;
+var versions , users , jobs , schools , towns , products , stores , lockables , nestedLinks , anyCollectionLinks , images , versionedItems , extendables ;
 
 const versionsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/versions' ,
@@ -250,6 +250,37 @@ const townsDescriptor = {
 	indexes: [
 		{ properties: { name: 1 , "meta.country": 1 } , unique: true }
 	]
+} ;
+
+const productsDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/products' ,
+	properties: {
+		name: { type: 'string' , tags: [ 'id' ] } ,
+		price: { type: 'number' }
+	}
+} ;
+
+const storesDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/stores' ,
+	properties: {
+		name: { type: 'string' , tags: [ 'id' ] } ,
+		products: {
+			type: 'array' ,
+			default: [] ,
+			of: {
+				type: 'strictObject' ,
+				properties: {
+					product: {
+						type: 'link' ,
+						collection: 'products'
+					} ,
+					quantity: {
+						type: 'integer'
+					}
+				}
+			}
+		}
+	}
 } ;
 
 const lockablesDescriptor = {
@@ -405,6 +436,8 @@ function dropDBCollections() {
 		dropCollection( jobs ) ,
 		dropCollection( schools ) ,
 		dropCollection( towns ) ,
+		dropCollection( products ) ,
+		dropCollection( stores ) ,
 		dropCollection( lockables ) ,
 		dropCollection( nestedLinks ) ,
 		dropCollection( anyCollectionLinks ) ,
@@ -424,6 +457,8 @@ function clearDB() {
 		jobs.clear() ,
 		schools.clear() ,
 		towns.clear() ,
+		products.clear() ,
+		stores.clear() ,
 		lockables.clear() ,
 		nestedLinks.clear() ,
 		anyCollectionLinks.clear() ,
@@ -443,6 +478,8 @@ function clearDBIndexes() {
 		clearCollectionIndexes( jobs ) ,
 		clearCollectionIndexes( schools ) ,
 		clearCollectionIndexes( towns ) ,
+		clearCollectionIndexes( products ) ,
+		clearCollectionIndexes( stores ) ,
 		clearCollectionIndexes( lockables ) ,
 		clearCollectionIndexes( nestedLinks ) ,
 		clearCollectionIndexes( anyCollectionLinks ) ,
@@ -496,6 +533,12 @@ before( async () => {
 
 	towns = await world.createAndInitCollection( 'towns' , townsDescriptor ) ;
 	expect( towns ).to.be.a( rootsDb.Collection ) ;
+
+	products = await world.createAndInitCollection( 'products' , productsDescriptor ) ;
+	expect( products ).to.be.a( rootsDb.Collection ) ;
+
+	stores = await world.createAndInitCollection( 'stores' , storesDescriptor ) ;
+	expect( stores ).to.be.a( rootsDb.Collection ) ;
 
 	lockables = await world.createAndInitCollection( 'lockables' , lockablesDescriptor ) ;
 	expect( lockables ).to.be.a( rootsDb.Collection ) ;
@@ -7071,6 +7114,62 @@ describe( "Populate links" , () => {
 
 		expect( stats.population.depth ).to.be( 1 ) ;
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
+	} ) ;
+} ) ;
+
+
+
+describe( "Populate links using the '*' wildcard" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "zzz link population using '*' wildcard" , async () => {
+		var product1 = products.createDocument( {
+			name: 'pencil' ,
+			price: 1.20
+		} ) ;
+
+		var productId1 = product1.getId() ;
+
+		var product2 = products.createDocument( {
+			name: 'eraser' ,
+			price: 1.60
+		} ) ;
+
+		var productId2 = product2.getId() ;
+
+		var store = stores.createDocument( {
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: product1 , quantity: 56 } ,
+				{ product: product2 , quantity: 37 }
+			]
+		} ) ;
+
+		var storeId = store.getId() ;
+		log.hdebug( "store: %[5]Y" , store ) ;
+
+		await product1.save() ;
+		await product2.save() ;
+		await store.save() ;
+
+		var stats = {} ;
+		
+		//var dbStore = await stores.get( storeId , { populate: 'products.0.product' , stats } ) ;
+		var dbStore = await stores.get( storeId ) ;
+		//await dbStore.populate( 'products.0.product' ) ;
+		await dbStore.getLink( 'products.0.product' ) ;
+
+		log.hdebug( "dbStore: %[5]Y" , dbStore ) ;
+		//log.hdebug( "populate stats: %[5l100000]Y" , stats ) ;
+		expect( dbStore ).to.equal( {
+			_id: storeId , name: 'Le Grand Bozar'
+		} ) ;
+
+		/*
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
+		*/
 	} ) ;
 } ) ;
 
