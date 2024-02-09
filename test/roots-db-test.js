@@ -7158,7 +7158,13 @@ describe( "Populate links using the '*' wildcard" , () => {
 		//var dbStore = await stores.get( storeId , { populate: 'products.0.product' , stats } ) ;
 		var dbStore = await stores.get( storeId ) ;
 		//await dbStore.populate( 'products.0.product' ) ;
-		await dbStore.getLink( 'products.0.product' ) ;
+		//await dbStore.getLink( 'products.0.product' ) ;
+		var linksDetails = await dbStore.getWildLinksDetails( 'products.*.product' ) ;
+		log.hdebug( "linksDetails: %[5]Y" , linksDetails ) ;
+		
+		return ;
+		
+		
 
 		log.hdebug( "dbStore: %[5]Y" , dbStore ) ;
 		//log.hdebug( "populate stats: %[5l100000]Y" , stats ) ;
