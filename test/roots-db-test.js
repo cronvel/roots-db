@@ -279,6 +279,23 @@ const storesDescriptor = {
 					}
 				}
 			}
+		} ,
+		// Does not make much sense, but we need to test wild populate on multiLink too
+		productBatches: {
+			type: 'array' ,
+			default: [] ,
+			of: {
+				type: 'strictObject' ,
+				properties: {
+					batch: {
+						type: 'multiLink' ,
+						collection: 'products'
+					} ,
+					quantity: {
+						type: 'integer'
+					}
+				}
+			}
 		}
 	}
 } ;
@@ -7138,11 +7155,22 @@ describe( "Populate links using the '*' wildcard" , () => {
 
 		var productId2 = product2.getId() ;
 
+		var product3 = products.createDocument( {
+			name: 'pen' ,
+			price: 5.90
+		} ) ;
+
+		var productId3 = product3.getId() ;
+
 		var store = stores.createDocument( {
 			name: 'Le Grand Bozar' ,
 			products: [
 				{ product: product1 , quantity: 56 } ,
 				{ product: product2 , quantity: 37 }
+			] ,
+			productBatches: [
+				{ batch: [ product1 , product2 ] , quantity: 3 } ,
+				{ batch: [ product1 , product3 ] , quantity: 2 }
 			]
 		} ) ;
 
@@ -7160,7 +7188,9 @@ describe( "Populate links using the '*' wildcard" , () => {
 		//await dbStore.populate( 'products.0.product' ) ;
 		//await dbStore.getLink( 'products.0.product' ) ;
 		var linksDetails = await dbStore.getWildLinksDetails( 'products.*.product' ) ;
-		log.hdebug( "linksDetails: %[5]Y" , linksDetails ) ;
+		log.hdebug( "linksDetails (products): %[5]Y" , linksDetails ) ;
+		linksDetails = await dbStore.getWildLinksDetails( 'productBatches.*.batch' ) ;
+		log.hdebug( "linksDetails (batches): %[5]Y" , linksDetails ) ;
 		
 		return ;
 		
