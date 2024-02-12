@@ -1533,41 +1533,41 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		} ) ;
 
 		town._.localChanges = null ;
-		town._.addLocalChange( [ 'meta' , 'country' ] ) ;
+		town._._addLocalChange( [ 'meta' , 'country' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: { country: null } } ) ;
 		expect( town._.buildDbPatch().set ).to.equal( { "meta.country": "France" } ) ;
-		town._.addLocalChange( [ 'meta' ] ) ;
+		town._._addLocalChange( [ 'meta' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: null } ) ;
 		expect( town._.buildDbPatch().set ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
 
 		town._.localChanges = null ;
-		town._.addLocalChange( [ 'meta' ] ) ;
+		town._._addLocalChange( [ 'meta' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: null } ) ;
 		expect( town._.buildDbPatch().set ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
-		town._.addLocalChange( [ 'meta' , 'country' ] ) ;
+		town._._addLocalChange( [ 'meta' , 'country' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: null } ) ;
 		expect( town._.buildDbPatch().set ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
-		town._.addLocalChange( [ 'meta' , 'population' ] ) ;
+		town._._addLocalChange( [ 'meta' , 'population' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: null } ) ;
 		expect( town._.buildDbPatch().set ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
 
 		town._.localChanges = null ;
-		town._.addLocalChange( [ 'meta' , 'population' ] ) ;
-		town._.addLocalChange( [ 'meta' , 'country' ] ) ;
+		town._._addLocalChange( [ 'meta' , 'population' ] ) ;
+		town._._addLocalChange( [ 'meta' , 'country' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: { population: null , country: null } } ) ;
 		expect( town._.buildDbPatch().set ).to.equal( { "meta.population": "2200K" , "meta.country": "France" } ) ;
-		town._.addLocalChange( [ 'meta' ] ) ;
+		town._._addLocalChange( [ 'meta' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: null } ) ;
 		expect( town._.buildDbPatch().set ).to.equal( { meta: { population: "2200K" , country: "France" } } ) ;
 
 		town._.localChanges = null ;
-		town._.addLocalChange( [ 'meta' ] ) ;
-		town._.addLocalChange( [ 'meta' ] ) ;
+		town._._addLocalChange( [ 'meta' ] ) ;
+		town._._addLocalChange( [ 'meta' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: null } ) ;
 
 		town._.localChanges = null ;
-		town._.addLocalChange( [ 'meta' , 'population' ] ) ;
-		town._.addLocalChange( [ 'meta' , 'population' ] ) ;
+		town._._addLocalChange( [ 'meta' , 'population' ] ) ;
+		town._._addLocalChange( [ 'meta' , 'population' ] ) ;
 		expect( town._.localChanges ).to.equal( { meta: { population: null } } ) ;
 	} ) ;
 
@@ -7140,7 +7140,7 @@ describe( "Populate links using the '*' wildcard" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "zzz link population using '*' wildcard" , async () => {
+	it( "link population of documents and batches using the '*' wildcard" , async () => {
 		var product1 = products.createDocument( {
 			name: 'pencil' ,
 			price: 1.20
@@ -7162,7 +7162,7 @@ describe( "Populate links using the '*' wildcard" , () => {
 
 		var productId3 = product3.getId() ;
 
-		var store = stores.createDocument( {
+		var store1 = stores.createDocument( {
 			name: 'Le Grand Bozar' ,
 			products: [
 				{ product: product1 , quantity: 56 } ,
@@ -7174,38 +7174,136 @@ describe( "Populate links using the '*' wildcard" , () => {
 			]
 		} ) ;
 
-		var storeId = store.getId() ;
-		log.hdebug( "store: %[5]Y" , store ) ;
+		var storeId1 = store1.getId() ;
+		//log.hdebug( "store1: %[5]Y" , store1 ) ;
 
 		await product1.save() ;
 		await product2.save() ;
-		await store.save() ;
-
-		var stats = {} ;
+		await product3.save() ;
+		await store1.save() ;
 		
-		//var dbStore = await stores.get( storeId , { populate: 'products.0.product' , stats } ) ;
-		var dbStore = await stores.get( storeId ) ;
-		//await dbStore.populate( 'products.0.product' ) ;
-		//await dbStore.getLink( 'products.0.product' ) ;
-		var linksDetails = await dbStore.getWildLinksDetails( 'products.*.product' ) ;
+
+		// DB get, then populate
+
+		var dbStore1 = await stores.get( storeId1 ) ;
+		/*
+		var linksDetails = dbStore1.getWildLinksDetails( 'products.*.product' ) ;
 		log.hdebug( "linksDetails (products): %[5]Y" , linksDetails ) ;
-		linksDetails = await dbStore.getWildLinksDetails( 'productBatches.*.batch' ) ;
+		linksDetails = dbStore1.getWildLinksDetails( 'productBatches.*.batch' ) ;
 		log.hdebug( "linksDetails (batches): %[5]Y" , linksDetails ) ;
+		*/
 		
-		return ;
-		
-		
-
-		log.hdebug( "dbStore: %[5]Y" , dbStore ) ;
-		//log.hdebug( "populate stats: %[5l100000]Y" , stats ) ;
-		expect( dbStore ).to.equal( {
-			_id: storeId , name: 'Le Grand Bozar'
+		//log.hdebug( "dbStore1: %[5]Y" , dbStore1 ) ;
+		expect( dbStore1 ).to.equal( {
+			_id: storeId1 ,
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: { _id: productId1 } , quantity: 56 } ,
+				{ product: { _id: productId2 } , quantity: 37 }
+			] ,
+			productBatches: [
+				{ batch: [ { _id: productId1 } , { _id: productId2 } ] , quantity: 3 } ,
+				{ batch: [ { _id: productId1 } , { _id: productId3 } ] , quantity: 2 }
+			]
 		} ) ;
 
-		/*
+		await dbStore1.populate( 'products.*.product' ) ;
+		//log.hdebug( "dbStore1: %[5]Y" , dbStore1 ) ;
+		expect( dbStore1 ).to.equal( {
+			_id: storeId1 ,
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: product1 , quantity: 56 } ,
+				{ product: product2 , quantity: 37 }
+			] ,
+			productBatches: [
+				{ batch: [ { _id: productId1 } , { _id: productId2 } ] , quantity: 3 } ,
+				{ batch: [ { _id: productId1 } , { _id: productId3 } ] , quantity: 2 }
+			]
+		} ) ;
+
+		await dbStore1.populate( 'productBatches.*.batch' ) ;
+		//log.hdebug( "dbStore1: %[5]Y" , dbStore1 ) ;
+		expect( dbStore1 ).to.equal( {
+			_id: storeId1 ,
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: product1 , quantity: 56 } ,
+				{ product: product2 , quantity: 37 }
+			] ,
+			productBatches: [
+				{ batch: [ product1 , product2 ] , quantity: 3 } ,
+				{ batch: [ product1 , product3 ] , quantity: 2 }
+			]
+		} ) ;
+		
+
+		// DB get including populate
+
+		var stats = {} ;
+		dbStore1 = await stores.get( storeId1 , { populate: [ 'products.*.product' , 'productBatches.*.batch' ] , stats } ) ;
+		expect( dbStore1 ).to.equal( {
+			_id: storeId1 ,
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: product1 , quantity: 56 } ,
+				{ product: product2 , quantity: 37 }
+			] ,
+			productBatches: [
+				{ batch: [ product1 , product2 ] , quantity: 3 } ,
+				{ batch: [ product1 , product3 ] , quantity: 2 }
+			]
+		} ) ;
 		expect( stats.population.depth ).to.be( 1 ) ;
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
-		*/
+
+
+		// DB batch get including populate
+
+		var store2 = stores.createDocument( {
+			name: 'Plume' ,
+			products: [
+				{ product: product3 , quantity: 12 }
+			] ,
+			productBatches: [
+				{ batch: [ product1 , product2 , product3 ] , quantity: 7 }
+			]
+		} ) ;
+
+		var storeId2 = store2.getId() ;
+		//log.hdebug( "store2: %[5]Y" , store2 ) ;
+
+		await store2.save() ;
+
+		stats = {} ;
+		var dbBatch = await stores.find( {} , { populate: [ 'products.*.product' , 'productBatches.*.batch' ] , stats } ) ;
+		//log.hdebug( "dbBatch: %[8l50000]Y" , dbBatch ) ;
+		expect( dbBatch ).to.be.like( [
+			{
+				_id: storeId1 ,
+				name: 'Le Grand Bozar' ,
+				products: [
+					{ product: product1 , quantity: 56 } ,
+					{ product: product2 , quantity: 37 }
+				] ,
+				productBatches: [
+					{ batch: [ product1 , product2 ] , quantity: 3 } ,
+					{ batch: [ product1 , product3 ] , quantity: 2 }
+				]
+			} ,
+			{
+				_id: storeId2 ,
+				name: 'Plume' ,
+				products: [
+					{ product: product3 , quantity: 12 }
+				] ,
+				productBatches: [
+					{ batch: [ product1 , product2 , product3 ] , quantity: 7 }
+				]
+			}
+		] ) ;
+		expect( stats.population.depth ).to.be( 1 ) ;
+		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
 } ) ;
 
