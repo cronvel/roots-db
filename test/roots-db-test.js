@@ -218,12 +218,13 @@ const schoolsDescriptor = {
 		{
 			properties: { title: 1 } ,
 			unique: true ,
-			// Ti use with the collation unit test
+			// used with the collation unit test
 			collation: {
 				locale: 'en' ,
 				caseLevel: true ,
 				numericOrdering: true
-			}
+			} ,
+			isDefaultSortCollation: true
 		}
 	]
 } ;
@@ -677,10 +678,10 @@ describe( "Document creation" , () => {
 				} ,
 				indexes: [
 					{
-						name: 'Hzz2C_5P5AOjVdPSG_7URlrUcAk' , properties: { "job._id": 1 } , links: { job: 1 } , unique: false , partial: false
+						name: 'dtIpeAj6wiUxW7T-CjLiq2OEB_Y' , properties: { "job._id": 1 } , links: { job: 1 } , unique: false , partial: false , isDefaultSortCollation: false , propertyString: "job._id"
 					} ,
 					{
-						name: 'EyFhPyID5m2EHyOTgAvC5I8AOeY' , properties: { "job._id": 1 , memberSid: 1 } , links: { job: 1 } , unique: true , partial: false
+						name: 'uvmuRnXOw6DtAwUy1GyTH9ctXRI' , properties: { "job._id": 1 , memberSid: 1 } , links: { job: 1 } , unique: true , partial: false , isDefaultSortCollation: false , propertyString: "job._id,memberSid"
 					}
 				] ,
 				hooks: users.documentSchema.hooks ,
@@ -750,13 +751,15 @@ describe( "Document creation" , () => {
 					{
 						name: "_pY6Lhgiky-udo38l_7umMnJMx8" ,
 						properties: { title: 1 } ,
+						propertyString: "title" ,
 						unique: true ,
 						partial: false ,
 						collation: {
 							locale: 'en' ,
 							caseLevel: true ,
 							numericOrdering: true
-						}
+						} ,
+						isDefaultSortCollation: true
 					}
 				] ,
 				hooks: schools.documentSchema.hooks ,
@@ -814,25 +817,29 @@ describe( "Document creation" , () => {
 				} ,
 				indexes: [
 					{
-						name: "OgLcSH3E_bMZrjYG5DZG08RSJtc" ,
+						name: "zy0mKRcFu6DN8Qc4AukylJk4JTo" ,
 						properties: {
 							"_activeVersion._collection": 1 ,
 							"_activeVersion._id": 1
 						} ,
+						propertyString: "_activeVersion._collection,_activeVersion._id" ,
 						links: { _activeVersion: 1 } ,
 						unique: false ,
-						partial: false
+						partial: false ,
+						isDefaultSortCollation: false
 					} ,
 					{
-						name: "Jqlr2UkS886iHcOUoIDbKoR_PEg" ,
+						name: "2XJyW613Fh2K4PAFqnu8T1CaHdg" ,
 						properties: {
 							"_activeVersion._collection": 1 ,
 							"_activeVersion._id": 1 ,
 							_version: 1
 						} ,
+						propertyString: "_activeVersion._collection,_activeVersion._id,_version" ,
 						links: { _activeVersion: 1 } ,
 						unique: true ,
-						partial: false
+						partial: false ,
+						isDefaultSortCollation: false
 					}
 				] ,
 				hooks: versions.documentSchema.hooks ,
@@ -2164,7 +2171,12 @@ describe( "Find with a query object" , () => {
 			schools.createDocument( { title: 'a school' } ) ,
 			schools.createDocument( { title: 'that school' } ) ,
 			schools.createDocument( { title: 'That school' } ) ,
-			schools.createDocument( { title: 'A school' } )
+			schools.createDocument( { title: 'A school' } ) ,
+			schools.createDocument( { title: 'School1' } ) ,
+			schools.createDocument( { title: 'School10' } ) ,
+			schools.createDocument( { title: 'School101' } ) ,
+			schools.createDocument( { title: 'School2' } ) ,
+			schools.createDocument( { title: 'School3' } ) ,
 		] ;
 
 		await Promise.map( someSchools , school => school.save() ) ;
@@ -2178,6 +2190,29 @@ describe( "Find with a query object" , () => {
 		expect( dbBatch ).to.be.partially.like( [
 			{ title: "a school" } ,
 			{ title: "A school" } ,
+			{ title: "School1" } ,
+			{ title: "School2" } ,
+			{ title: "School3" } ,
+			{ title: "School10" } ,
+			{ title: "School101" } ,
+			{ title: "that school" } ,
+			{ title: "That school" }
+		] ) ;
+
+		
+		// Implicit collation: it should use the collation of the index having [title] as property (isDefaultSortCollation in the schema)
+		dbBatch = await schools.find( {} , { sort: { title: 1 } } ) ;
+
+		//expect( dbBatch ).to.have.length( 2 ) ;
+		//log.hdebug( "Batch: %Y" , [ ... dbBatch ] ) ;
+		expect( dbBatch ).to.be.partially.like( [
+			{ title: "a school" } ,
+			{ title: "A school" } ,
+			{ title: "School1" } ,
+			{ title: "School2" } ,
+			{ title: "School3" } ,
+			{ title: "School10" } ,
+			{ title: "School101" } ,
 			{ title: "that school" } ,
 			{ title: "That school" }
 		] ) ;
