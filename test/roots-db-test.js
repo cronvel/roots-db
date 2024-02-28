@@ -276,7 +276,8 @@ const storesDescriptor = {
 						collection: 'products'
 					} ,
 					quantity: {
-						type: 'integer'
+						type: 'integer' ,
+						sanitize: 'toInteger'
 					}
 				}
 			}
@@ -1475,7 +1476,7 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		} ) ;
 	} ) ;
 
-	it( "staging/commit and embedded data" , async () => {
+	it( "zzz staging/commit and embedded data" , async () => {
 		var town = towns.createDocument( {
 			name: 'Paris' ,
 			meta: {
@@ -9034,6 +9035,188 @@ describe( "Historical bugs" , () => {
 
 		await Promise.all( [ job1.save() , job2.save() , job3.save() , school.save() ] ) ;
 		await expect( schools.get( id ) ).to.eventually.equal( { _id: id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } ] } ) ;
+	} ) ;
+
+	it( "should fix the bug where .commit() auto-sanitize on array creates bad top-level key with brackets (bug in doormen's patch)" , async () => {
+		var product1 = products.createDocument( {
+			name: 'pencil' ,
+			price: 1.20
+		} ) ;
+
+		var productId1 = product1.getId() ;
+
+		var product2 = products.createDocument( {
+			name: 'eraser' ,
+			price: 1.60
+		} ) ;
+
+		var productId2 = product2.getId() ;
+
+		var store1 = stores.createDocument( {
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: product1 , quantity: 56 } ,
+				{ product: product2 , quantity: 37 }
+			]
+		} ) ;
+
+		var storeId1 = store1.getId() ;
+		//log.hdebug( "store1: %[5]Y" , store1 ) ;
+
+		await product1.save() ;
+		await product2.save() ;
+		await store1.save() ;
+		
+
+		var dbStore1 = await stores.get( storeId1 ) ;
+		
+		//log.hdebug( "dbStore1: %[5]Y" , dbStore1 ) ;
+		expect( dbStore1 ).to.equal( {
+			_id: storeId1 ,
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: { _id: productId1 } , quantity: 56 } ,
+				{ product: { _id: productId2 } , quantity: 37 }
+			] ,
+			productBatches: []
+		} ) ;
+
+		// Force creating a patch that would have to sanitize the array
+		dbStore1.products[ 0 ].quantity = "21" ;
+		// use options validate: true, specifically because it's how it works in RestQuery's .patchDocument()
+		dbStore1.patch( { "products.1.quantity": 12 } , { validate: true } ) ;
+
+		expect( dbStore1 ).to.equal( {
+			_id: storeId1 ,
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: { _id: productId1 } , quantity: "21" } ,
+				{ product: { _id: productId2 } , quantity: 12 }
+			] ,
+			productBatches: []
+		} ) ;
+
+		await dbStore1.commit() ;
+
+		var rawDbStore1 = await stores.get( storeId1 , { raw: true } ) ;
+		//log.hdebug( "rawDbStore1: %[5]Y" , rawDbStore1 ) ;
+
+		// THIS IS THE BUG, because .commit() creates the patch: { "products[0].quantity": 21 }
+		// instead of: { "products.0.quantity": 21 } 
+		expect( rawDbStore1 ).not.to.have.key( 'products[0]' ) ;
+
+		expect( rawDbStore1 ).to.equal( {
+			_id: storeId1 ,
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: { _id: productId1 } , quantity: 21 } ,
+				{ product: { _id: productId2 } , quantity: 12 }
+			] ,
+			productBatches: []
+		} ) ;
+	} ) ;
+
+	it( "yyy should fix the bug where the .commit()'s patch overlaps itself" , async () => {
+		var product1 = products.createDocument( {
+			name: 'pencil' ,
+			price: 1.20
+		} ) ;
+
+		var productId1 = product1.getId() ;
+
+		var product2 = products.createDocument( {
+			name: 'eraser' ,
+			price: 1.60
+		} ) ;
+
+		var productId2 = product2.getId() ;
+
+		var store1 = stores.createDocument( {
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: product1 , quantity: 56 } ,
+				{ product: product2 , quantity: 37 }
+			]
+		} ) ;
+
+		var storeId1 = store1.getId() ;
+		//log.hdebug( "store1: %[5]Y" , store1 ) ;
+
+		await product1.save() ;
+		await product2.save() ;
+		await store1.save() ;
+		
+
+		var dbStore1 = await stores.get( storeId1 ) ;
+		
+		//log.hdebug( "dbStore1: %[5]Y" , dbStore1 ) ;
+		expect( dbStore1 ).to.equal( {
+			_id: storeId1 ,
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: { _id: productId1 } , quantity: 56 } ,
+				{ product: { _id: productId2 } , quantity: 37 }
+			] ,
+			productBatches: []
+		} ) ;
+
+		// Force creating a patch that would have to sanitize the array
+		dbStore1.products[ 0 ].quantity = "21" ;
+		dbStore1.patch( { "products.0": { product: { _id: productId1 } , quantity: "22" } } ) ;
+
+		expect( dbStore1 ).to.equal( {
+			_id: storeId1 ,
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: { _id: productId1 } , quantity: "22" } ,
+				{ product: { _id: productId2 } , quantity: 37 }
+			] ,
+			productBatches: []
+		} ) ;
+
+		
+		
+		// Testing internal machinery
+		// (see Document#commit() source-code, if something needs to be changed)
+
+		var dbPatch = dbStore1._.buildDbPatch() ;
+		log.hdebug( ".buildDbPatch(): %Y" , dbPatch ) ;
+		expect( dbPatch ).to.equal( {
+			set: {
+				"products.0": {
+					product: { _id: productId1 } ,
+					quantity: "22"
+				}
+			}
+		} ) ;
+
+		dbStore1._.collection.validateAndUpdatePatch( dbStore1._.raw , dbPatch.set ) ;
+		log.hdebug( "after .validateAndUpdatePatch(): %Y" , dbPatch ) ;
+		expect( dbPatch ).to.equal( {
+			set: {
+				"products.0": {
+					product: { _id: productId1 } ,
+					quantity: 22
+				}
+			}
+		} ) ;
+		
+		
+
+		// Here MongoDB would raise an error if the patch overlap itself
+		await expect( dbStore1.commit() ).to.eventually.not.throw() ;
+
+		var rawDbStore1 = await stores.get( storeId1 , { raw: true } ) ;
+		
+		expect( rawDbStore1 ).to.equal( {
+			_id: storeId1 ,
+			name: 'Le Grand Bozar' ,
+			products: [
+				{ product: { _id: productId1 } , quantity: 22 } ,
+				{ product: { _id: productId2 } , quantity: 37 }
+			] ,
+			productBatches: []
+		} ) ;
 	} ) ;
 } ) ;
 

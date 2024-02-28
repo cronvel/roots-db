@@ -10,7 +10,7 @@
     "test": "test"
   },
   "dependencies": {
-    "doormen": "^0.15.3",
+    "doormen": "^0.15.4",
     "error-status": "^1.12.1",
     "exm": "^0.5.12",
     "fs-kit": "^0.6.5",
@@ -23,7 +23,7 @@
     "tree-kit": "^0.8.7"
   },
   "devDependencies": {
-    "string-kit": "^0.18.0"
+    "string-kit": "^0.18.1"
   },
   "scripts": {
     "test": "tea-time -R dot"
