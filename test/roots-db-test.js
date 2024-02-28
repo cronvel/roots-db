@@ -9180,7 +9180,7 @@ describe( "Historical bugs" , () => {
 		// (see Document#commit() source-code, if something needs to be changed)
 
 		var dbPatch = dbStore1._.buildDbPatch() ;
-		log.hdebug( ".buildDbPatch(): %Y" , dbPatch ) ;
+		//log.hdebug( ".buildDbPatch(): %Y" , dbPatch ) ;
 		expect( dbPatch ).to.equal( {
 			set: {
 				"products.0": {
@@ -9191,7 +9191,7 @@ describe( "Historical bugs" , () => {
 		} ) ;
 
 		dbStore1._.collection.validateAndUpdatePatch( dbStore1._.raw , dbPatch.set ) ;
-		log.hdebug( "after .validateAndUpdatePatch(): %Y" , dbPatch ) ;
+		//log.hdebug( "after .validateAndUpdatePatch(): %Y" , dbPatch ) ;
 		expect( dbPatch ).to.equal( {
 			set: {
 				"products.0": {
