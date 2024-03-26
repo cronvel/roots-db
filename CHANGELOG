@@ -1,4 +1,10 @@
 
+v0.39.12
+--------
+
+Breaking: import can now have preFilter (applied on raw data) and postFilter (applied on raw mapped data), it supports static values, and it is now possible to restore 'anyCollection' links
+
+
 v0.39.11
 --------
 
