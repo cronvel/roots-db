@@ -7069,8 +7069,8 @@ describe( "Populate links" , () => {
 			_id: job3._id ,
 			title: 'zero' ,
 			salary: 0 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 
 		expect( stats.population.depth ).to.be( 1 ) ;
@@ -7745,16 +7745,16 @@ describe( "Memory model" , () => {
 			_id: job._id ,
 			title: 'developer' ,
 			salary: 60000 ,
-			schools: {} ,
-			users: {}
+			schools: [] ,
+			users: []
 		} ) ;
 
 		expect( memory.collections.jobs.rawDocuments[ job2._id ] ).to.equal( {
 			_id: job2._id ,
 			title: 'adventurer' ,
 			salary: 200000 ,
-			schools: {} ,
-			users: {}
+			schools: [] ,
+			users: []
 		} ) ;
 
 		//console.error( memory.collections.users.rawDocuments ) ;
