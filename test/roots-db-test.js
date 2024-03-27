@@ -2483,8 +2483,8 @@ describe( "Links" , () => {
 			_id: jobId ,
 			title: "developer" ,
 			salary: 60000 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 	} ) ;
 
@@ -2637,7 +2637,7 @@ describe( "Links" , () => {
 		} ) ;
 
 		// Check stringification
-		expect( JSON.stringify( user ) ).to.be( '{"firstName":"Jilbert","lastName":"Polson","_id":"' + userId.toString() + '","memberSid":"Jilbert Polson","job":{"title":"developer","salary":60000,"users":{},"schools":{},"_id":"' + jobId.toString() + '"}}' ) ;
+		expect( JSON.stringify( user ) ).to.be( '{"firstName":"Jilbert","lastName":"Polson","_id":"' + userId.toString() + '","memberSid":"Jilbert Polson","job":{"title":"developer","salary":60000,"users":[],"schools":[],"_id":"' + jobId.toString() + '"}}' ) ;
 		expect( JSON.stringify( user.$ ) ).to.be( '{"firstName":"Jilbert","lastName":"Polson","_id":"' + userId.toString() + '","memberSid":"Jilbert Polson","job":{"_id":"' + jobId.toString() + '"}}' ) ;
 
 		await job.save() ;
@@ -2707,10 +2707,10 @@ describe( "Multi-links" , () => {
 
 		expect( map ).to.equal( {
 			developer: {
-				_id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+				_id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: []
 			} ,
 			sysadmin: {
-				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: {} , schools: {}
+				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: []
 			}
 		} ) ;
 
@@ -2726,10 +2726,10 @@ describe( "Multi-links" , () => {
 
 		expect( map ).to.equal( {
 			developer: {
-				_id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+				_id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: []
 			} ,
 			sysadmin: {
-				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: {} , schools: {}
+				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: []
 			}
 		} ) ;
 
@@ -2749,13 +2749,13 @@ describe( "Multi-links" , () => {
 
 		expect( map ).to.equal( {
 			developer: {
-				_id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+				_id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: []
 			} ,
 			sysadmin: {
-				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: {} , schools: {}
+				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: []
 			} ,
 			"front-end developer": {
-				_id: job3Id , title: 'front-end developer' , salary: 54000 , users: {} , schools: {}
+				_id: job3Id , title: 'front-end developer' , salary: 54000 , users: [] , schools: []
 			}
 		} ) ;
 
@@ -2774,10 +2774,10 @@ describe( "Multi-links" , () => {
 
 		expect( map ).to.equal( {
 			developer: {
-				_id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+				_id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: []
 			} ,
 			"front-end developer": {
-				_id: job3Id , title: 'front-end developer' , salary: 54000 , users: {} , schools: {}
+				_id: job3Id , title: 'front-end developer' , salary: 54000 , users: [] , schools: []
 			}
 		} ) ;
 	} ) ;
@@ -2803,8 +2803,8 @@ describe( "Multi-links" , () => {
 			_id: id ,
 			name: 'root' ,
 			nested: {
-				backLinkOfLink: {} ,
-				backLinkOfMultiLink: {} ,
+				backLinkOfLink: [] ,
+				backLinkOfMultiLink: [] ,
 				multiLink: [ { _id: childDoc1.getId() } , { _id: childDoc2.getId() } ]
 			}
 		} ) ;
@@ -2924,10 +2924,10 @@ describe( "Multi-links" , () => {
 
 		expect( map ).to.equal( {
 			developer: {
-				_id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+				_id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: []
 			} ,
 			sysadmin: {
-				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: {} , schools: {}
+				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: []
 			}
 		} ) ;
 	} ) ;
@@ -2971,7 +2971,7 @@ describe( "Back-links" , () => {
 
 		var dbJob = await jobs.get( jobId ) ;
 		expect( dbJob ).to.equal( {
-			_id: jobId , title: 'developer' , salary: 60000 , users: {} , schools: {}
+			_id: jobId , title: 'developer' , salary: 60000 , users: [] , schools: []
 		} ) ;
 
 		expect( dbJob.getLinkDetails( "users" ) ).to.equal( {
@@ -2984,6 +2984,8 @@ describe( "Back-links" , () => {
 				collection: 'users' ,
 				//optional: true ,
 				type: 'backLink' ,
+				opaque: true ,
+				default: [] ,
 				tags: [ 'content' ] ,
 				sanitize: [ 'toBackLink' ] ,
 				path: 'job' ,
@@ -3015,18 +3017,18 @@ describe( "Back-links" , () => {
 					job: { _id: jobId }
 				}
 			] ,
-			schools: {}
+			schools: []
 		} ) ;
 
 		expect( job.$ ).to.be.like( {
 			_id: jobId ,
 			title: 'developer' ,
 			salary: 60000 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 
-		expect( job.$.users ).to.equal( {} ) ;
+		expect( job.$.users ).to.equal( [] ) ;
 
 		user2.setLink( 'job' , job ) ;
 		await user2.save() ;
@@ -3065,15 +3067,15 @@ describe( "Back-links" , () => {
 					job: { _id: jobId }
 				}
 			] ,
-			schools: {}
+			schools: []
 		} ) ;
 
 		expect( job.$ ).to.be.like( {
 			_id: jobId ,
 			title: 'developer' ,
 			salary: 60000 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 	} ) ;
 
@@ -3128,7 +3130,7 @@ describe( "Back-links" , () => {
 
 		var dbJob = await jobs.get( job1Id ) ;
 		expect( dbJob ).to.equal( {
-			_id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+			_id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: []
 		} ) ;
 
 		batch = await dbJob.getLink( 'schools' ) ;
@@ -3145,7 +3147,7 @@ describe( "Back-links" , () => {
 			_id: job1Id ,
 			title: 'developer' ,
 			salary: 60000 ,
-			users: {} ,
+			users: [] ,
 			schools: [
 				{ _id: school1Id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ] } ,
 				{ _id: school2Id , title: 'Web Academy' , jobs: [ { _id: job1Id } , { _id: job3Id } , { _id: job4Id } ] }
@@ -3156,13 +3158,13 @@ describe( "Back-links" , () => {
 			_id: job1Id ,
 			title: 'developer' ,
 			salary: 60000 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 
 		dbJob = await jobs.get( job4Id ) ;
 		expect( dbJob ).to.equal( {
-			_id: job4Id , title: 'designer' , salary: 56000 , users: {} , schools: {}
+			_id: job4Id , title: 'designer' , salary: 56000 , users: [] , schools: []
 		} ) ;
 
 		batch = await dbJob.getLink( 'schools' ) ;
@@ -3190,6 +3192,8 @@ describe( "Back-links" , () => {
 			schema: {
 				collection: 'nestedLinks' ,
 				type: 'backLink' ,
+				opaque: true ,
+				default: [] ,
 				sanitize: [ 'toBackLink' ] ,
 				tags: [ 'content' ] ,
 				path: 'nested.link' ,
@@ -3216,12 +3220,12 @@ describe( "Back-links" , () => {
 			child1: { _id: childDoc1.getId() ,
 				name: "child1" ,
 				nested: {
-					backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: []
+					backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: []
 				} } ,
 			child2: { _id: childDoc2.getId() ,
 				name: "child2" ,
 				nested: {
-					backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: []
+					backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: []
 				} }
 		} ) ;
 
@@ -3238,17 +3242,17 @@ describe( "Back-links" , () => {
 			child1: { _id: childDoc1.getId() ,
 				name: "child1" ,
 				nested: {
-					backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: []
+					backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: []
 				} } ,
 			child2: { _id: childDoc2.getId() ,
 				name: "child2" ,
 				nested: {
-					backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: []
+					backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: []
 				} } ,
 			child3: { _id: childDoc3.getId() ,
 				name: "child3" ,
 				nested: {
-					backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: []
+					backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: []
 				} }
 		} ) ;
 
@@ -3265,12 +3269,12 @@ describe( "Back-links" , () => {
 			child1: { _id: childDoc1.getId() ,
 				name: "child1" ,
 				nested: {
-					backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: []
+					backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: []
 				} } ,
 			child3: { _id: childDoc3.getId() ,
 				name: "child3" ,
 				nested: {
-					backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: []
+					backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: []
 				} }
 		} ) ;
 
@@ -3282,12 +3286,12 @@ describe( "Back-links" , () => {
 					{ _id: childDoc1.getId() ,
 						name: "child1" ,
 						nested: {
-							backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: []
+							backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: []
 						} } ,
 					{ _id: childDoc3.getId() ,
 						name: "child3" ,
 						nested: {
-							backLinkOfLink: {} , backLinkOfMultiLink: {} , link: { _id: id } , multiLink: []
+							backLinkOfLink: [] , backLinkOfMultiLink: [] , link: { _id: id } , multiLink: []
 						} }
 				]
 			}
@@ -3296,7 +3300,7 @@ describe( "Back-links" , () => {
 		expect( rootDoc.$ ).to.be.like( {
 			_id: id ,
 			name: "root" ,
-			nested: { backLinkOfLink: {} }
+			nested: { backLinkOfLink: [] }
 		} ) ;
 	} ) ;
 
@@ -3316,6 +3320,8 @@ describe( "Back-links" , () => {
 			schema: {
 				collection: 'nestedLinks' ,
 				type: 'backLink' ,
+				opaque: true ,
+				default: [] ,
 				tags: [ 'content' ] ,
 				sanitize: [ 'toBackLink' ] ,
 				path: 'nested.multiLink' ,
@@ -3344,8 +3350,8 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } ] } } ,
-			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } , { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } ] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } ] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } , { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } ] } }
 		} ) ;
 
 		// Second test
@@ -3358,9 +3364,9 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } ] } } ,
-			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } , { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } ] } } ,
-			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } ] } } ,
+			child2: { _id: childDoc2.getId() , name: "child2" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } , { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } ] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
 		} ) ;
 
 		// Third test
@@ -3373,8 +3379,8 @@ describe( "Back-links" , () => {
 		batch.forEach( doc => { map[ doc.name ] = doc ; } ) ;
 
 		expect( map ).to.equal( {
-			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } ] } } ,
-			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
+			child1: { _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } ] } } ,
+			child3: { _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
 		} ) ;
 
 		expect( rootDoc ).to.be.like( {
@@ -3382,8 +3388,8 @@ describe( "Back-links" , () => {
 			name: "root" ,
 			nested: {
 				backLinkOfMultiLink: [
-					{ _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: rootDoc.getId() } ] } } ,
-					{ _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: {} , backLinkOfMultiLink: {} , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
+					{ _id: childDoc1.getId() , name: "child1" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: rootDoc.getId() } ] } } ,
+					{ _id: childDoc3.getId() , name: "child3" , nested: { backLinkOfLink: [] , backLinkOfMultiLink: [] , multiLink: [ { _id: otherDoc1.getId() } , { _id: otherDoc2.getId() } , { _id: rootDoc.getId() } ] } }
 				]
 			}
 		} ) ;
@@ -3391,7 +3397,7 @@ describe( "Back-links" , () => {
 		expect( rootDoc.$ ).to.be.like( {
 			_id: id ,
 			name: "root" ,
-			nested: { backLinkOfMultiLink: {} }
+			nested: { backLinkOfMultiLink: [] }
 		} ) ;
 	} ) ;
 } ) ;
@@ -3429,14 +3435,14 @@ describe( "Any-collection links" , () => {
 			_id: docId ,
 			name: 'docname' ,
 			link: user ,
-			backLink: {}
+			backLink: []
 		} ) ;
 
 		expect( doc.$ ).to.equal( {
 			_id: docId ,
 			name: 'docname' ,
 			link: { _id: userId , _collection: 'users' } ,
-			backLink: {}
+			backLink: []
 		} ) ;
 
 		await user.save() ;
@@ -3460,14 +3466,14 @@ describe( "Any-collection links" , () => {
 			_id: docId ,
 			name: 'docname' ,
 			link: job ,
-			backLink: {}
+			backLink: []
 		} ) ;
 
 		expect( doc.$ ).to.equal( {
 			_id: docId ,
 			name: 'docname' ,
 			link: { _id: jobId , _collection: 'jobs' } ,
-			backLink: {}
+			backLink: []
 		} ) ;
 
 		await doc.save() ;
@@ -3479,8 +3485,8 @@ describe( "Any-collection links" , () => {
 			_id: jobId ,
 			title: 'developer' ,
 			salary: 60000 ,
-			schools: {} ,
-			users: {}
+			schools: [] ,
+			users: []
 		} ) ;
 
 		dbDoc = await anyCollectionLinks.get( docId , { populate: 'link' } ) ;
@@ -3492,10 +3498,10 @@ describe( "Any-collection links" , () => {
 				_id: jobId ,
 				title: 'developer' ,
 				salary: 60000 ,
-				schools: {} ,
-				users: {}
+				schools: [] ,
+				users: []
 			} ,
-			backLink: {}
+			backLink: []
 		} ) ;
 	} ) ;
 
@@ -6614,8 +6620,8 @@ describe( "Populate links" , () => {
 				job: {
 					title: 'developer' ,
 					salary: 60000 ,
-					users: {} ,
-					schools: {} ,
+					users: [] ,
+					schools: [] ,
 					_id: job._id
 				} ,
 				godfather: {
@@ -6709,8 +6715,8 @@ describe( "Populate links" , () => {
 				job: {
 					title: 'developer' ,
 					salary: 60000 ,
-					users: {} ,
-					schools: {} ,
+					users: [] ,
+					schools: [] ,
 					_id: job._id
 				} ,
 				godfather: {
@@ -6820,8 +6826,8 @@ describe( "Populate links" , () => {
 				job: {
 					title: 'developer' ,
 					salary: 60000 ,
-					users: {} ,
-					schools: {} ,
+					users: [] ,
+					schools: [] ,
 					_id: job._id
 				} ,
 				godfather: {
@@ -6995,7 +7001,7 @@ describe( "Populate links" , () => {
 					job: { _id: job1._id }
 				}
 			] ,
-			schools: {}
+			schools: []
 		} ) ;
 
 		expect( stats.population.depth ).to.be( 1 ) ;
@@ -7034,7 +7040,7 @@ describe( "Populate links" , () => {
 					job: { _id: job1._id }
 				}
 			] ,
-			schools: {}
+			schools: []
 		} ) ;
 
 		expect( batch[ 1 ].users ).to.have.length( 2 ) ;
@@ -7062,7 +7068,7 @@ describe( "Populate links" , () => {
 					job: { _id: job2._id }
 				}
 			] ,
-			schools: {}
+			schools: []
 		} ) ;
 
 		expect( batch[ 2 ] ).to.be.like( {
@@ -7127,7 +7133,7 @@ describe( "Populate links" , () => {
 			_id: job1._id ,
 			title: 'developer' ,
 			salary: 60000 ,
-			users: {} ,
+			users: [] ,
 			schools: [
 				{
 					_id: school1._id ,
@@ -7155,7 +7161,7 @@ describe( "Populate links" , () => {
 			_id: job4._id ,
 			title: 'designer' ,
 			salary: 56000 ,
-			users: {} ,
+			users: [] ,
 			schools: [
 				{
 					_id: school2._id ,
@@ -7414,7 +7420,7 @@ describe( "Deep populate links" , () => {
 				_id: job._id ,
 				title: 'developer' ,
 				salary: 60000 ,
-				schools: {} ,
+				schools: [] ,
 				users: []
 			}
 		} ;
@@ -7427,7 +7433,7 @@ describe( "Deep populate links" , () => {
 				_id: job2._id ,
 				title: 'senior developer' ,
 				salary: 80000 ,
-				schools: {} ,
+				schools: [] ,
 				users: []
 			}
 		} ;
@@ -7690,16 +7696,16 @@ describe( "Memory model" , () => {
 			_id: job._id ,
 			title: 'developer' ,
 			salary: 60000 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 
 		expect( memory.collections.jobs.rawDocuments[ job2._id ] ).to.equal( {
 			_id: job2._id ,
 			title: 'adventurer' ,
 			salary: 200000 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 
 		//console.error( memory.collections.users.rawDocuments ) ;
@@ -7815,32 +7821,32 @@ describe( "Memory model" , () => {
 			_id: job1._id ,
 			title: 'developer' ,
 			salary: 60000 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 
 		expect( memory.collections.jobs.rawDocuments[ job2._id ] ).to.equal( {
 			_id: job2._id ,
 			title: 'sysadmin' ,
 			salary: 55000 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 
 		expect( memory.collections.jobs.rawDocuments[ job3._id ] ).to.equal( {
 			_id: job3._id ,
 			title: 'front-end developer' ,
 			salary: 54000 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 
 		expect( memory.collections.jobs.rawDocuments[ job4._id ] ).to.equal( {
 			_id: job4._id ,
 			title: 'designer' ,
 			salary: 56000 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 
 		expect( stats.population.depth ).to.be( 1 ) ;
@@ -7908,8 +7914,8 @@ describe( "Memory model" , () => {
 				_id: job._id ,
 				title: 'developer' ,
 				salary: 60000 ,
-				users: {} ,
-				schools: {}
+				users: [] ,
+				schools: []
 			}
 		} ) ;
 
@@ -7917,8 +7923,8 @@ describe( "Memory model" , () => {
 			_id: job._id ,
 			title: 'developer' ,
 			salary: 60000 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 		expect( stats.population.depth ).to.be( 1 ) ;
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
@@ -7944,7 +7950,7 @@ describe( "Memory model" , () => {
 				_id: job._id ,
 				title: 'developer' ,
 				salary: 60000 ,
-				schools: {} ,
+				schools: [] ,
 				users: []
 			}
 		} ;
@@ -7987,7 +7993,7 @@ describe( "Versioning" , () => {
 			_lastModified: versionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1a' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		versionedItem.p1 = 'value1b' ;
@@ -7998,7 +8004,7 @@ describe( "Versioning" , () => {
 			_lastModified: versionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1b' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		await versionedItem.save() ;
@@ -8012,7 +8018,7 @@ describe( "Versioning" , () => {
 			_lastModified: versionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1c' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		await versionedItem.save() ;
@@ -8024,7 +8030,7 @@ describe( "Versioning" , () => {
 			_lastModified: versionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1c' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		var batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
@@ -8040,7 +8046,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1b' ,
-				versions: {}
+				versions: []
 			}
 		] ) ;
 
@@ -8052,7 +8058,7 @@ describe( "Versioning" , () => {
 			_lastModified: dbVersionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1c' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		dbVersionedItem.p2 = 'value2a' ;
@@ -8066,7 +8072,7 @@ describe( "Versioning" , () => {
 			name: 'item#1' ,
 			p1: 'value1c' ,
 			p2: 'value2b' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		await dbVersionedItem.save() ;
@@ -8079,7 +8085,7 @@ describe( "Versioning" , () => {
 			name: 'item#1' ,
 			p1: 'value1c' ,
 			p2: 'value2b' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
@@ -8097,7 +8103,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1b' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 1 ]._id ,	// unpredictable
@@ -8109,7 +8115,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1c' ,
-				versions: {}
+				versions: []
 			}
 		] ) ;
 
@@ -8125,7 +8131,7 @@ describe( "Versioning" , () => {
 			name: 'item#1' ,
 			p1: 'value1c' ,
 			p2: 'value2c' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
@@ -8140,7 +8146,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1b' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 1 ]._id ,	// unpredictable
@@ -8152,7 +8158,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1c' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 2 ]._id ,	// unpredictable
@@ -8165,7 +8171,7 @@ describe( "Versioning" , () => {
 				name: 'item#1' ,
 				p1: 'value1c' ,
 				p2: 'value2b' ,
-				versions: {}
+				versions: []
 			}
 		] ) ;
 
@@ -8181,7 +8187,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1b' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: dbItemVersions[ 1 ]._id ,	// unpredictable
@@ -8193,7 +8199,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1c' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: dbItemVersions[ 2 ]._id ,	// unpredictable
@@ -8206,7 +8212,7 @@ describe( "Versioning" , () => {
 				name: 'item#1' ,
 				p1: 'value1c' ,
 				p2: 'value2b' ,
-				versions: {}
+				versions: []
 			}
 		] ) ;
 
@@ -8231,7 +8237,7 @@ describe( "Versioning" , () => {
 			name: 'item#1' ,
 			p1: 'value1-over' ,
 			p2: 'value2-over' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
@@ -8246,7 +8252,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1b' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 1 ]._id ,	// unpredictable
@@ -8258,7 +8264,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1c' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 2 ]._id ,	// unpredictable
@@ -8271,7 +8277,7 @@ describe( "Versioning" , () => {
 				name: 'item#1' ,
 				p1: 'value1c' ,
 				p2: 'value2b' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 3 ]._id ,	// unpredictable
@@ -8284,7 +8290,7 @@ describe( "Versioning" , () => {
 				name: 'item#1' ,
 				p1: 'value1c' ,
 				p2: 'value2c' ,
-				versions: {}
+				versions: []
 			}
 		] ) ;
 
@@ -8301,7 +8307,7 @@ describe( "Versioning" , () => {
 			name: 'ITEM#1' ,
 			p1: 'value1-over' ,
 			p2: 'value2-over' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		dbVersionedItem = await versionedItems.get( versionedItemId ) ;
@@ -8313,7 +8319,7 @@ describe( "Versioning" , () => {
 			name: 'ITEM#1' ,
 			p1: 'value1-over' ,
 			p2: 'value2-over' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
@@ -8328,7 +8334,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1b' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 1 ]._id ,	// unpredictable
@@ -8340,7 +8346,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1c' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 2 ]._id ,	// unpredictable
@@ -8353,7 +8359,7 @@ describe( "Versioning" , () => {
 				name: 'item#1' ,
 				p1: 'value1c' ,
 				p2: 'value2b' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 3 ]._id ,	// unpredictable
@@ -8366,7 +8372,7 @@ describe( "Versioning" , () => {
 				name: 'item#1' ,
 				p1: 'value1c' ,
 				p2: 'value2c' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 4 ]._id ,  // unpredictable
@@ -8379,7 +8385,7 @@ describe( "Versioning" , () => {
 				name: 'item#1' ,
 				p1: 'value1-over' ,
 				p2: 'value2-over' ,
-				versions: {}
+				versions: []
 			}
 		] ) ;
 
@@ -8401,7 +8407,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1b' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 1 ]._id ,	// unpredictable
@@ -8413,7 +8419,7 @@ describe( "Versioning" , () => {
 				} ,
 				name: 'item#1' ,
 				p1: 'value1c' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 2 ]._id ,	// unpredictable
@@ -8426,7 +8432,7 @@ describe( "Versioning" , () => {
 				name: 'item#1' ,
 				p1: 'value1c' ,
 				p2: 'value2b' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 3 ]._id ,	// unpredictable
@@ -8439,7 +8445,7 @@ describe( "Versioning" , () => {
 				name: 'item#1' ,
 				p1: 'value1c' ,
 				p2: 'value2c' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 4 ]._id ,  // unpredictable
@@ -8452,7 +8458,7 @@ describe( "Versioning" , () => {
 				name: 'item#1' ,
 				p1: 'value1-over' ,
 				p2: 'value2-over' ,
-				versions: {}
+				versions: []
 			} ,
 			{
 				_id: batch[ 5 ]._id ,  // unpredictable
@@ -8465,7 +8471,7 @@ describe( "Versioning" , () => {
 				name: 'ITEM#1' ,
 				p1: 'value1-over' ,
 				p2: 'value2-over' ,
-				versions: {}
+				versions: []
 			}
 		] ) ;
 	} ) ;
@@ -8490,7 +8496,7 @@ describe( "Versioning" , () => {
 			p1: 'value1a' ,
 			p3: { a: 1 } ,
 			p4: date1 ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		await versionedItem.save() ;
@@ -8507,7 +8513,7 @@ describe( "Versioning" , () => {
 			p1: 'value1a' ,
 			p3: { a: 1 } ,
 			p4: date1 ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		var batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
@@ -8525,7 +8531,7 @@ describe( "Versioning" , () => {
 			p1: 'value1a' ,
 			p3: { a: 1 } ,
 			p4: date1 ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
@@ -8543,7 +8549,7 @@ describe( "Versioning" , () => {
 			p1: 'value1a' ,
 			p3: { a: 1 } ,
 			p4: date1 ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		batch = await versions.find( { '_activeVersion._id': versionedItemId , '_activeVersion._collection': 'versionedItems' } ) ;
@@ -8566,7 +8572,7 @@ describe( "Versioning" , () => {
 			_lastModified: versionedItem._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1a' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		await versionedItem.save() ;
@@ -8580,7 +8586,7 @@ describe( "Versioning" , () => {
 			_lastModified: dbVersionedItem1._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value1a' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 		expect( dbVersionedItem1 ).to.equal( dbVersionedItem2 ) ;
@@ -8598,7 +8604,7 @@ describe( "Versioning" , () => {
 			_lastModified: dbVersionedItem1._lastModified ,	// unpredictable
 			name: 'item#1' ,
 			p1: 'value2b' ,
-			versions: {}
+			versions: []
 		} ) ;
 
 	} ) ;
@@ -8720,24 +8726,24 @@ describe( "Historical bugs" , () => {
 		var dbJob = await jobs.get( job._id ) ;
 
 		expect( dbJob ).to.equal( {
-			_id: job._id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+			_id: job._id , title: 'developer' , salary: 60000 , users: [] , schools: []
 		} ) ;
 
 		job.patch( { salary: "65000" } ) ;
 		// Before sanitizing: it's a string
 		expect( job ).to.equal( {
-			_id: job._id , title: 'developer' , salary: "65000" , users: {} , schools: {}
+			_id: job._id , title: 'developer' , salary: "65000" , users: [] , schools: []
 		} ) ;
 
 		await job.commit() ;
 		// After commit/sanitizing: now a number
 		expect( job ).to.equal( {
-			_id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {}
+			_id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: []
 		} ) ;
 
 		dbJob = await jobs.get( job._id ) ;
 		expect( dbJob ).to.equal( {
-			_id: job._id , title: 'developer' , salary: 65000 , users: {} , schools: {}
+			_id: job._id , title: 'developer' , salary: 65000 , users: [] , schools: []
 		} ) ;
 
 		var dbTown = await towns.get( town._id ) ;
@@ -8844,10 +8850,10 @@ describe( "Historical bugs" , () => {
 
 		expect( map ).to.equal( {
 			developer: {
-				_id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+				_id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: []
 			} ,
 			sysadmin: {
-				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: {} , schools: {}
+				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: []
 			}
 		} ) ;
 	} ) ;
@@ -8907,10 +8913,10 @@ describe( "Historical bugs" , () => {
 
 		expect( map ).to.equal( {
 			developer: {
-				_id: job1Id , title: 'developer' , salary: 60000 , users: {} , schools: {}
+				_id: job1Id , title: 'developer' , salary: 60000 , users: [] , schools: []
 			} ,
 			sysadmin: {
-				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: {} , schools: {}
+				_id: job2Id , title: 'sysadmin' , salary: 55000 , users: [] , schools: []
 			}
 		} ) ;
 	} ) ;
@@ -8942,8 +8948,8 @@ describe( "Historical bugs" , () => {
 			_id: jobId ,
 			title: "developer" ,
 			salary: 60000 ,
-			users: {} ,
-			schools: {}
+			users: [] ,
+			schools: []
 		} ) ;
 	} ) ;
 

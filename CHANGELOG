@@ -1,4 +1,10 @@
 
+v0.40.0
+-------
+
+BREAKING: back-links are stored as arrays and proxified as arrays even when empty
+
+
 v0.39.12
 --------
 
