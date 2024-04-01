@@ -6474,6 +6474,35 @@ describe( "Populate links" , () => {
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
 
+	it( "link population (create both, link, save both, get with populate option , get the document THEN populate it)" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		//console.log( job ) ;
+		var jobId = job.getId() ;
+
+		user.setLink( 'job' , job ) ;
+
+		await job.save() ;
+		await user.save() ;
+
+		var dbUser = await users.get( id ) ;
+		dbUser.populate( [ 'job' ] ) ;
+
+		expect( dbUser ).to.equal( {
+			_id: id , job: job , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
+		} ) ;
+	} ) ;
+
 	it( "multiple link population (create, link, save, get with populate option)" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
@@ -6509,6 +6538,40 @@ describe( "Populate links" , () => {
 
 		expect( stats.population.depth ).to.be( 1 ) ;
 		expect( stats.population.dbQueries ).to.be( 2 ) ;
+	} ) ;
+
+	it( "multiple link population (create, link, save, get the document THEN populate it)" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var godfather = users.createDocument( {
+			firstName: 'DA' ,
+			lastName: 'GODFATHER'
+		} ) ;
+
+		var id = user.getId() ;
+
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		// Link the documents!
+		user.setLink( 'job' , job ) ;
+		user.setLink( 'godfather' , godfather ) ;
+
+		await job.save() ;
+		await godfather.save() ;
+		await user.save() ;
+
+		var dbUser = await users.get( id ) ;
+		dbUser.populate( [ 'job' , 'godfather' ] ) ;
+
+		expect( dbUser ).to.equal( {
+			_id: id , job: job , godfather: godfather , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
+		} ) ;
 	} ) ;
 
 	it( "multiple link population having same and circular target" , async () => {
