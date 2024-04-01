@@ -2718,6 +2718,7 @@ describe( "Multi-links" , () => {
 		dbSchool = await schools.get( id ) ;
 
 		batch = await dbSchool.getLink( "jobs" ) ;
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
 		expect( dbSchool.$.jobs ).to.equal( [ { _id: job1Id } , { _id: job2Id } ] ) ;
 		expect( dbSchool.jobs ).to.equal( [ job1 , job2 ] ) ;
 

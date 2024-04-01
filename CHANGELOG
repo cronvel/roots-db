@@ -1,4 +1,10 @@
 
+v0.40.2
+-------
+
+Improved Batch Array prototype's method support: it returns a Batch or an Array depending on what make sense for that method (e.g.: .map() returns an Array while .filter() returns a Batch)
+
+
 v0.40.1
 -------
 
