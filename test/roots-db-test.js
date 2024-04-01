@@ -1476,7 +1476,7 @@ describe( "Patch, auto-staging, manual staging and commit documents" , () => {
 		} ) ;
 	} ) ;
 
-	it( "zzz staging/commit and embedded data" , async () => {
+	it( "staging/commit and embedded data" , async () => {
 		var town = towns.createDocument( {
 			name: 'Paris' ,
 			meta: {
@@ -6442,7 +6442,7 @@ describe( "Populate links" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "link population (create both, link, save both, get with populate option)" , async () => {
+	it( "link population as a .get() option (create both, link, save both, get with populate option)" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -6474,7 +6474,7 @@ describe( "Populate links" , () => {
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
 
-	it( "link population (create both, link, save both, get with populate option , get the document THEN populate it)" , async () => {
+	it( "link population on Document instances (create both, link, save both, get then populate)" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -6496,14 +6496,14 @@ describe( "Populate links" , () => {
 		await user.save() ;
 
 		var dbUser = await users.get( id ) ;
-		dbUser.populate( [ 'job' ] ) ;
+		await dbUser.populate( [ 'job' ] ) ;
 
 		expect( dbUser ).to.equal( {
 			_id: id , job: job , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
 		} ) ;
 	} ) ;
 
-	it( "multiple link population (create, link, save, get with populate option)" , async () => {
+	it( "multiple links population as a .get() option (create, link, save, get with populate option)" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -6540,7 +6540,7 @@ describe( "Populate links" , () => {
 		expect( stats.population.dbQueries ).to.be( 2 ) ;
 	} ) ;
 
-	it( "multiple link population (create, link, save, get the document THEN populate it)" , async () => {
+	it( "multiple link population on Document instances (create, link, save, get then populate)" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -6567,14 +6567,14 @@ describe( "Populate links" , () => {
 		await user.save() ;
 
 		var dbUser = await users.get( id ) ;
-		dbUser.populate( [ 'job' , 'godfather' ] ) ;
+		await dbUser.populate( [ 'job' , 'godfather' ] ) ;
 
 		expect( dbUser ).to.equal( {
 			_id: id , job: job , godfather: godfather , firstName: 'Jilbert' , lastName: 'Polson' , memberSid: 'Jilbert Polson'
 		} ) ;
 	} ) ;
 
-	it( "multiple link population having same and circular target" , async () => {
+	it( "multiple link population as a .get() option, having same and circular target" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -6616,7 +6616,7 @@ describe( "Populate links" , () => {
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
 
-	it( "collect batch with multiple link population (create, link, save, collect with populate option)" , async () => {
+	it( "collect batch with multiple link population as a .collect() option (create, link, save, collect with populate option)" , async () => {
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -6707,7 +6707,94 @@ describe( "Populate links" , () => {
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
 
-	it( "collect batch with multiple link population and circular references" , async () => {
+	it( "collect batch with multiple link population on Batch instances (create, link, save, collect then populate)" , async () => {
+		var user1 = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var user2 = users.createDocument( {
+			firstName: 'Thomas' ,
+			lastName: 'Campbell'
+		} ) ;
+
+		var user3 = users.createDocument( {
+			firstName: 'Harry' ,
+			lastName: 'Campbell'
+		} ) ;
+
+		var godfather = users.createDocument( {
+			firstName: 'DA' ,
+			lastName: 'GODFATHER'
+		} ) ;
+
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		// Link the documents!
+		user1.setLink( 'job' , job ) ;
+		user1.setLink( 'godfather' , godfather ) ;
+		user3.setLink( 'godfather' , godfather ) ;
+
+		await Promise.all( [ job.save() , godfather.save() ] ) ;
+		await Promise.all( [ user1.save() , user2.save() , user3.save() ] ) ;
+
+		var dbUserBatch = await users.collect( {} ) ;
+		await dbUserBatch.populate( [ 'job' , 'godfather' ] ) ;
+
+		// Sort that first...
+		dbUserBatch.sort( ( a , b ) => a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ) ;
+
+		expect( dbUserBatch ).to.be.like( [
+			{
+				firstName: 'DA' ,
+				lastName: 'GODFATHER' ,
+				_id: dbUserBatch[ 0 ]._id ,
+				memberSid: 'DA GODFATHER'
+			} ,
+			{
+				firstName: 'Harry' ,
+				lastName: 'Campbell' ,
+				_id: dbUserBatch[ 1 ]._id ,
+				memberSid: 'Harry Campbell' ,
+				godfather: {
+					firstName: 'DA' ,
+					lastName: 'GODFATHER' ,
+					_id: dbUserBatch[ 0 ]._id ,
+					memberSid: 'DA GODFATHER'
+				}
+			} ,
+			{
+				firstName: 'Jilbert' ,
+				lastName: 'Polson' ,
+				_id: dbUserBatch[ 2 ]._id ,
+				memberSid: 'Jilbert Polson' ,
+				job: {
+					title: 'developer' ,
+					salary: 60000 ,
+					users: [] ,
+					schools: [] ,
+					_id: job._id
+				} ,
+				godfather: {
+					firstName: 'DA' ,
+					lastName: 'GODFATHER' ,
+					_id: dbUserBatch[ 0 ]._id ,
+					memberSid: 'DA GODFATHER'
+				}
+			} ,
+			{
+				firstName: 'Thomas' ,
+				lastName: 'Campbell' ,
+				_id: dbUserBatch[ 3 ]._id ,
+				memberSid: 'Thomas Campbell'
+			}
+		] ) ;
+	} ) ;
+
+	it( "collect batch with multiple link population as a .collect() option, and circular references" , async () => {
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -6812,7 +6899,7 @@ describe( "Populate links" , () => {
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
 
-	it( "collect batch with multiple link population and circular references: using noReference" , async () => {
+	it( "collect batch with multiple link population as a .collect() option, and circular references: using noReference" , async () => {
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -6922,7 +7009,7 @@ describe( "Populate links" , () => {
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
 
-	it( "'multi-link' population (create both, link, save both, get with populate option)" , async () => {
+	it( "'multi-link' population as a .get()/.collect() option (create both, link, save both, get with populate option)" , async () => {
 		var school1 = schools.createDocument( {
 			title: 'Computer Science'
 		} ) ;
@@ -6994,7 +7081,7 @@ describe( "Populate links" , () => {
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
 
-	it( "'back-link' population (create both, link, save both, get with populate option)" , async () => {
+	it( "'back-link' population as a .get() option (create both, link, save both, get with populate option)" , async () => {
 		var user1 = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -7146,7 +7233,7 @@ describe( "Populate links" , () => {
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
 
-	it( "'back-link' of multi-link population" , async () => {
+	it( "'back-link' of multi-link population as a .get() option" , async () => {
 		var school1 = schools.createDocument( {
 			title: 'Computer Science'
 		} ) ;
@@ -7418,7 +7505,7 @@ describe( "Deep populate links" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "deep population (links and back-link)" , async () => {
+	it( "deep population as a .get() option (links and back-link)" , async () => {
 		var user = users.createDocument( {
 			firstName: 'Jilbert' ,
 			lastName: 'Polson'
@@ -7530,6 +7617,103 @@ describe( "Deep populate links" , () => {
 		dbUser = await users.get( user._id , { depth: 2 , deepPopulate: { users: [ 'job' , 'godfather' ] , jobs: 'users' } , stats } ) ;
 		expect( stats.population.depth ).to.be( 2 ) ;
 		expect( stats.population.dbQueries ).to.be( 4 ) ;
+	} ) ;
+
+	it( "deep population on Document instances (links and back-link)" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var user2 = users.createDocument( {
+			firstName: 'Robert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var gfUser = users.createDocument( {
+			firstName: 'The' ,
+			lastName: 'Godfather'
+		} ) ;
+
+		var job = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var job2 = jobs.createDocument( {
+			title: 'senior developer' ,
+			salary: 80000
+		} ) ;
+
+		// Link the documents!
+		user.setLink( 'job' , job ) ;
+		user2.setLink( 'job' , job ) ;
+		gfUser.setLink( 'job' , job2 ) ;
+		user.setLink( 'godfather' , gfUser ) ;
+		user2.setLink( 'godfather' , gfUser ) ;
+
+		await job.save() ;
+		await job2.save() ;
+		await user.save() ;
+		await user2.save() ;
+		await gfUser.save() ;
+
+		// Check that the syntax support both array and direct string
+		var dbUser = await users.get( user._id ) ;
+		await dbUser.populate( [ 'job' , 'godfather' ] , { deepPopulate: { users: [ 'job' , 'godfather' ] , jobs: 'users' } } ) ;
+
+		expect( dbUser.job.users ).to.have.length( 2 ) ;
+
+		// Just swap in case it arrives in the wrong order
+		if ( dbUser.job.users[ 0 ].firstName === 'Robert' ) {
+			dbUser.job.users = [ dbUser.job.users[ 1 ] , dbUser.job.users[ 0 ] ] ;
+		}
+
+		expect( dbUser.job.users[ 0 ].job ).to.be( dbUser.job ) ;
+		expect( dbUser.job.users[ 1 ].job ).to.be( dbUser.job ) ;
+
+		// Circular references... so boring to test...
+		var expected = {
+			_id: user._id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			job: {
+				_id: job._id ,
+				title: 'developer' ,
+				salary: 60000 ,
+				schools: [] ,
+				users: []
+			}
+		} ;
+		expected.godfather = {
+			_id: gfUser._id ,
+			firstName: "The" ,
+			lastName: "Godfather" ,
+			memberSid: "The Godfather" ,
+			job: {
+				_id: job2._id ,
+				title: 'senior developer' ,
+				salary: 80000 ,
+				schools: [] ,
+				users: []
+			}
+		} ;
+		expected.godfather.job.users[ 0 ] = expected.godfather ;
+		expected.job.users[ 0 ] = expected ;
+		expected.job.users[ 1 ] = {
+			_id: user2._id ,
+			firstName: "Robert" ,
+			lastName: "Polson" ,
+			memberSid: "Robert Polson" ,
+			godfather: expected.godfather ,
+			job: expected.job
+		} ;
+		expect( dbUser ).to.be.like( expected ) ;
+
+		// There is something wrong this the "like" assertion and proxy (?) ATM
+		expect( dbUser.godfather ).to.be.like( expected.godfather ) ;
+		expect( dbUser.job.users[ 0 ] ).to.be.like( expected ) ;
 	} ) ;
 
 	it( "more deep population tests" ) ;
