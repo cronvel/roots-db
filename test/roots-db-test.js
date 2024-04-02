@@ -7325,6 +7325,92 @@ describe( "Populate links" , () => {
 		expect( stats.population.depth ).to.be( 1 ) ;
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
 	} ) ;
+
+	it( "'back-link' of multi-link population on a Document instance" , async () => {
+		var school1 = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+
+		var school2 = schools.createDocument( {
+			title: 'Web Academy'
+		} ) ;
+
+		var job1 = jobs.createDocument( {
+			title: 'developer' ,
+			salary: 60000
+		} ) ;
+
+		var job2 = jobs.createDocument( {
+			title: 'sysadmin' ,
+			salary: 55000
+		} ) ;
+
+		var job3 = jobs.createDocument( {
+			title: 'front-end developer' ,
+			salary: 54000
+		} ) ;
+
+		var job4 = jobs.createDocument( {
+			title: 'designer' ,
+			salary: 56000
+		} ) ;
+
+		// Link the documents!
+		school1.setLink( 'jobs' , [ job1 , job2 , job3 ] ) ;
+		school2.setLink( 'jobs' , [ job1 , job3 , job4 ] ) ;
+
+		await Promise.all( [ job1.save() , job2.save() , job3.save() , job4.save() , school1.save() , school2.save() ] ) ;
+
+		var dbJob = await jobs.get( job1._id ) ;
+		await dbJob.populate( 'schools' ) ;
+
+		expect( dbJob.schools ).to.have.length( 2 ) ;
+
+		dbJob.schools.sort( ( a , b ) => b.title - a.title ) ;
+
+		// Order by id
+		dbJob.schools[ 0 ].jobs.sort( ( a , b ) => '' + a._id > '' + b._id ? 1 : -1 ) ;
+		dbJob.schools[ 1 ].jobs.sort( ( a , b ) => '' + a._id > '' + b._id ? 1 : -1 ) ;
+
+		expect( dbJob ).to.be.like( {
+			_id: job1._id ,
+			title: 'developer' ,
+			salary: 60000 ,
+			users: [] ,
+			schools: [
+				{
+					_id: school1._id ,
+					title: 'Computer Science' ,
+					jobs: [ { _id: job1._id } , { _id: job2._id } , { _id: job3._id } ]
+				} ,
+				{
+					_id: school2._id ,
+					title: 'Web Academy' ,
+					jobs: [ { _id: job1._id } , { _id: job3._id } , { _id: job4._id } ]
+				}
+			]
+		} ) ;
+
+		dbJob = await jobs.get( job4._id ) ;
+		await dbJob.populate( 'schools' ) ;
+
+		// Order by id
+		dbJob.schools[ 0 ].jobs.sort( ( a , b ) => '' + a._id > '' + b._id ? 1 : -1 ) ;
+
+		expect( dbJob ).to.be.like( {
+			_id: job4._id ,
+			title: 'designer' ,
+			salary: 56000 ,
+			users: [] ,
+			schools: [
+				{
+					_id: school2._id ,
+					title: 'Web Academy' ,
+					jobs: [ { _id: job1._id } , { _id: job3._id } , { _id: job4._id } ]
+				}
+			]
+		} ) ;
+	} ) ;
 } ) ;
 
 
@@ -7495,8 +7581,40 @@ describe( "Populate links using the '*' wildcard" , () => {
 				]
 			}
 		] ) ;
+
 		expect( stats.population.depth ).to.be( 1 ) ;
 		expect( stats.population.dbQueries ).to.be( 1 ) ;
+
+
+		// DB batch get, then populate batch
+
+		var dbBatch = await stores.find( {} ) ;
+		await dbBatch.populate( [ 'products.*.product' , 'productBatches.*.batch' ] ) ;
+		//log.hdebug( "dbBatch: %[8l50000]Y" , dbBatch ) ;
+		expect( dbBatch ).to.be.like( [
+			{
+				_id: storeId1 ,
+				name: 'Le Grand Bozar' ,
+				products: [
+					{ product: product1 , quantity: 56 } ,
+					{ product: product2 , quantity: 37 }
+				] ,
+				productBatches: [
+					{ batch: [ product1 , product2 ] , quantity: 3 } ,
+					{ batch: [ product1 , product3 ] , quantity: 2 }
+				]
+			} ,
+			{
+				_id: storeId2 ,
+				name: 'Plume' ,
+				products: [
+					{ product: product3 , quantity: 12 }
+				] ,
+				productBatches: [
+					{ batch: [ product1 , product2 , product3 ] , quantity: 7 }
+				]
+			}
+		] ) ;
 	} ) ;
 } ) ;
 
