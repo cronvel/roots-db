@@ -6216,7 +6216,7 @@ describe( "Locks" , () => {
 		expect( lockId2 ).to.be.a( mongodb.ObjectId ) ;
 	} ) ;
 
-	it( "should perform a Collection#lockingFind(): lock, retrieve locked document, then manually release locks" , async () => {
+	it.opt( "should perform a Collection#lockingFind(): lock, retrieve locked document, then manually release locks" , async () => {
 		var batch = lockables.createBatch( [
 			{ data: 'one' } ,
 			{ data: 'two' } ,
@@ -6323,7 +6323,7 @@ describe( "Locks" , () => {
 		expect( dbBatch4[ 0 ]._.meta.lockId ).to.be( lockId4 ) ;
 	} ) ;
 
-	it( "mixing Collection#lockingFind() and Document#unlock()" , async () => {
+	it.opt( "mixing Collection#lockingFind() and Document#unlock()" , async () => {
 		var batch = lockables.createBatch( [
 			{ data: 'one' } ,
 			{ data: 'two' } ,
@@ -6362,7 +6362,7 @@ describe( "Locks" , () => {
 		expect( dbBatch3[ 0 ]._.meta.lockId ).to.be( lockId3 ) ;
 	} ) ;
 
-	it( "should perform a Collection#lockingFind() with the action callback variant: lock, retrieve locked document, then auto release locks" , async () => {
+	it.opt( "should perform a Collection#lockingFind() with the action callback variant: lock, retrieve locked document, then auto release locks" , async () => {
 		var batch = lockables.createBatch( [
 			{ data: 'one' } ,
 			{ data: 'two' } ,

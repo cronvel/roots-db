@@ -1,6 +1,6 @@
 {
   "name": "roots-db",
-  "version": "0.40.6",
+  "version": "0.40.7",
   "engines": {
     "node": ">=16.13.0"
   },
@@ -10,6 +10,7 @@
     "test": "test"
   },
   "dependencies": {
+    "@mongodb-js/zstd": "^1.2.0",
     "doormen": "^0.15.5",
     "error-status": "^1.12.1",
     "exm": "^0.5.12",
