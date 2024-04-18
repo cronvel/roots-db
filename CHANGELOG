@@ -1,4 +1,10 @@
 
+v0.40.8
+-------
+
+Import: empty strings are no more considered as a valid link ID
+
+
 v0.40.7
 -------
 
