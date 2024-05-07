@@ -1,4 +1,11 @@
 
+v0.41.0
+-------
+
+MAYBE BREAKING: Now the sanitiser for AnyCollection link accept ID@collection syntax
+add _collection property to Document __enumerate__ deep proxy method
+
+
 v0.40.10
 --------
 

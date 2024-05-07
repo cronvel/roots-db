@@ -903,10 +903,10 @@ describe( "Document creation" , () => {
 			firstName: 'Bobby' ,
 			lastName: 'Fischer'
 		} ) ;
-		expect( user.__enumerate__() ).to.only.contain( '_id' , 'firstName' , 'lastName' , 'memberSid' ) ;
+		expect( user.__enumerate__() ).to.only.contain( '_id' , '_collection' , 'firstName' , 'lastName' , 'memberSid' ) ;
 
 		user.setTagMask( [ 'id' ] ) ;
-		expect( user.__enumerate__() ).to.only.contain( '_id' , 'memberSid' ) ;
+		expect( user.__enumerate__() ).to.only.contain( '_id' , '_collection' , 'memberSid' ) ;
 
 		// Directly on creation
 		user = users.createDocument( {
@@ -915,7 +915,7 @@ describe( "Document creation" , () => {
 		} , {
 			tagMask: [ 'id' ]
 		} ) ;
-		expect( user.__enumerate__() ).to.only.contain( '_id' , 'memberSid' ) ;
+		expect( user.__enumerate__() ).to.only.contain( '_id' , '_collection' , 'memberSid' ) ;
 
 		town = towns.createDocument( {
 			name: 'Paris' ,
@@ -925,15 +925,15 @@ describe( "Document creation" , () => {
 				country: 'France'
 			}
 		} ) ;
-		expect( town.__enumerate__() ).to.only.contain( '_id' , 'name' , 'meta' ) ;
+		expect( town.__enumerate__() ).to.only.contain( '_id' , '_collection' , 'name' , 'meta' ) ;
 		expect( town.meta.__enumerate__() ).to.only.contain( 'rank' , 'population' , 'country' ) ;
 
 		town.setTagMask( [ 'meta' , 'rank' ] ) ;
-		expect( town.__enumerate__() ).to.only.contain( 'meta' ) ;
+		expect( town.__enumerate__() ).to.only.contain( '_collection' , 'meta' ) ;
 		expect( town.meta.__enumerate__() ).to.only.contain( 'rank' , 'population' , 'country' ) ;
 
 		town.setTagMask( [ 'meta' ] ) ;
-		expect( town.__enumerate__() ).to.only.contain( 'meta' ) ;
+		expect( town.__enumerate__() ).to.only.contain( '_collection' , 'meta' ) ;
 		expect( town.meta.__enumerate__() ).to.only.contain( 'population' , 'country' ) ;
 	} ) ;
 
