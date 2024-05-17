@@ -1,4 +1,10 @@
 
+v0.41.1
+-------
+
+Import: new param 'embeddedDedupProperties' to dedup embedded based on a list of properties
+
+
 v0.41.0
 -------
 
