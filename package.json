@@ -1,8 +1,8 @@
 {
   "name": "roots-db",
-  "version": "0.41.2",
+  "version": "0.41.3",
   "engines": {
-    "node": ">=16.13.0"
+    "node": ">=16.20.1"
   },
   "description": "A minimalistic ODM",
   "main": "lib/rootsDb.js",
