@@ -102,11 +102,16 @@ rootsDb.initExtensions() ;
 const world = new rootsDb.World() ;
 
 // Collections...
-var versions , users , jobs , schools , towns , products , stores , lockables , nestedLinks , anyCollectionLinks , images , versionedItems , extendables ;
+var versions , counters , users , jobs , schools , towns , products , stores , lockables , nestedLinks , anyCollectionLinks , images , versionedItems , extendables ;
 
 const versionsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/versions' ,
 	attachmentUrl: BASE_ATTACHMENT_URL + '/versions'
+} ;
+
+const countersDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/counters' ,
+	attachmentUrl: BASE_ATTACHMENT_URL + '/counters'
 } ;
 
 const usersDescriptor = {
@@ -451,6 +456,7 @@ function dropDBCollections() {
 	//console.log( "dropDBCollections" ) ;
 	return Promise.all( [
 		dropCollection( versions ) ,
+		dropCollection( counters ) ,
 		dropCollection( users ) ,
 		dropCollection( jobs ) ,
 		dropCollection( schools ) ,
@@ -472,6 +478,7 @@ function dropDBCollections() {
 function clearDB() {
 	return Promise.all( [
 		versions.clear() ,
+		counters.clear() ,
 		users.clear() ,
 		jobs.clear() ,
 		schools.clear() ,
@@ -493,6 +500,7 @@ function clearDB() {
 function clearDBIndexes() {
 	return Promise.all( [
 		clearCollectionIndexes( versions ) ,
+		clearCollectionIndexes( counters ) ,
 		clearCollectionIndexes( users ) ,
 		clearCollectionIndexes( jobs ) ,
 		clearCollectionIndexes( schools ) ,
@@ -539,6 +547,9 @@ function clearCollectionIndexes( collection ) {
 // Force creating the collection
 before( async () => {
 	versions = await world.createAndInitVersionCollection( 'versions' , versionsDescriptor ) ;
+	expect( versions ).to.be.a( rootsDb.VersionCollection ) ;
+
+	counters = await world.createAndInitCountersCollection( 'counters' , countersDescriptor ) ;
 	expect( versions ).to.be.a( rootsDb.VersionCollection ) ;
 
 	users = await world.createAndInitCollection( 'users' , usersDescriptor ) ;
@@ -8335,6 +8346,26 @@ describe( "Memory model" , () => {
 	} ) ;
 
 	it( "should also works with back-multi-link" ) ;
+} ) ;
+
+
+
+describe( "Counters" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "counters collection" , async () => {
+		var c ;
+
+		c = await counters.getNextCounterFor( 'counter' ) ;
+		expect( c ).to.be( 1 ) ;
+
+		c = await counters.getNextCounterFor( 'counter' ) ;
+		expect( c ).to.be( 2 ) ;
+
+		c = await counters.getNextCounterFor( 'counter' ) ;
+		expect( c ).to.be( 3 ) ;
+	} ) ;
 } ) ;
 
 
