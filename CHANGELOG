@@ -1,4 +1,10 @@
 
+v0.42.0
+-------
+
+BREAKING: fixing bad API name versionCollection -> versionsCollection, for consistencies, since collections have plural names
+
+
 v0.41.6
 -------
 

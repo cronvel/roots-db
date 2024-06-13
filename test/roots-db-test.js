@@ -546,11 +546,11 @@ function clearCollectionIndexes( collection ) {
 
 // Force creating the collection
 before( async () => {
-	versions = await world.createAndInitVersionCollection( 'versions' , versionsDescriptor ) ;
-	expect( versions ).to.be.a( rootsDb.VersionCollection ) ;
+	versions = await world.createAndInitVersionsCollection( 'versions' , versionsDescriptor ) ;
+	expect( versions ).to.be.a( rootsDb.VersionsCollection ) ;
 
 	counters = await world.createAndInitCountersCollection( 'counters' , countersDescriptor ) ;
-	expect( versions ).to.be.a( rootsDb.VersionCollection ) ;
+	expect( counters ).to.be.a( rootsDb.CountersCollection ) ;
 
 	users = await world.createAndInitCollection( 'users' , usersDescriptor ) ;
 	expect( users ).to.be.a( rootsDb.Collection ) ;
