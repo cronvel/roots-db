@@ -102,7 +102,7 @@ rootsDb.initExtensions() ;
 const world = new rootsDb.World() ;
 
 // Collections...
-var versions , counters , users , jobs , schools , towns , products , stores , lockables , nestedLinks , anyCollectionLinks , images , versionedItems , extendables ;
+var versions , counters , users , jobs , schools , towns , products , stores , lockables , freezables , nestedLinks , anyCollectionLinks , images , versionedItems , extendables ;
 
 const versionsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/versions' ,
@@ -317,6 +317,16 @@ const lockablesDescriptor = {
 	indexes: []
 } ;
 
+const freezablesDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/freezables' ,
+	canFreeze: true ,
+	properties: {
+		name: { type: 'string' } ,
+		data: { type: 'strictObject' }
+	} ,
+	indexes: []
+} ;
+
 const nestedLinksDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/nestedLinks' ,
 	properties: {
@@ -464,6 +474,7 @@ function dropDBCollections() {
 		dropCollection( products ) ,
 		dropCollection( stores ) ,
 		dropCollection( lockables ) ,
+		dropCollection( freezables ) ,
 		dropCollection( nestedLinks ) ,
 		dropCollection( anyCollectionLinks ) ,
 		dropCollection( images ) ,
@@ -486,6 +497,7 @@ function clearDB() {
 		products.clear() ,
 		stores.clear() ,
 		lockables.clear() ,
+		freezables.clear() ,
 		nestedLinks.clear() ,
 		anyCollectionLinks.clear() ,
 		images.clear() ,
@@ -508,6 +520,7 @@ function clearDBIndexes() {
 		clearCollectionIndexes( products ) ,
 		clearCollectionIndexes( stores ) ,
 		clearCollectionIndexes( lockables ) ,
+		clearCollectionIndexes( freezables ) ,
 		clearCollectionIndexes( nestedLinks ) ,
 		clearCollectionIndexes( anyCollectionLinks ) ,
 		clearCollectionIndexes( images ) ,
@@ -572,6 +585,9 @@ before( async () => {
 
 	lockables = await world.createAndInitCollection( 'lockables' , lockablesDescriptor ) ;
 	expect( lockables ).to.be.a( rootsDb.Collection ) ;
+
+	freezables = await world.createAndInitCollection( 'freezables' , freezablesDescriptor ) ;
+	expect( freezables ).to.be.a( rootsDb.Collection ) ;
 
 	nestedLinks = await world.createAndInitCollection( 'nestedLinks' , nestedLinksDescriptor ) ;
 	expect( nestedLinks ).to.be.a( rootsDb.Collection ) ;
@@ -700,6 +716,7 @@ describe( "Document creation" , () => {
 				versioning: false ,
 				canLock: false ,
 				lockTimeout: 1000 ,
+				canFreeze: false ,
 				refreshTimeout: 50 ,
 				Batch: users.documentSchema.Batch ,
 				Collection: users.documentSchema.Collection ,
@@ -778,6 +795,7 @@ describe( "Document creation" , () => {
 				versioning: false ,
 				canLock: false ,
 				lockTimeout: 1000 ,
+				canFreeze: false ,
 				refreshTimeout: 1000 ,
 				Batch: schools.documentSchema.Batch ,
 				Collection: schools.documentSchema.Collection ,
@@ -858,6 +876,7 @@ describe( "Document creation" , () => {
 				versioning: false ,
 				canLock: false ,
 				lockTimeout: 1000 ,
+				canFreeze: false ,
 				refreshTimeout: 1000 ,
 				Batch: versions.documentSchema.Batch ,
 				Collection: versions.documentSchema.Collection ,
@@ -6442,6 +6461,57 @@ describe( "Locks" , () => {
 		// Check that immediatley after 'await', the data are available
 		await lockables.lockingFind( { data: { $in: [ 'one' , 'two' , 'three' ] } } , ( lockId , dbBatch ) => {
 			expect( dbBatch ).to.have.length( 3 ) ;
+		} ) ;
+	} ) ;
+} ) ;
+
+
+
+
+
+describe( "Freeze documents" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should freeze a document (create, save, freeze, modify, unfreeze, modify)" , async () => {
+		var freezable = freezables.createDocument( { name: 'Bob' , data: { a: 1 , b: 2 } } ) ,
+			id = freezable.getId() ,
+			dbFreezable ;
+
+		await freezable.save() ;
+
+		//await freezable.freeze() ;
+		//await freezable.unfreeze() ;
+
+		dbFreezable = await freezables.get( id ) ;
+
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Bob' , data: { a: 1 , b: 2 } , _frozen: false
+		} ) ;
+
+		dbFreezable.name = 'Alice' ;
+		dbFreezable.data.b = 3 ;
+		dbFreezable.data.c = 4 ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Alice' , data: { a: 1 , b: 3 , c: 4 } , _frozen: false
+		} ) ;
+
+		await dbFreezable.freeze() ;
+
+		expect( () => dbFreezable.name = 'Charly' ).to.throw() ;
+		expect( () => dbFreezable.data.b = 5 ).to.throw() ;
+		expect( () => dbFreezable.data.d = 6 ).to.throw() ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Alice' , data: { a: 1 , b: 3 , c: 4 } , _frozen: true
+		} ) ;
+
+		await dbFreezable.unfreeze() ;
+
+		dbFreezable.name = 'Dan' ;
+		dbFreezable.data.b = 7 ;
+		dbFreezable.data.e = 8 ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Dan' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: false
 		} ) ;
 	} ) ;
 } ) ;
