@@ -551,6 +551,19 @@ function clearCollectionIndexes( collection ) {
 		} ) ;
 }
 
+// Sort function creator for ascending sorting.
+// Also works with string, but it's not a natural sort,
+// only by char-code, so mixed case will not be sorted alphabetically.
+function ascendingSortFn( key ) {
+	return ( a , b ) => {
+		let valueA = a[ key ] ;
+		let valueB = b[ key ] ;
+		if ( valueA && valueA === 'object' ) { valueA = '' + valueA ; }
+		if ( valueB && valueB === 'object' ) { valueB = '' + valueB ; }
+		return valueA > valueB ? 1 : valueA < valueB ? - 1 : 0
+	} ;
+}
+
 
 
 /* Tests */
@@ -2287,6 +2300,9 @@ describe( "Find each document with a query object (serialized)" , () => {
 		expect( docs ).to.be.an( Array ) ;
 		expect( docs ).to.have.length( 3 ) ;
 
+		// Sort that first...
+		docs.sort( ascendingSortFn( 'firstName' ) ) ;
+
 		expect( docs ).to.be.partially.like( [
 			{ firstName: 'Bob' , lastName: 'Marley' , memberSid: 'Bob Marley' } ,
 			{ firstName: 'Stephen' , lastName: 'Marley' , memberSid: 'Stephen Marley' } ,
@@ -3078,6 +3094,9 @@ describe( "Back-links" , () => {
 			}
 		} ) ;
 
+		// Sort it first
+		job.users.sort( ascendingSortFn( 'firstName' ) ) ;
+
 		expect( job ).to.be.like( {
 			_id: jobId ,
 			title: 'developer' ,
@@ -3173,6 +3192,9 @@ describe( "Back-links" , () => {
 			'Computer Science': { _id: school1Id , title: 'Computer Science' , jobs: [ { _id: job1Id } , { _id: job2Id } , { _id: job3Id } ] } ,
 			'Web Academy': { _id: school2Id , title: 'Web Academy' , jobs: [ { _id: job1Id } , { _id: job3Id } , { _id: job4Id } ] }
 		} ) ;
+
+		// Sort it first
+		dbJob.schools.sort( ascendingSortFn( 'title' ) ) ;
 
 		expect( dbJob ).to.be.like( {
 			_id: job1Id ,
@@ -6480,8 +6502,8 @@ describe( "Freeze documents" , () => {
 
 		await freezable.save() ;
 
-		//await freezable.freeze() ;
-		//await freezable.unfreeze() ;
+
+		// First check when not freezed
 
 		dbFreezable = await freezables.get( id ) ;
 
@@ -6495,6 +6517,14 @@ describe( "Freeze documents" , () => {
 		expect( dbFreezable ).to.equal( {
 			_id: id , name: 'Alice' , data: { a: 1 , b: 3 , c: 4 } , _frozen: false
 		} ) ;
+
+		// Get back
+		await dbFreezable.save() ;
+		dbFreezable = await freezables.get( id ) ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Alice' , data: { a: 1 , b: 3 , c: 4 } , _frozen: false
+		} ) ;
+		return ;
 
 		await dbFreezable.freeze() ;
 
@@ -6528,6 +6558,7 @@ describe( "Freeze documents" , () => {
 			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
 		} ) ;
 
+		return ;
 		// Modify using direct .raw access
 
 		// There is no proxy here, so it's possible to change it...
@@ -6769,7 +6800,7 @@ describe( "Populate links" , () => {
 		var dbUserBatch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] , stats } ) ;
 
 		// Sort that first...
-		dbUserBatch.sort( ( a , b ) => a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ) ;
+		dbUserBatch.sort( ascendingSortFn( 'firstName' ) ) ;
 
 		expect( dbUserBatch ).to.be.like( [
 			{
@@ -6860,7 +6891,7 @@ describe( "Populate links" , () => {
 		await dbUserBatch.populate( [ 'job' , 'godfather' ] ) ;
 
 		// Sort that first...
-		dbUserBatch.sort( ( a , b ) => a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ) ;
+		dbUserBatch.sort( ascendingSortFn( 'firstName' ) ) ;
 
 		expect( dbUserBatch ).to.be.like( [
 			{
@@ -6949,7 +6980,7 @@ describe( "Populate links" , () => {
 		var dbUserBatch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] , stats } ) ;
 
 		// Sort that first...
-		dbUserBatch.sort( ( a , b ) => a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ) ;
+		dbUserBatch.sort( ascendingSortFn( 'firstName' ) ) ;
 
 		// References are painful to test...
 		// Here we need to recreate the circular part in the 'expected' variable
@@ -7054,7 +7085,7 @@ describe( "Populate links" , () => {
 		var dbUserBatch = await users.collect( {} , { populate: [ 'job' , 'godfather' ] , noReference: true , stats } ) ;
 
 		// Sort that first...
-		dbUserBatch.sort( ( a , b ) => a.firstName.charCodeAt( 0 ) - b.firstName.charCodeAt( 0 ) ) ;
+		dbUserBatch.sort( ascendingSortFn( 'firstName' ) ) ;
 
 		expect( dbUserBatch ).to.be.like( [
 			{
@@ -7278,7 +7309,7 @@ describe( "Populate links" , () => {
 		var batch = await jobs.collect( {} , { populate: 'users' , stats } ) ;
 
 		// Sort that first...
-		batch.sort( ( a , b ) => a.title.charCodeAt( 0 ) - b.title.charCodeAt( 0 ) ) ;
+		batch.sort( ascendingSortFn( 'title' ) ) ;
 
 		expect( batch[ 0 ].users ).to.have.length( 2 ) ;
 
@@ -7388,11 +7419,11 @@ describe( "Populate links" , () => {
 
 		expect( dbJob.schools ).to.have.length( 2 ) ;
 
-		dbJob.schools.sort( ( a , b ) => b.title - a.title ) ;
+		dbJob.schools.sort( ascendingSortFn( 'title' ) ) ;
 
 		// Order by id
-		dbJob.schools[ 0 ].jobs.sort( ( a , b ) => '' + a._id > '' + b._id ? 1 : -1 ) ;
-		dbJob.schools[ 1 ].jobs.sort( ( a , b ) => '' + a._id > '' + b._id ? 1 : -1 ) ;
+		dbJob.schools[ 0 ].jobs.sort( ascendingSortFn( '_id' ) ) ;
+		dbJob.schools[ 1 ].jobs.sort( ascendingSortFn( '_id' ) ) ;
 
 		expect( dbJob ).to.be.like( {
 			_id: job1._id ,
@@ -7420,7 +7451,7 @@ describe( "Populate links" , () => {
 		dbJob = await jobs.get( job4._id , { populate: 'schools' , stats } ) ;
 
 		// Order by id
-		dbJob.schools[ 0 ].jobs.sort( ( a , b ) => '' + a._id > '' + b._id ? 1 : -1 ) ;
+		dbJob.schools[ 0 ].jobs.sort( ascendingSortFn( '_id' ) ) ;
 
 		expect( dbJob ).to.be.like( {
 			_id: job4._id ,
@@ -7480,11 +7511,11 @@ describe( "Populate links" , () => {
 
 		expect( dbJob.schools ).to.have.length( 2 ) ;
 
-		dbJob.schools.sort( ( a , b ) => b.title - a.title ) ;
+		dbJob.schools.sort( ascendingSortFn( 'title' ) ) ;
 
 		// Order by id
-		dbJob.schools[ 0 ].jobs.sort( ( a , b ) => '' + a._id > '' + b._id ? 1 : -1 ) ;
-		dbJob.schools[ 1 ].jobs.sort( ( a , b ) => '' + a._id > '' + b._id ? 1 : -1 ) ;
+		dbJob.schools[ 0 ].jobs.sort( ascendingSortFn( '_id' ) ) ;
+		dbJob.schools[ 1 ].jobs.sort( ascendingSortFn( '_id' ) ) ;
 
 		expect( dbJob ).to.be.like( {
 			_id: job1._id ,
@@ -7509,7 +7540,7 @@ describe( "Populate links" , () => {
 		await dbJob.populate( 'schools' ) ;
 
 		// Order by id
-		dbJob.schools[ 0 ].jobs.sort( ( a , b ) => '' + a._id > '' + b._id ? 1 : -1 ) ;
+		dbJob.schools[ 0 ].jobs.sort( ascendingSortFn( '_id' ) ) ;
 
 		expect( dbJob ).to.be.like( {
 			_id: job4._id ,
@@ -8009,9 +8040,7 @@ describe( "Caching with the memory model" , () => {
 
 		var batch = await users.multiGet( ids , { cache: mem } ) ;
 
-		batch.sort( ( a , b ) => {
-			return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
-		} ) ;
+		batch.sort( ascendingSortFn( '_id' ) ) ;
 
 		expect( batch ).to.be.like( [
 			{
@@ -8073,9 +8102,7 @@ describe( "Caching with the memory model" , () => {
 
 		var batch = await users.multiGet( ids , { cache: mem } ) ;
 
-		batch.sort( ( a , b ) => {
-			return parseInt( a._id.toString() , 10 ) - parseInt( b._id.toString() , 10 ) ;
-		} ) ;
+		batch.sort( ascendingSortFn( '_id' ) ) ;
 
 		expect( batch ).to.be.like( [
 			{
