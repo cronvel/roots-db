@@ -6501,15 +6501,13 @@ describe( "Freeze documents" , () => {
 			dbFreezable ;
 
 		await freezable.save() ;
-
-
-		// First check when not freezed
-
 		dbFreezable = await freezables.get( id ) ;
-
 		expect( dbFreezable ).to.equal( {
 			_id: id , name: 'Bob' , data: { a: 1 , b: 2 } , _frozen: false
 		} ) ;
+
+
+		// First check when not frozen
 
 		dbFreezable.name = 'Alice' ;
 		dbFreezable.data.b = 3 ;
@@ -6518,14 +6516,16 @@ describe( "Freeze documents" , () => {
 			_id: id , name: 'Alice' , data: { a: 1 , b: 3 , c: 4 } , _frozen: false
 		} ) ;
 
-		// Get back
+		// Get it back
 		await dbFreezable.save() ;
 		dbFreezable = await freezables.get( id ) ;
 		expect( dbFreezable ).to.equal( {
 			_id: id , name: 'Alice' , data: { a: 1 , b: 3 , c: 4 } , _frozen: false
 		} ) ;
-		return ;
 
+		
+		// Now check when frozen
+		
 		await dbFreezable.freeze() ;
 
 		expect( () => dbFreezable.name = 'Charly' ).to.throw() ;
@@ -6534,6 +6534,16 @@ describe( "Freeze documents" , () => {
 		expect( dbFreezable ).to.equal( {
 			_id: id , name: 'Alice' , data: { a: 1 , b: 3 , c: 4 } , _frozen: true
 		} ) ;
+
+		// Get it back
+		await expect( () => dbFreezable.save() ).to.eventually.throw() ;
+		dbFreezable = await freezables.get( id ) ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Alice' , data: { a: 1 , b: 3 , c: 4 } , _frozen: true
+		} ) ;
+
+
+		// Now check when unfrozen
 
 		await dbFreezable.unfreeze() ;
 
@@ -6544,6 +6554,14 @@ describe( "Freeze documents" , () => {
 			_id: id , name: 'Dan' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: false
 		} ) ;
 
+		// Get it back
+		await dbFreezable.save() ;
+		dbFreezable = await freezables.get( id ) ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Dan' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: false
+		} ) ;
+
+
 		// Modify using Document#patch()
 		
 		dbFreezable.patch( { name: 'Elisa' } ) ;
@@ -6551,14 +6569,21 @@ describe( "Freeze documents" , () => {
 			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: false
 		} ) ;
 
-		await dbFreezable.freeze() ;
+		await dbFreezable.saveAndFreeze() ;
 
 		expect( () => dbFreezable.patch( { name: 'Fanny' } ) ).to.throw() ;
 		expect( dbFreezable ).to.equal( {
 			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
 		} ) ;
 
-		return ;
+		// Get it back
+		//await dbFreezable.save() ;	// Already saved by .saveAndFreeze()
+		dbFreezable = await freezables.get( id ) ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
+		} ) ;
+
+
 		// Modify using direct .raw access
 
 		// There is no proxy here, so it's possible to change it...
@@ -6566,17 +6591,17 @@ describe( "Freeze documents" , () => {
 		expect( dbFreezable ).to.equal( {
 			_id: id , name: 'Garry' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
 		} ) ;
-		// ... but you can't save the changes
+
+		// ... but there is no possible way to save changes...
 		await expect( () => dbFreezable.save() ).to.eventually.throw() ;
-		
-		/*
-			Some issues:
-			* .freeze() should save everything immediately to the DB, because the current flow would fail:
-				* document.someProperty = 'someValue'
-				* await document.freeze()
-				* await document.save()     BANG!
-			* maybe .raw._frozen deserves to be duplicated inside .meta.frozen to avoid userland code to mess things up
-		*/
+		expect( () => dbFreezable.stage( 'name' ) ).to.throw() ;
+		await expect( () => dbFreezable.commit() ).to.eventually.throw() ;
+
+		// Get it back
+		dbFreezable = await freezables.get( id ) ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
+		} ) ;
 	} ) ;
 } ) ;
 
