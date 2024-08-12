@@ -102,7 +102,7 @@ rootsDb.initExtensions() ;
 const world = new rootsDb.World() ;
 
 // Collections...
-var versions , counters , users , jobs , schools , towns , products , stores , lockables , freezables , nestedLinks , anyCollectionLinks , images , versionedItems , extendables ;
+var versions , counters , users , jobs , schools , towns , products , stores , lockables , freezables , immutableProperties , nestedLinks , anyCollectionLinks , images , versionedItems , extendables ;
 
 const versionsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/versions' ,
@@ -327,6 +327,18 @@ const freezablesDescriptor = {
 	indexes: []
 } ;
 
+const immutablePropertiesDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/immutableProperties' ,
+	properties: {
+		name: { type: 'string' } ,
+		immutableData: {
+			type: 'string' ,
+			immutable: true
+		}
+	} ,
+	indexes: []
+} ;
+
 const nestedLinksDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/nestedLinks' ,
 	properties: {
@@ -475,6 +487,7 @@ function dropDBCollections() {
 		dropCollection( stores ) ,
 		dropCollection( lockables ) ,
 		dropCollection( freezables ) ,
+		dropCollection( immutableProperties ) ,
 		dropCollection( nestedLinks ) ,
 		dropCollection( anyCollectionLinks ) ,
 		dropCollection( images ) ,
@@ -498,6 +511,7 @@ function clearDB() {
 		stores.clear() ,
 		lockables.clear() ,
 		freezables.clear() ,
+		immutableProperties.clear() ,
 		nestedLinks.clear() ,
 		anyCollectionLinks.clear() ,
 		images.clear() ,
@@ -521,6 +535,7 @@ function clearDBIndexes() {
 		clearCollectionIndexes( stores ) ,
 		clearCollectionIndexes( lockables ) ,
 		clearCollectionIndexes( freezables ) ,
+		clearCollectionIndexes( immutableProperties ) ,
 		clearCollectionIndexes( nestedLinks ) ,
 		clearCollectionIndexes( anyCollectionLinks ) ,
 		clearCollectionIndexes( images ) ,
@@ -601,6 +616,9 @@ before( async () => {
 
 	freezables = await world.createAndInitCollection( 'freezables' , freezablesDescriptor ) ;
 	expect( freezables ).to.be.a( rootsDb.Collection ) ;
+
+	immutableProperties = await world.createAndInitCollection( 'immutableProperties' , immutablePropertiesDescriptor ) ;
+	expect( immutableProperties ).to.be.a( rootsDb.Collection ) ;
 
 	nestedLinks = await world.createAndInitCollection( 'nestedLinks' , nestedLinksDescriptor ) ;
 	expect( nestedLinks ).to.be.a( rootsDb.Collection ) ;
@@ -6562,6 +6580,87 @@ describe( "Freeze documents" , () => {
 		} ) ;
 
 
+		// Modify using Document#patch()
+		
+		dbFreezable.patch( { name: 'Elisa' } ) ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: false
+		} ) ;
+
+		await dbFreezable.saveAndFreeze() ;
+
+		expect( () => dbFreezable.patch( { name: 'Fanny' } ) ).to.throw() ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
+		} ) ;
+
+		// Get it back
+		//await dbFreezable.save() ;	// Already saved by .saveAndFreeze()
+		dbFreezable = await freezables.get( id ) ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
+		} ) ;
+
+
+		// Modify using direct .raw access
+
+		// There is no proxy here, so it's possible to change it...
+		dbFreezable._.raw.name = 'Garry' ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Garry' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
+		} ) ;
+
+		// ... but there is no possible way to save changes...
+		await expect( () => dbFreezable.save() ).to.eventually.throw() ;
+		expect( () => dbFreezable.stage( 'name' ) ).to.throw() ;
+		await expect( () => dbFreezable.commit() ).to.eventually.throw() ;
+
+		// Get it back
+		dbFreezable = await freezables.get( id ) ;
+		expect( dbFreezable ).to.equal( {
+			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
+		} ) ;
+	} ) ;
+} ) ;
+
+
+
+
+
+describe( "Immutable properties" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "should create a document having an immutable property and try to set, reset, delete that property" , async () => {
+		var doc = immutableProperties.createDocument( { name: 'Bob' , immutableData: 'random' } ) ,
+			id = doc.getId() ,
+			dbDoc ;
+
+		await doc.save() ;
+		dbDoc = await immutableProperties.get( id ) ;
+		expect( dbDoc ).to.equal( {
+			_id: id , name: 'Bob' , immutableData: 'random'
+		} ) ;
+
+
+		// First check the proxy accesses
+
+		dbDoc.name = 'Alice' ;
+		expect( () => dbDoc.immutableData = 'random2' ).to.throw() ;
+		expect( () => delete dbDoc.immutableData ).to.throw() ;
+		expect( dbDoc ).to.equal( {
+			_id: id , name: 'Alice' , immutableData: 'random'
+		} ) ;
+
+		// Get it back
+		await dbDoc.save() ;
+		dbDoc = await immutableProperties.get( id ) ;
+		expect( dbDoc ).to.equal( {
+			_id: id , name: 'Alice' , immutableData: 'random'
+		} ) ;
+		return ;
+
+		
 		// Modify using Document#patch()
 		
 		dbFreezable.patch( { name: 'Elisa' } ) ;
