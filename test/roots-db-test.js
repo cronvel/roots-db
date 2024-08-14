@@ -6658,48 +6658,56 @@ describe( "Immutable properties" , () => {
 		expect( dbDoc ).to.equal( {
 			_id: id , name: 'Alice' , immutableData: 'random'
 		} ) ;
-		return ;
 
-		
+
 		// Modify using Document#patch()
 		
-		dbFreezable.patch( { name: 'Elisa' } ) ;
-		expect( dbFreezable ).to.equal( {
-			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: false
+		expect( () => dbDoc.patch( { name: 'Charly' , immutableData: 'random2' } , { validate: true } ) ).to.throw() ;
+		expect( () => dbDoc.patch( { immutableData: 'random2' } ) ).to.throw() ;
+		expect( dbDoc ).to.equal( {
+			_id: id , name: 'Alice' , immutableData: 'random'
 		} ) ;
-
-		await dbFreezable.saveAndFreeze() ;
-
-		expect( () => dbFreezable.patch( { name: 'Fanny' } ) ).to.throw() ;
-		expect( dbFreezable ).to.equal( {
-			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
+		// Since we do not validate, it fails on the proxy side, so 'name' is already changed
+		expect( () => dbDoc.patch( { name: 'Charly' , immutableData: 'random2' } ) ).to.throw() ;
+		expect( dbDoc ).to.equal( {
+			_id: id , name: 'Charly' , immutableData: 'random'
 		} ) ;
+		dbDoc.patch( { name: 'Dan' } ) ;
+		expect( dbDoc ).to.equal( {
+			_id: id , name: 'Dan' , immutableData: 'random'
+		} ) ;
+	} ) ;
 
-		// Get it back
-		//await dbFreezable.save() ;	// Already saved by .saveAndFreeze()
-		dbFreezable = await freezables.get( id ) ;
-		expect( dbFreezable ).to.equal( {
-			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
+	// For instance, there is no way to avoid modifying an immutable property using direct raw access...
+	it.opt( "should create a document having an immutable property and try to set it using direct raw access" , async () => {
+		var doc = immutableProperties.createDocument( { name: 'Bob' , immutableData: 'random' } ) ,
+			id = doc.getId() ,
+			dbDoc ;
+
+		await doc.save() ;
+		dbDoc = await immutableProperties.get( id ) ;
+		expect( dbDoc ).to.equal( {
+			_id: id , name: 'Bob' , immutableData: 'random'
 		} ) ;
 
 
 		// Modify using direct .raw access
 
 		// There is no proxy here, so it's possible to change it...
-		dbFreezable._.raw.name = 'Garry' ;
-		expect( dbFreezable ).to.equal( {
-			_id: id , name: 'Garry' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
+		dbDoc._.raw.immutableData = 'random2' ;
+		expect( dbDoc ).to.equal( {
+			_id: id , name: 'Bob' , immutableData: 'random2'
 		} ) ;
 
 		// ... but there is no possible way to save changes...
-		await expect( () => dbFreezable.save() ).to.eventually.throw() ;
-		expect( () => dbFreezable.stage( 'name' ) ).to.throw() ;
-		await expect( () => dbFreezable.commit() ).to.eventually.throw() ;
+		await expect( () => dbDoc.save() ).to.eventually.throw() ;
+		expect( () => dbDoc.stage( 'immutableData' ) ).to.throw() ;
+		await expect( () => dbDoc.commit() ).to.eventually.throw() ;
 
 		// Get it back
-		dbFreezable = await freezables.get( id ) ;
-		expect( dbFreezable ).to.equal( {
-			_id: id , name: 'Elisa' , data: { a: 1 , b: 7 , c: 4 , e: 8 } , _frozen: true
+		dbDoc = await immutableProperties.get( id ) ;
+		expect( dbDoc ).to.equal( {
+			_id: id , name: 'Bob' , immutableData: 'random'
 		} ) ;
 	} ) ;
 } ) ;
