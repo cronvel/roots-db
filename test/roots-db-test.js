@@ -709,7 +709,7 @@ describe( "Document creation" , () => {
 						type: "attachment" , optional: true , tags: [ "content" ] , opaque: true , inputHint: "file"
 					} ,
 					_id: {
-						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , tags: [ "id" ]
+						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , rootsDbInternal: true , tags: [ "id" ]
 					} ,
 					_import: {
 						extraProperties: true ,
@@ -760,7 +760,7 @@ describe( "Document creation" , () => {
 				url: "mongodb://localhost:27017/rootsDb/schools" ,
 				properties: {
 					_id: {
-						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , tags: [ "id" ]
+						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , rootsDbInternal: true , tags: [ "id" ]
 					} ,
 					_import: {
 						extraProperties: true ,
@@ -841,10 +841,10 @@ describe( "Document creation" , () => {
 				extraProperties: true ,
 				properties: {
 					_activeVersion: {
-						type: "link" , anyCollection: true , inputHint: "embedded" , opaque: true , sanitize: [ "toLink" ] , system: true , tags: [ "system-content" ]
+						type: "link" , anyCollection: true , inputHint: "embedded" , opaque: true , sanitize: [ "toLink" ] , system: true , rootsDbInternal: true , tags: [ "system-content" ]
 					} ,
 					_id: {
-						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , tags: [ "id" ]
+						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , rootsDbInternal: true , tags: [ "id" ]
 					} ,
 					_import: {
 						extraProperties: true ,
@@ -870,10 +870,10 @@ describe( "Document creation" , () => {
 						type: "object"
 					} ,
 					_lastModified: {
-						defaultFn: "now" , inputHint: "date" , sanitize: [ "toDate" ] , system: true , tags: [ "system-content" ] , type: "date"
+						defaultFn: "now" , inputHint: "date" , sanitize: [ "toDate" ] , system: true , rootsDbInternal: true , tags: [ "system-content" ] , type: "date"
 					} ,
 					_version: {
-						default: 1 , inputHint: "text" , sanitize: [ "toInteger" ] , system: true , tags: [ "system-content" ] , type: "integer"
+						default: 1 , inputHint: "text" , sanitize: [ "toInteger" ] , system: true , rootsDbInternal: true , tags: [ "system-content" ] , type: "integer"
 					}
 				} ,
 				indexes: [
@@ -6523,6 +6523,10 @@ describe( "Freeze documents" , () => {
 		expect( dbFreezable ).to.equal( {
 			_id: id , name: 'Bob' , data: { a: 1 , b: 2 } , _frozen: false
 		} ) ;
+
+		// Check that the property cannot be set manually, it's an internal RootsDB property
+		expect( () => dbFreezable._frozen = true ).to.throw() ;
+		expect( () => dbFreezable.patch( { _frozen: true } ) ).to.throw() ;
 
 
 		// First check when not frozen
