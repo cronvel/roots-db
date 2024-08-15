@@ -1,4 +1,10 @@
 
+v0.43.1
+-------
+
+Add a 'code' property to frozen/immutable/internal-read-only errors
+
+
 v0.43.0
 -------
 
