@@ -309,7 +309,7 @@ const storesDescriptor = {
 
 const lockablesDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/lockables' ,
-	canLock: true ,
+	lockable: true ,
 	lockTimeout: 40 ,
 	properties: {
 		data: { type: 'string' }
@@ -319,7 +319,7 @@ const lockablesDescriptor = {
 
 const freezablesDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/freezables' ,
-	canFreeze: true ,
+	freezable: true ,
 	properties: {
 		name: { type: 'string' } ,
 		data: { type: 'strictObject' }
@@ -745,9 +745,9 @@ describe( "Document creation" , () => {
 				] ,
 				hooks: users.documentSchema.hooks ,
 				versioning: false ,
-				canLock: false ,
+				lockable: false ,
 				lockTimeout: 1000 ,
-				canFreeze: false ,
+				freezable: false ,
 				refreshTimeout: 50 ,
 				Batch: users.documentSchema.Batch ,
 				Collection: users.documentSchema.Collection ,
@@ -824,9 +824,9 @@ describe( "Document creation" , () => {
 				] ,
 				hooks: schools.documentSchema.hooks ,
 				versioning: false ,
-				canLock: false ,
+				lockable: false ,
 				lockTimeout: 1000 ,
-				canFreeze: false ,
+				freezable: false ,
 				refreshTimeout: 1000 ,
 				Batch: schools.documentSchema.Batch ,
 				Collection: schools.documentSchema.Collection ,
@@ -905,9 +905,9 @@ describe( "Document creation" , () => {
 				] ,
 				hooks: versions.documentSchema.hooks ,
 				versioning: false ,
-				canLock: false ,
+				lockable: false ,
 				lockTimeout: 1000 ,
-				canFreeze: false ,
+				freezable: false ,
 				refreshTimeout: 1000 ,
 				Batch: versions.documentSchema.Batch ,
 				Collection: versions.documentSchema.Collection ,
