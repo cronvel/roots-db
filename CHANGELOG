@@ -1,4 +1,10 @@
 
+v0.43.2
+-------
+
+More informative error message for frozen/immutable/internal-read-only errors
+
+
 v0.43.1
 -------
 
