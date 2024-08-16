@@ -1,4 +1,10 @@
 
+v0.43.4
+-------
+
+Change tag of _frozen: system -> system-content, so it will be serialized for RestQuery consumers
+
+
 v0.43.3
 -------
 
