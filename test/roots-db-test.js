@@ -9902,31 +9902,43 @@ describe( "Exporter" , () => {
 	beforeEach( clearDB ) ;
 
 	it( "should export db" , async () => {
-		await users.createDocument( {
-			firstName: 'Jack' ,
-			lastName: 'Starks'
-		} ).save() ;
+		var user , job , userList = [] , jobList = [] ;
 
+		job = jobs.createDocument( { title: 'developer' , salary: 60000 } ) ;
+		jobList.push( job ) ;
+		await job.save() ;
+
+		job = jobs.createDocument( { title: 'sysadmin' , salary: 55000 } ) ;
+		jobList.push( job ) ;
+		await job.save() ;
+
+		user = users.createDocument( { firstName: 'Joe' , lastName: 'Doe' } )
+		user.job = jobList[ 0 ] ;
+		userList.push( user ) ;
+		await user.save() ;
+
+		user = users.createDocument( { firstName: 'Jack' , lastName: 'Wilson' } )
+		userList.push( user ) ;
+		await user.save() ;
+
+		user = users.createDocument( { firstName: 'Tony' , lastName: 'Stark' } )
+		userList.push( user ) ;
+		await user.save() ;
 
 		await world.export( path.join( __dirname , 'exporter' ) ) ;
+		
+		var usersContent = await fs.promises.readFile( path.join( __dirname , 'exporter' , "users.jsonstream" ) , 'utf8' ) ;
+		expect( usersContent ).to.be(
+			'{"_id":"' + userList[ 0 ].getId() + '","firstName":"Joe","lastName":"Doe","memberSid":"Joe Doe","job":{"_id":"' + jobList[ 0 ].getId() + '"}}\n'
+			+ '{"_id":"' + userList[ 1 ].getId() + '","firstName":"Jack","lastName":"Wilson","memberSid":"Jack Wilson"}\n'
+			+ '{"_id":"' + userList[ 2 ].getId() + '","firstName":"Tony","lastName":"Stark","memberSid":"Tony Stark"}\n'
+		) ;
 
-		var batch = await jobs.collect( {} ) ;
-
-		//log.info( "Jobs: %I" , [ ... batch ] ) ;
-
-		// MongoDB may shuffle things up, so we don't use an array here
-		var map = {} ;
-		batch.forEach( doc => map[ doc.title ] = doc ) ;
-
-		expect( map ).to.only.have.own.keys( 'dev' , 'devops' ) ;
-		expect( map ).to.partially.equal( {
-			dev: {
-				_id: map.dev.getId() , title: 'dev' , salary: 3500
-			} ,
-			devops: {
-				_id: map.devops.getId() , title: 'devops' , salary: 3200
-			}
-		} ) ;
+		var jobsContent = await fs.promises.readFile( path.join( __dirname , 'exporter' , "jobs.jsonstream" ) , 'utf8' ) ;
+		expect( jobsContent ).to.be(
+			'{"_id":"' + jobList[ 0 ].getId() + '","title":"developer","salary":60000,"users":[],"schools":[]}\n'
+			+ '{"_id":"' + jobList[ 1 ].getId() + '","title":"sysadmin","salary":55000,"users":[],"schools":[]}\n'
+		) ;
 	} ) ;
 } ) ;
 

@@ -16,6 +16,7 @@ _build
 _templates
 _static
 extensions
+test/exporter/*jsonstream
 
 
 # gitignore / Node.gitignore #
