@@ -2283,7 +2283,7 @@ describe( "Find with a query object" , () => {
 
 
 
-describe( "Find each document with a query object (serialized)" , () => {
+describe( "Find (generator) documents with a query object (serialized)" , () => {
 
 	beforeEach( clearDB ) ;
 
@@ -2305,12 +2305,12 @@ describe( "Find each document with a query object (serialized)" , () => {
 		var startDate = Date.now() ,
 			docs = [] ;
 
-		await users.findEach( { firstName: { $regex: /^[thomasepnbo]+$/ , $options: 'i' } } , doc => {
+		for await ( let doc of users.findGenerator( { firstName: { $regex: /^[thomasepnbo]+$/ , $options: 'i' } } ) ) {
 			expect( doc._ ).to.be.a( rootsDb.Document ) ;
 			docs.push( doc ) ;
 			// Force a timeout
-			return Promise.resolveTimeout( 50 ) ;
-		} ) ;
+			await Promise.resolveTimeout( 50 ) ;
+		}
 
 		// Check serialization time
 		expect( Date.now() - startDate ).to.be.greater.than( 150 ) ;
