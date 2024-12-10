@@ -1,4 +1,10 @@
 
+v0.44.0
+-------
+
+BREAKING: .findEach() removed, replaced by .findGenerator() which is way more flexible and allow 'for await' constructs
+
+
 v0.43.7
 -------
 
