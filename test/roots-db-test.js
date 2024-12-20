@@ -841,7 +841,7 @@ describe( "Document creation" , () => {
 				extraProperties: true ,
 				properties: {
 					_activeVersion: {
-						type: "link" , anyCollection: true , inputHint: "embedded" , opaque: true , sanitize: [ "toLink" ] , system: true , rootsDbInternal: true , tags: [ "system-content" ]
+						type: "link" , anyCollection: true , inputHint: "embedded" , opaque: true , sanitize: [ "toLink" ] , system: true , rootsDbInternal: true , tags: [ "systemContent" ]
 					} ,
 					_id: {
 						type: "objectId" , sanitize: "toObjectId" , optional: true , system: true , rootsDbInternal: true , tags: [ "id" ]
@@ -870,10 +870,10 @@ describe( "Document creation" , () => {
 						type: "object"
 					} ,
 					_lastModified: {
-						defaultFn: "now" , inputHint: "date" , sanitize: [ "toDate" ] , system: true , rootsDbInternal: true , tags: [ "system-content" ] , type: "date"
+						defaultFn: "now" , inputHint: "date" , sanitize: [ "toDate" ] , system: true , rootsDbInternal: true , tags: [ "systemContent" ] , type: "date"
 					} ,
 					_version: {
-						default: 1 , inputHint: "text" , sanitize: [ "toInteger" ] , system: true , rootsDbInternal: true , tags: [ "system-content" ] , type: "integer"
+						default: 1 , inputHint: "text" , sanitize: [ "toInteger" ] , system: true , rootsDbInternal: true , tags: [ "systemContent" ] , type: "integer"
 					}
 				} ,
 				indexes: [
