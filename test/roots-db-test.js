@@ -8620,7 +8620,7 @@ describe( "Counters" , () => {
 
 	beforeEach( clearDB ) ;
 
-	it( "counters collection" , async () => {
+	it( "get/set counters" , async () => {
 		var c ;
 
 		c = await counters.getNextCounterFor( 'counter' ) ;
@@ -8637,6 +8637,16 @@ describe( "Counters" , () => {
 
 		c = await counters.getNextCounterFor( 'n' ) ;
 		expect( c ).to.be( 2 ) ;
+
+		await counters.setNextCounterFor( 'counter' , 1 ) ;
+		c = await counters.getNextCounterFor( 'counter' ) ;
+		expect( c ).to.be( 1 ) ;
+
+		c = await counters.getNextCounterFor( 'counter' ) ;
+		expect( c ).to.be( 2 ) ;
+
+		c = await counters.getNextCounterFor( 'n' ) ;
+		expect( c ).to.be( 3 ) ;
 	} ) ;
 } ) ;
 
