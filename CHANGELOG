@@ -1,4 +1,10 @@
 
+v0.44.4
+-------
+
+Import now support retrieving documents from DB for further usage (links)
+
+
 v0.44.3
 -------
 
