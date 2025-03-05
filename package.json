@@ -1,6 +1,6 @@
 {
   "name": "roots-db",
-  "version": "0.44.6",
+  "version": "0.44.7",
   "engines": {
     "node": ">=16.20.1"
   },
@@ -11,12 +11,12 @@
   },
   "dependencies": {
     "@mongodb-js/zstd": "^1.2.2",
-    "doormen": "^0.15.6",
+    "doormen": "^0.15.7",
     "error-status": "^1.12.1",
     "exm": "^0.5.12",
     "fs-kit": "^0.6.5",
     "hash-kit": "^0.3.10",
-    "logfella": "^2.0.3",
+    "logfella": "^2.0.4",
     "mongodb": "^6.13.0",
     "nested-proxies": "^0.2.1",
     "seventh": "^0.9.2",
@@ -24,7 +24,7 @@
     "tree-kit": "^0.8.7"
   },
   "devDependencies": {
-    "string-kit": "^0.19.1"
+    "string-kit": "^0.19.2"
   },
   "scripts": {
     "test": "tea-time -R dot"
