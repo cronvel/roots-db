@@ -1,4 +1,10 @@
 
+v0.44.10
+--------
+
+API fix: Collection#countFound() does not force a queryObject anymore, defaulting to {}
+
+
 v0.44.9
 -------
 

@@ -2223,6 +2223,7 @@ describe( "Find with a query object" , () => {
 		await localBatch.save() ;
 
 		await expect( users.countFound( {} ) ).to.eventually.be( 7 ) ;
+		await expect( users.countFound() ).to.eventually.be( 7 ) ;
 		await expect( users.countFound( { lastName: 'Marley' } ) ).to.eventually.be( 5 ) ;
 		await expect( users.countFound( { firstName: { $regex: /^[thomasstepn]+$/ , $options: 'i' } } ) ).to.eventually.be( 2 ) ;
 	} ) ;
