@@ -2207,6 +2207,26 @@ describe( "Find with a query object" , () => {
 		} ) ;
 	} ) ;
 
+	it( "should count found documents using a queryObject" , async () => {
+		var localBatch = users.createBatch( [
+			{ firstName: 'Bob' , lastName: 'Marley' } ,
+			{ firstName: 'Julian' , lastName: 'Marley' } ,
+			{ firstName: 'Mr' , lastName: 'X' } ,
+			{ firstName: 'Stephen' , lastName: 'Marley' } ,
+			{ firstName: 'Ziggy' , lastName: 'Marley' } ,
+			{ firstName: 'Thomas' , lastName: 'Jefferson' } ,
+			{ firstName: 'Rita' , lastName: 'Marley' }
+		] ) ;
+
+		expect( localBatch ).to.have.length( 7 ) ;
+
+		await localBatch.save() ;
+
+		await expect( users.countFound( {} ) ).to.eventually.be( 7 ) ;
+		await expect( users.countFound( { lastName: 'Marley' } ) ).to.eventually.be( 5 ) ;
+		await expect( users.countFound( { firstName: { $regex: /^[thomasstepn]+$/ , $options: 'i' } } ) ).to.eventually.be( 2 ) ;
+	} ) ;
+
 	it( "skip, limit and sort" , async () => {
 		var marleys = [
 			users.createDocument( { firstName: 'Bob' , lastName: 'Marley' } ) ,

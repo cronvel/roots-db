@@ -1,4 +1,10 @@
 
+v0.44.9
+-------
+
+New API: Collection#countFound() -- instead of returning documents, just returns the number of found documents
+
+
 v0.44.8
 -------
 
