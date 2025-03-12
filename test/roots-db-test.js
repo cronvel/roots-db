@@ -102,7 +102,7 @@ rootsDb.initExtensions() ;
 const world = new rootsDb.World() ;
 
 // Collections...
-var versions , counters , users , jobs , schools , towns , products , stores , lockables , freezables , immutableProperties , nestedLinks , anyCollectionLinks , images , versionedItems , extendables ;
+var versions , counters , users , jobs , schools , towns , products , stores , embeddedStuffs , lockables , freezables , immutableProperties , nestedLinks , anyCollectionLinks , images , versionedItems , extendables ;
 
 const versionsDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/versions' ,
@@ -307,6 +307,63 @@ const storesDescriptor = {
 	}
 } ;
 
+const embeddedStuffsDescriptor = {
+	url: 'mongodb://localhost:27017/rootsDb/embeddedStuffs' ,
+	properties: {
+		name: { type: 'string' } ,
+		list: {
+			type: 'array' ,
+			default: [] ,
+			of: {
+				type: 'strictObject' ,
+				properties: {
+					name: {
+						type: 'string' ,
+						sanitize: 'toString'
+					} ,
+					tags: {
+						type: 'array' ,
+						optional: true ,
+						of: {
+							type: 'string' ,
+							sanitize: 'toString'
+						}
+					} ,
+					quantity: {
+						type: 'integer' ,
+						sanitize: 'toInteger'
+					}
+				}
+			}
+		} ,
+		meta: {
+			type: 'strictObject' ,
+			default: {} ,
+			of: {
+				type: 'strictObject' ,
+				properties: {
+					name: {
+						type: 'string' ,
+						sanitize: 'toString'
+					} ,
+					tags: {
+						type: 'array' ,
+						optional: true ,
+						of: {
+							type: 'string' ,
+							sanitize: 'toString'
+						}
+					} ,
+					quantity: {
+						type: 'integer' ,
+						sanitize: 'toInteger'
+					}
+				}
+			}
+		}
+	}
+} ;
+
 const lockablesDescriptor = {
 	url: 'mongodb://localhost:27017/rootsDb/lockables' ,
 	lockable: true ,
@@ -485,6 +542,7 @@ function dropDBCollections() {
 		dropCollection( towns ) ,
 		dropCollection( products ) ,
 		dropCollection( stores ) ,
+		dropCollection( embeddedStuffs ) ,
 		dropCollection( lockables ) ,
 		dropCollection( freezables ) ,
 		dropCollection( immutableProperties ) ,
@@ -509,6 +567,7 @@ function clearDB() {
 		towns.clear() ,
 		products.clear() ,
 		stores.clear() ,
+		embeddedStuffs.clear() ,
 		lockables.clear() ,
 		freezables.clear() ,
 		immutableProperties.clear() ,
@@ -533,6 +592,7 @@ function clearDBIndexes() {
 		clearCollectionIndexes( towns ) ,
 		clearCollectionIndexes( products ) ,
 		clearCollectionIndexes( stores ) ,
+		clearCollectionIndexes( embeddedStuffs ) ,
 		clearCollectionIndexes( lockables ) ,
 		clearCollectionIndexes( freezables ) ,
 		clearCollectionIndexes( immutableProperties ) ,
@@ -610,6 +670,9 @@ before( async () => {
 
 	stores = await world.createAndInitCollection( 'stores' , storesDescriptor ) ;
 	expect( stores ).to.be.a( rootsDb.Collection ) ;
+
+	embeddedStuffs = await world.createAndInitCollection( 'embeddedStuffs' , embeddedStuffsDescriptor ) ;
+	expect( embeddedStuffs ).to.be.a( rootsDb.Collection ) ;
 
 	lockables = await world.createAndInitCollection( 'lockables' , lockablesDescriptor ) ;
 	expect( lockables ).to.be.a( rootsDb.Collection ) ;
@@ -1369,6 +1432,118 @@ describe( "Refresh documents" , () => {
 			_id: id , firstName: 'Robert' , lastName: 'McGregor' , memberSid: "John McGregor"
 		} ) ;
 
+	} ) ;
+} ) ;
+
+
+
+describe( "Get and set properties of a document" , () => {
+
+	beforeEach( clearDB ) ;
+
+	it( "get/set using the proxy" , async () => {
+		var user = users.createDocument( {
+			firstName: 'Johnny' ,
+			lastName: 'Starks'
+		} ) ;
+
+		expect( user.firstName ).to.be( 'Johnny' ) ;
+		expect( user.lastName ).to.be( 'Starks' ) ;
+
+		user.lastName = 'Goodman' ;
+		expect( user.lastName ).to.be( 'Goodman' ) ;
+	} ) ;
+
+	it( "get/set using the .get()/.set() method" , async () => {
+		var stuff = embeddedStuffs.createDocument( {
+			name: 'random list' ,
+			list: [
+				{ name: 'banana' , quantity: 8 } ,
+				{ name: 'tomato' , quantity: 12 } ,
+				{ name: 'apple' , quantity: 15 }
+			] ,
+			meta: {
+				pear: { name: 'Williams' , quantity: 3 } ,
+				apple: { name: 'Golden' , quantity: 4 }
+			}
+		} ) ;
+
+		expect( stuff.get( 'name' ) ).to.be( 'random list' ) ;
+		expect( stuff.get( 'list' ) ).to.equal( [
+			{ name: 'banana' , quantity: 8 } ,
+			{ name: 'tomato' , quantity: 12 } ,
+			{ name: 'apple' , quantity: 15 }
+		] ) ;
+		expect( stuff.get( 'list.0' ) ).to.equal( { name: 'banana' , quantity: 8 } ) ;
+		expect( stuff.get( 'list.0.quantity' ) ).to.be( 8 ) ;
+		expect( stuff.get( 'list.1' ) ).to.equal( { name: 'tomato' , quantity: 12 } ) ;
+		expect( stuff.get( 'list.3' ) ).to.be( undefined ) ;
+		expect( stuff.get( 'meta' ) ).to.equal( {
+			pear: { name: 'Williams' , quantity: 3 } ,
+			apple: { name: 'Golden' , quantity: 4 }
+		} ) ;
+		expect( stuff.get( 'meta.pear' ) ).to.equal( { name: 'Williams' , quantity: 3 } ) ;
+		expect( stuff.get( 'meta.bob' ) ).to.be( undefined ) ;
+
+		stuff.set( 'name' , 'random stuffs' ) ;
+		expect( stuff.get( 'name' ) ).to.be( 'random stuffs' ) ;
+
+		stuff.set( 'list.0.quantity' , 9 ) ;
+		expect( stuff.get( 'list.0' ) ).to.equal( { name: 'banana' , quantity: 9 } ) ;
+		expect( stuff.get( 'list.0.quantity' ) ).to.be( 9 ) ;
+	} ) ;
+
+	it( "get/set using the .get()/.set() with wildcards" , async () => {
+		var stuff = embeddedStuffs.createDocument( {
+			name: 'random list' ,
+			list: [
+				{ name: 'banana' , quantity: 8 , tags: [ 'fruit' , 'vegetable' ] } ,
+				{ name: 'tomato' , quantity: 12 , tags: [ 'vegetable' , 'pizza' ] } ,
+				{ name: 'apple' , quantity: 15 , tags: [ 'fruit' , 'vegetable' ] }
+			] ,
+			meta: {
+				pear: { name: 'Williams' , quantity: 3 , tags: [ 'fruit' , 'vegetable' ] } ,
+				apple: { name: 'Golden' , quantity: 4 , tags: [ 'fruit' , 'vegetable' ] }
+			}
+		} ) ;
+
+		expect( stuff.get( 'list.*' ) ).to.equal( [
+			{ name: 'banana' , quantity: 8 , tags: [ 'fruit' , 'vegetable' ] } ,
+			{ name: 'tomato' , quantity: 12 , tags: [ 'vegetable' , 'pizza' ] } ,
+			{ name: 'apple' , quantity: 15 , tags: [ 'fruit' , 'vegetable' ] }
+		] ) ;
+		expect( stuff.get( 'list.*.name' ) ).to.equal( [ 'banana' , 'tomato' , 'apple' ] ) ;
+		expect( stuff.get( 'list.*.tags' ) ).to.equal( [ [ 'fruit' , 'vegetable' ] , [ 'vegetable' , 'pizza' ] , [ 'fruit' , 'vegetable' ] ] ) ;
+		expect( stuff.get( 'list.*.tags.*' ) ).to.equal( [ 'fruit' , 'vegetable' , 'vegetable' , 'pizza' , 'fruit' , 'vegetable' ] ) ;
+
+		expect( stuff.get( 'meta.*' ) ).to.equal( [
+			{ name: 'Williams' , quantity: 3 , tags: [ 'fruit' , 'vegetable' ] } ,
+			{ name: 'Golden' , quantity: 4 , tags: [ 'fruit' , 'vegetable' ] }
+		] ) ;
+		expect( stuff.get( 'meta.*.name' ) ).to.equal( [ 'Williams' , 'Golden' ] ) ;
+		expect( stuff.get( 'meta.*.tags' ) ).to.equal( [ [ 'fruit' , 'vegetable' ] , [ 'fruit' , 'vegetable' ] ] ) ;
+		expect( stuff.get( 'meta.*.tags.*' ) ).to.equal( [ 'fruit' , 'vegetable' , 'fruit' , 'vegetable' ] ) ;
+
+		stuff.set( 'list.*.quantity' , 1 ) ;
+		expect( stuff.get( 'list.*' ) ).to.equal( [
+			{ name: 'banana' , quantity: 1 , tags: [ 'fruit' , 'vegetable' ] } ,
+			{ name: 'tomato' , quantity: 1 , tags: [ 'vegetable' , 'pizza' ] } ,
+			{ name: 'apple' , quantity: 1 , tags: [ 'fruit' , 'vegetable' ] }
+		] ) ;
+
+		stuff.set( 'meta.*.quantity' , 0 ) ;
+		expect( stuff.get( 'meta.*' ) ).to.equal( [
+			{ name: 'Williams' , quantity: 0 , tags: [ 'fruit' , 'vegetable' ] } ,
+			{ name: 'Golden' , quantity: 0 , tags: [ 'fruit' , 'vegetable' ] }
+		] ) ;
+
+		stuff.set( 'list.*.tags.*' , 'food' ) ;
+		expect( stuff.get( 'list.*' ) ).to.equal( [
+			{ name: 'banana' , quantity: 1 , tags: [ 'food' , 'food' ] } ,
+			{ name: 'tomato' , quantity: 1 , tags: [ 'food' , 'food' ] } ,
+			{ name: 'apple' , quantity: 1 , tags: [ 'food' , 'food' ] }
+		] ) ;
+		expect( stuff.get( 'list.*.tags' ) ).to.equal( [ [ 'food' , 'food' ] , [ 'food' , 'food' ] , [ 'food' , 'food' ] ] ) ;
 	} ) ;
 } ) ;
 
@@ -2226,6 +2401,53 @@ describe( "Find with a query object" , () => {
 		await expect( users.countFound() ).to.eventually.be( 7 ) ;
 		await expect( users.countFound( { lastName: 'Marley' } ) ).to.eventually.be( 5 ) ;
 		await expect( users.countFound( { firstName: { $regex: /^[thomasstepn]+$/ , $options: 'i' } } ) ).to.eventually.be( 2 ) ;
+
+		expect( localBatch ).to.have.length( 7 ) ;
+
+		await localBatch.save() ;
+
+		var batch = await users.find( { firstName: { $regex: /^[thomasstepn]+$/ , $options: 'i' } } ) ;
+
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 2 ) ;
+
+	} ) ;
+
+	it( "zzz should find documents (in a batch) using a queryObject having wildcards" , async () => {
+		var localBatch = embeddedStuffs.createBatch( [
+			{
+				name: 'random #1' ,
+				list: [
+					{ name: 'banana' , quantity: 8 } ,
+					{ name: 'tomato' , quantity: 12 } ,
+					{ name: 'apple' , quantity: 15 }
+				]
+			} ,
+			{
+				name: 'random #2' ,
+				list: [
+					{ name: 'banana' , quantity: 8 } ,
+					{ name: 'grapefruit' , quantity: 2 }
+				]
+			} ,
+			{
+				name: 'random #3' ,
+				list: [
+					{ name: 'apple' , quantity: 4 } ,
+					{ name: 'pear' , quantity: 5 }
+				]
+			} ,
+		] ) ;
+
+		expect( localBatch ).to.have.length( 3 ) ;
+
+		await localBatch.save() ;
+
+		var batch = await embeddedStuffs.find( { "list.*.name": "banana" } ) ;
+
+		log.hdebug( "Batch: %Y" , batch ) ;
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 2 ) ;
 	} ) ;
 
 	it( "skip, limit and sort" , async () => {

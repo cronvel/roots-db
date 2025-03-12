@@ -21,7 +21,7 @@
     "nested-proxies": "^0.2.1",
     "seventh": "^0.9.2",
     "stream-kit": "^0.6.3",
-    "tree-kit": "^0.8.7"
+    "tree-kit": "^0.8.8"
   },
   "devDependencies": {
     "string-kit": "^0.19.2"
