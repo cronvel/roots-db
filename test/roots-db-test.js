@@ -2413,7 +2413,7 @@ describe( "Find with a query object" , () => {
 
 	} ) ;
 
-	it( "zzz should find documents (in a batch) using a queryObject having wildcards" , async () => {
+	it.next( "zzz should find documents (in a batch) using a queryObject having wildcards" , async () => {
 		var localBatch = embeddedStuffs.createBatch( [
 			{
 				name: 'random #1' ,
