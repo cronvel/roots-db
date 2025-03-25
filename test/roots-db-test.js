@@ -2413,7 +2413,7 @@ describe( "Find with a query object" , () => {
 
 	} ) ;
 
-	it.next( "should find documents (in a batch) using a queryObject having wildcards" , async () => {
+	it( "should find documents (in a batch) using a queryObject having wildcards" , async () => {
 		var localBatch = embeddedStuffs.createBatch( [
 			{
 				name: 'random #1' ,
@@ -2444,10 +2444,41 @@ describe( "Find with a query object" , () => {
 		await localBatch.save() ;
 
 		var batch = await embeddedStuffs.find( { "list.*.name": "banana" } ) ;
-
-		log.hdebug( "Batch: %Y" , batch ) ;
+		//log.hdebug( "Batch: %Y" , batch ) ;
 		expect( batch ).to.be.a( rootsDb.Batch ) ;
 		expect( batch ).to.have.length( 2 ) ;
+		expect( batch[ 0 ] ).to.partially.equal( {
+			name: 'random #1' ,
+			list: [
+				{ name: 'banana' , quantity: 8 } ,
+				{ name: 'tomato' , quantity: 12 } ,
+				{ name: 'apple' , quantity: 15 }
+			]
+		} ) ;
+		expect( batch[ 1 ] ).to.partially.equal( {
+			name: 'random #2' ,
+			list: [
+				{ name: 'banana' , quantity: 8 } ,
+				{ name: 'grapefruit' , quantity: 2 }
+			]
+		} ) ;
+
+		batch = await embeddedStuffs.find( { "list.*.name": "pear" } ) ;
+		//log.hdebug( "Batch: %Y" , batch ) ;
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 1 ) ;
+		expect( batch[ 0 ] ).to.partially.equal( {
+			name: 'random #3' ,
+			list: [
+				{ name: 'apple' , quantity: 4 } ,
+				{ name: 'pear' , quantity: 5 }
+			]
+		} ) ;
+
+		batch = await embeddedStuffs.find( { "list.*.name": "orange" } ) ;
+		//log.hdebug( "Batch: %Y" , batch ) ;
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 0 ) ;
 	} ) ;
 
 	it( "skip, limit and sort" , async () => {
