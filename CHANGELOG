@@ -1,4 +1,10 @@
 
+v0.44.14
+--------
+
+Support for wildcards in .find() request and the like
+
+
 v0.44.13
 --------
 
