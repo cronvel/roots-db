@@ -361,7 +361,10 @@ const embeddedStuffsDescriptor = {
 				}
 			}
 		}
-	}
+	} ,
+	indexes: [
+		{ properties: { "list.*.name": 1 } }
+	]
 } ;
 
 const lockablesDescriptor = {
