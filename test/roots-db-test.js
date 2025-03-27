@@ -2556,6 +2556,115 @@ describe( "Find with a query object" , () => {
 			{ title: "That school" }
 		] ) ;
 	} ) ;
+
+	it( "Sort with a wildcard property" , async () => {
+		var localBatch = embeddedStuffs.createBatch( [
+			{
+				name: 'only bananas' ,
+				list: [
+					{ name: 'banana' , quantity: 18 }
+				]
+			} ,
+			{
+				name: 'only apples' ,
+				list: [
+					{ name: 'apple' , quantity: 12 }
+				]
+			} ,
+			{
+				name: 'only pears' ,
+				list: [
+					{ name: 'pear' , quantity: 5 }
+				]
+			} ,
+			{
+				name: 'only watermelons' ,
+				list: [
+					{ name: 'watermelon' , quantity: 15 }
+				]
+			} ,
+		] ) ;
+
+		await localBatch.save() ;
+
+		var batch = await embeddedStuffs.find( {} , { sort: { "list.*.name": 1 } } ) ;
+		//log.hdebug( "Batch: %Y" , batch ) ;
+		expect( batch ).to.be.a( rootsDb.Batch ) ;
+		expect( batch ).to.have.length( 4 ) ;
+		expect( batch.map( e => e.name ) ).to.equal( [
+			'only apples' ,
+			'only bananas' ,
+			'only pears' ,
+			'only watermelons' ,
+		] ) ;
+
+		batch = await embeddedStuffs.find( {} , { sort: { "list.*.name": -1 } } ) ;
+		expect( batch.map( e => e.name ) ).to.equal( [
+			'only watermelons' ,
+			'only pears' ,
+			'only bananas' ,
+			'only apples' ,
+		] ) ;
+
+		batch = await embeddedStuffs.find( {} , { sort: { "list.*.quantity": 1 } } ) ;
+		expect( batch.map( e => e.name ) ).to.equal( [
+			'only pears' ,
+			'only apples' ,
+			'only watermelons' ,
+			'only bananas' ,
+		] ) ;
+	} ) ;
+
+	it( "Ambiguous sort with a wildcard property (it uses the most advantageous element, so the ascending sort is not the reverse of the descending sort anymore)" , async () => {
+		var localBatch = embeddedStuffs.createBatch( [
+			{
+				name: 'list #1' ,
+				list: [
+					{ name: 'banana' , quantity: 18 } ,
+					{ name: 'pear' , quantity: 5 }
+				]
+			} ,
+			{
+				name: 'list #2' ,
+				list: [
+					{ name: 'apple' , quantity: 12 } ,
+					{ name: 'watermelon' , quantity: 15 }
+				]
+			} ,
+			{
+				name: 'list #3' ,
+				list: [
+					{ name: 'tomato' , quantity: 9 }
+				]
+			} ,
+			{
+				name: 'list #4' ,
+				list: [
+					{ name: 'kiwi' , quantity: 12 } ,
+					{ name: 'apricot' , quantity: 15 }
+				]
+			}
+		] ) ;
+
+		await localBatch.save() ;
+
+		var batch = await embeddedStuffs.find( {} , { sort: { "list.*.name": 1 } } ) ;
+		//log.hdebug( "Batch: %[4]Y" , batch.map( e => e ) ) ;
+		expect( batch.map( e => e.name ) ).to.equal( [
+			'list #2' ,
+			'list #4' ,
+			'list #1' ,
+			'list #3' ,
+		] ) ;
+
+		batch = await embeddedStuffs.find( {} , { sort: { "list.*.name": -1 } } ) ;
+		expect( batch.map( e => e.name ) ).to.equal( [
+			'list #2' ,
+			'list #3' ,
+			'list #1' ,
+			'list #4' ,
+		] ) ;
+	} ) ;
 } ) ;
 
 
@@ -10078,7 +10187,7 @@ describe( "Historical bugs" , () => {
 		} ) ;
 	} ) ;
 
-	it( "yyy should fix the bug where the .commit()'s patch overlaps itself" , async () => {
+	it( "should fix the bug where the .commit()'s patch overlaps itself" , async () => {
 		var product1 = products.createDocument( {
 			name: 'pencil' ,
 			price: 1.20
@@ -10366,7 +10475,7 @@ describe( "Slow tests" , () => {
 
 		it.opt( "should build indexes" , async function() {
 			//console.log( "start test" ) ;
-			this.timeout( 15000 ) ;
+			this.timeout( 4000 ) ;
 			expect( users.uniques ).to.equal( [ [ '_id' ] , [ 'memberSid' , 'job._id' ] ] ) ;
 			expect( jobs.uniques ).to.equal( [ [ '_id' ] ] ) ;
 
