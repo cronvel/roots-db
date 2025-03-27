@@ -9858,7 +9858,7 @@ describe( "Historical bugs" , () => {
 	} ) ;
 
 	it( "the special field _id should be taken as indexed by default, allowing queries on _id" , async () => {
-		expect( users.indexedProperties._id ).to.be.ok() ;
+		expect( users.indexedProperties.has( '_id' ) ).to.be.ok() ;
 		expect( users.uniques[ 0 ] ).to.equal( [ '_id' ] ) ;
 	} ) ;
 
