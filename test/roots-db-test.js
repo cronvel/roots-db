@@ -439,7 +439,8 @@ const anyCollectionLinksDescriptor = {
 		link: {
 			type: 'link' ,
 			optional: true ,
-			anyCollection: true
+			anyCollection: true ,
+			allowedCollections: [ 'anyCollectionLinks' , 'users' , 'jobs' ]
 		} ,
 		backLink: {
 			type: 'backLink' ,
@@ -2797,7 +2798,7 @@ describe( "Links" , () => {
 			type: 'link' ,
 			anyCollection: false ,
 			foreignCollection: 'jobs' ,
-			foreignId: null ,
+			foreignId: undefined ,
 			hostPath: 'job' ,
 			schema: {
 				collection: 'jobs' ,
@@ -2818,7 +2819,7 @@ describe( "Links" , () => {
 			type: 'link' ,
 			anyCollection: false ,
 			foreignCollection: 'jobs' ,
-			foreignId: null ,
+			foreignId: undefined ,
 			hostPath: 'job' ,
 			schema: {
 				collection: 'jobs' ,
@@ -3880,6 +3881,12 @@ describe( "Any-collection links" , () => {
 
 		var jobId = job.getId() ;
 
+		var school = schools.createDocument( {
+			title: 'Computer Science'
+		} ) ;
+
+		var schoolId = school.getId() ;
+
 		var doc = anyCollectionLinks.createDocument( {
 			name: 'docname'
 		} ) ;
@@ -3916,6 +3923,8 @@ describe( "Any-collection links" , () => {
 			lastName: 'Polson' ,
 			memberSid: 'Jilbert Polson'
 		} ) ;
+
+		// Set the link to another collection
 
 		doc.setLink( 'link' , job ) ;
 
@@ -3960,6 +3969,10 @@ describe( "Any-collection links" , () => {
 			} ,
 			backLink: []
 		} ) ;
+
+		// Set the link to a collection not allowed
+
+		expect( () => doc.setLink( 'link' , school ) ).to.throw( ErrorStatus , { type: 'badRequest' } ) ;
 	} ) ;
 
 	it( "should retrieve/populate back-link from any-collection links" , async () => {

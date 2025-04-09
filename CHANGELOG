@@ -1,4 +1,10 @@
 
+v0.45.4
+-------
+
+Support for allowedCollections array for anyCollection links
+
+
 v0.45.3
 -------
 
