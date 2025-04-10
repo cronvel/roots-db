@@ -1,4 +1,10 @@
 
+v0.45.5
+-------
+
+Check that 'allowedCollections' is correct when used in the schema
+
+
 v0.45.4
 -------
 
