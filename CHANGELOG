@@ -1,4 +1,10 @@
 
+v0.45.6
+-------
+
+New: Collection#findPartialBatchGenerator()
+
+
 v0.45.5
 -------
 
