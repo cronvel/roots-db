@@ -4832,6 +4832,149 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
 	} ) ;
+
+	it( "qqq should verify binary content-type of an attachment stream" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+		var stream = fs.createReadStream( './image.jpg' ) ;
+
+		var attachment = user.setAttachment( 'file' , { filename: 'image.jpg' , contentType: 'image/jpg' } , stream ) ;
+
+		expect( user.file ).to.be.a( rootsDb.Attachment ) ;
+		expect( user.file ).to.be.partially.like( {
+			filename: 'random.bin' ,
+			extension: 'bin' ,
+			id: user.file.id ,	// Unpredictable
+			contentType: 'bin/random' ,
+			fileSize: null ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+		} ) ;
+
+		//await attachment.save() ;
+		await user.save() ;
+		
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.be.partially.like( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'random.bin' ,
+				extension: 'bin' ,
+				id: user.file.id ,	// Unpredictable
+				contentType: 'bin/random' ,
+				fileSize: 40 ,
+				hash: null ,
+				hashType: null ,
+				metadata: {} ,
+			}
+		} ) ;
+
+		var dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.partially.like( {
+			id: dbUser.file.id ,
+			filename: 'random.bin' ,
+			extension: 'bin' ,
+			contentType: 'bin/random' ,
+			fileSize: 40 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			driver: users.attachmentDriver ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + attachment.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
+		} ) ;
+
+		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'a'.repeat( 40 ) ) ;
+
+		stream = new streamKit.FakeReadable( {
+			timeout: 50 , chunkSize: 10 , chunkCount: 3 , filler: 'b'.charCodeAt( 0 )
+		} ) ;
+
+		//var attachment2 = user.createAttachment( { filename: 'more-random.bin' , contentType: 'bin/random' } , stream ) ;
+		//dbUser.setAttachment( 'file' , attachment2 ) ;
+		var attachment2 = dbUser.setAttachment( 'file' , { filename: 'more-random.bin' , contentType: 'bin/random' } , stream ) ;
+
+		// Check that the previous file has NOT been deleted YET
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		//await attachment2.save() ;
+		await dbUser.save() ;
+
+		// Check that the previous file has been deleted -- SHOULD BE AFTER .save()
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw( Error , { code: 'ENOENT' } ) ;
+		}
+
+		dbUser = await users.get( id ) ;
+
+		expect( dbUser ).to.be.partially.like( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			file: {
+				filename: 'more-random.bin' ,
+				extension: 'bin' ,
+				id: dbUser.file.id ,	// Unpredictable
+				contentType: 'bin/random' ,
+				fileSize: 30 ,
+				hash: null ,
+				hashType: null ,
+				metadata: {} ,
+			}
+		} ) ;
+
+		dbAttachment = dbUser.getAttachment( 'file' ) ;
+		expect( dbAttachment ).to.be.partially.like( {
+			id: dbUser.file.id ,
+			filename: 'more-random.bin' ,
+			extension: 'bin' ,
+			contentType: 'bin/random' ,
+			fileSize: 30 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			driver: users.attachmentDriver ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + attachment2.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment2.id
+		} ) ;
+
+		await expect( dbAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'b'.repeat( 30 ) ) ;
+
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( dbAttachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		// Now load as a stream
+		var readStream = await dbAttachment.getReadStream() ;
+		var fakeWritable = new streamKit.WritableToBuffer() ;
+		readStream.pipe( fakeWritable ) ;
+		await Promise.onceEvent( fakeWritable , "finish" ) ;
+
+		expect( fakeWritable.get().toString() ).to.be( 'b'.repeat( 30 ) ) ;
+	} ) ;
 } ) ;
 
 

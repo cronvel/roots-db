@@ -2,7 +2,7 @@
   "name": "roots-db",
   "version": "0.45.8",
   "engines": {
-    "node": ">=16.20.1"
+    "node": ">=22.16.0"
   },
   "description": "A minimalistic ODM",
   "main": "lib/rootsDb.js",
@@ -14,6 +14,7 @@
     "doormen": "^0.15.11",
     "error-status": "^1.12.1",
     "exm": "^0.5.12",
+    "file-type": "^21.0.0",
     "fs-kit": "^0.6.5",
     "hash-kit": "^0.3.12",
     "logfella": "^2.1.0",
