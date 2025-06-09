@@ -4882,8 +4882,18 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		await expect( publicKeyAttachment.load().then( v => v.toString() ) ).to.eventually.be( 'c'.repeat( 21 ) ) ;
 	} ) ;
+} ) ;
 
-	it( "zzz should verify binary content-type of an attachment stream" , async function() {
+
+
+describe( "zzz Attachment and enforcing a binary content-type (driver: "  + ATTACHMENT_MODE + ")" , () => {
+
+	beforeEach( clearDB ) ;
+	beforeEach( () => {
+		users.attachmentDriver.appendExtension = users.attachmentAppendExtension ;
+	} ) ;
+
+	it( "should verify binary content-type of an attachment" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -4895,7 +4905,6 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		var filePath = path.join( __dirname , './media/avatar.png' ) ;
 		var stream = fs.createReadStream( filePath ) ;
 		var attachment = user.setAttachment( 'avatarPng' , { filename: 'avatar.png' , contentType: 'image/png' } , stream ) ;
-		await Promise.resolveTimeout( 1000 ) ;
 
 		expect( user.avatarPng ).to.be.a( rootsDb.Attachment ) ;
 		expect( user.avatarPng ).to.be.partially.like( {
@@ -4903,7 +4912,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			extension: 'png' ,
 			id: user.avatarPng.id ,	// Unpredictable
 			contentType: 'image/png' ,
-			binaryContentType: 'image/png' ,
+			binaryContentType: null ,
 			fileSize: null ,
 			hash: null ,
 			hashType: null ,
@@ -4911,7 +4920,9 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		} ) ;
 
 		//await attachment.save() ;
+		console.log( "BF user.save()" ) ;
 		await user.save() ;
+		console.log( "AFT user.save()" ) ;
 		
 		// Check that the file exists
 		if ( ATTACHMENT_MODE === 'file' ) {
@@ -4919,6 +4930,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		}
 
 		var dbUser = await users.get( id ) ;
+		console.log( "dbUser.avatarPng:" , dbUser.avatarPng ) ;
 		expect( dbUser ).to.be.partially.like( {
 			_id: id ,
 			firstName: 'Jilbert' ,
@@ -4927,7 +4939,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 			avatarPng: {
 				filename: 'avatar.png' ,
 				extension: 'png' ,
-				id: user.file.id ,	// Unpredictable
+				id: user.avatarPng.id ,	// Unpredictable
 				contentType: 'image/png' ,
 				binaryContentType: 'image/png' ,
 				fileSize: 24312 ,
@@ -4939,7 +4951,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 		var dbAttachment = dbUser.getAttachment( 'avatarPng' ) ;
 		expect( dbAttachment ).to.be.partially.like( {
-			id: dbUser.file.id ,
+			id: dbUser.avatarPng.id ,
 			filename: 'avatar.png' ,
 			extension: 'png' ,
 			contentType: 'image/png' ,
@@ -4959,6 +4971,47 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		var savedFileContent = await dbAttachment.load() ;
 		expect( Buffer.compare( originalFileContent , savedFileContent ) ).to.be( 0 ) ;
 	} ) ;
+
+	it( "xxx should fail when the binary content-type of an attachment mismatch" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+		var filePath = path.join( __dirname , './media/avatar.png' ) ;
+		var stream = fs.createReadStream( filePath ) ;
+		var attachment = user.setAttachment( 'avatarJpeg' , { filename: 'avatar.png' , contentType: 'image/png' } , stream ) ;
+
+		expect( user.avatarJpeg ).to.be.a( rootsDb.Attachment ) ;
+		expect( user.avatarJpeg ).to.be.partially.like( {
+			filename: 'avatar.png' ,
+			extension: 'png' ,
+			id: user.avatarJpeg.id ,	// Unpredictable
+			contentType: 'image/png' ,
+			binaryContentType: null ,
+			fileSize: null ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+		} ) ;
+
+		//await attachment.save() ;
+		console.log( "BF user.save()" ) ;
+		await expect( user.save() ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
+		console.log( "AFT failed user.save()" ) ;
+		
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw() ;
+		}
+
+		await expect( users.get( id ) ).to.reject.with( ErrorStatus , { type: 'notFound' } ) ;
+	} ) ;
+
+	it( "should verify binary content-type of an AttachmentStream" ) ;
 } ) ;
 
 
