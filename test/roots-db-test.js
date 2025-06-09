@@ -4895,6 +4895,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 		var filePath = path.join( __dirname , './media/avatar.png' ) ;
 		var stream = fs.createReadStream( filePath ) ;
 		var attachment = user.setAttachment( 'avatarPng' , { filename: 'avatar.png' , contentType: 'image/png' } , stream ) ;
+		await Promise.resolveTimeout( 1000 ) ;
 
 		expect( user.avatarPng ).to.be.a( rootsDb.Attachment ) ;
 		expect( user.avatarPng ).to.be.partially.like( {
