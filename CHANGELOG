@@ -1,4 +1,10 @@
 
+v0.46.1
+-------
+
+Make internal data of Attachment not enumerable
+
+
 v0.46.0
 -------
 
