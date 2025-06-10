@@ -4886,7 +4886,7 @@ describe( "Attachment links (driver: " + ATTACHMENT_MODE + ")" , () => {
 
 
 
-describe( "zzz Attachment and enforcing a binary content-type (driver: "  + ATTACHMENT_MODE + ")" , () => {
+describe( "zzz Attachment and enforcing a file type (binary content-type, declared content-type, extension) (driver: "  + ATTACHMENT_MODE + ")" , () => {
 
 	beforeEach( clearDB ) ;
 	beforeEach( () => {
@@ -4967,12 +4967,93 @@ describe( "zzz Attachment and enforcing a binary content-type (driver: "  + ATTA
 			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
 		} ) ;
 
+		// Compare with the original file
 		var originalFileContent = await fs.promises.readFile( filePath ) ;
 		var savedFileContent = await dbAttachment.load() ;
 		expect( Buffer.compare( originalFileContent , savedFileContent ) ).to.be( 0 ) ;
 	} ) ;
 
-	it( "xxx should fail when the binary content-type of an attachment mismatch" , async function() {
+	it( "should match when the expected binary content-type is a category, matching the left part of the content-type" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+		var filePath = path.join( __dirname , './media/avatar.png' ) ;
+		var stream = fs.createReadStream( filePath ) ;
+		var attachment = user.setAttachment( 'avatarImage' , { filename: 'avatar.png' , contentType: 'image/png' } , stream ) ;
+
+		expect( user.avatarImage ).to.be.a( rootsDb.Attachment ) ;
+		expect( user.avatarImage ).to.be.partially.like( {
+			filename: 'avatar.png' ,
+			extension: 'png' ,
+			id: user.avatarImage.id ,	// Unpredictable
+			contentType: 'image/png' ,
+			binaryContentType: null ,
+			fileSize: null ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+		} ) ;
+
+		//await attachment.save() ;
+		console.log( "BF user.save()" ) ;
+		await user.save() ;
+		console.log( "AFT user.save()" ) ;
+		
+		// Check that the file exists
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).not.to.throw() ;
+		}
+
+		var dbUser = await users.get( id ) ;
+		console.log( "dbUser.avatarImage:" , dbUser.avatarImage ) ;
+		expect( dbUser ).to.be.partially.like( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			avatarImage: {
+				filename: 'avatar.png' ,
+				extension: 'png' ,
+				id: user.avatarImage.id ,	// Unpredictable
+				contentType: 'image/png' ,
+				binaryContentType: 'image/png' ,
+				fileSize: 24312 ,
+				hash: null ,
+				hashType: null ,
+				metadata: {} ,
+			}
+		} ) ;
+
+		var dbAttachment = dbUser.getAttachment( 'avatarImage' ) ;
+		expect( dbAttachment ).to.be.partially.like( {
+			id: dbUser.avatarImage.id ,
+			filename: 'avatar.png' ,
+			extension: 'png' ,
+			contentType: 'image/png' ,
+			binaryContentType: 'image/png' ,
+			fileSize: 24312 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			driver: users.attachmentDriver ,
+			path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + attachment.id ,
+			publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
+		} ) ;
+
+		// Compare with the original file
+		var originalFileContent = await fs.promises.readFile( filePath ) ;
+		var savedFileContent = await dbAttachment.load() ;
+		expect( Buffer.compare( originalFileContent , savedFileContent ) ).to.be( 0 ) ;
+	} ) ;
+
+	it( "should fail when the binary content-type of an attachment mismatch" , async function() {
 		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
 
 		var user = users.createDocument( {
@@ -5003,7 +5084,45 @@ describe( "zzz Attachment and enforcing a binary content-type (driver: "  + ATTA
 		await expect( user.save() ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
 		console.log( "AFT failed user.save()" ) ;
 		
-		// Check that the file exists
+		// Check that the file does not exist
+		if ( ATTACHMENT_MODE === 'file' ) {
+			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw() ;
+		}
+
+		await expect( users.get( id ) ).to.reject.with( ErrorStatus , { type: 'notFound' } ) ;
+
+
+		// Now the same with category
+
+		user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		id = user.getId() ;
+		filePath = path.join( __dirname , './media/random-doc.pdf' ) ;
+		stream = fs.createReadStream( filePath ) ;
+		attachment = user.setAttachment( 'avatarImage' , { filename: 'random-doc.pdf' , contentType: 'application/pdf' } , stream ) ;
+
+		expect( user.avatarImage ).to.be.a( rootsDb.Attachment ) ;
+		expect( user.avatarImage ).to.be.partially.like( {
+			filename: 'random-doc.pdf' ,
+			extension: 'pdf' ,
+			id: user.avatarImage.id ,	// Unpredictable
+			contentType: 'application/pdf' ,
+			binaryContentType: null ,
+			fileSize: null ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+		} ) ;
+
+		//await attachment.save() ;
+		console.log( "BF user.save()" ) ;
+		await expect( user.save() ).to.reject.with( ErrorStatus , { type: 'badRequest' } ) ;
+		console.log( "AFT failed user.save()" ) ;
+		
+		// Check that the file does not exist
 		if ( ATTACHMENT_MODE === 'file' ) {
 			expect( () => { fs.accessSync( attachment.path , fs.R_OK ) ; } ).to.throw() ;
 		}
@@ -5011,7 +5130,108 @@ describe( "zzz Attachment and enforcing a binary content-type (driver: "  + ATTA
 		await expect( users.get( id ) ).to.reject.with( ErrorStatus , { type: 'notFound' } ) ;
 	} ) ;
 
-	it( "should verify binary content-type of an AttachmentStream" ) ;
+	it( "xxx should verify binary content-type of an AttachmentStreams" , async function() {
+		this.timeout( 4000 ) ;	// High timeout because some driver like S3 have a huge lag
+
+		var user = users.createDocument( {
+			firstName: 'Jilbert' ,
+			lastName: 'Polson'
+		} ) ;
+
+		var id = user.getId() ;
+		var attachmentStreams = new rootsDb.AttachmentStreams() ;
+
+		var filePathPng = path.join( __dirname , './media/avatar.png' ) ;
+		var streamPng = fs.createReadStream( filePathPng ) ;
+
+		var filePathJpg = path.join( __dirname , './media/avatar.jpg' ) ;
+		var streamJpg = fs.createReadStream( filePathJpg ) ;
+
+		attachmentStreams.addStream( streamPng , 'avatarPng' , { filename: 'avatar.png' , contentType: 'image/png' } ) ;
+		setTimeout( () => attachmentStreams.addStream( streamJpg , 'avatarJpeg' , { filename: 'avatar.jpg' , contentType: 'image/jpeg' } ) , 100 ) ;
+		setTimeout( () => attachmentStreams.end() , 200 ) ;
+
+		await user.save( { attachmentStreams: attachmentStreams } ) ;
+
+		var dbUser = await users.get( id ) ;
+		expect( dbUser ).to.be.partially.like( {
+			_id: id ,
+			firstName: 'Jilbert' ,
+			lastName: 'Polson' ,
+			memberSid: 'Jilbert Polson' ,
+			avatarPng: {
+				filename: 'avatar.png' ,
+				extension: 'png' ,
+				id: dbUser.avatarPng.id ,	// Unpredictable
+				contentType: 'image/png' ,
+				binaryContentType: 'image/png' ,
+				fileSize: 24312 ,
+				hash: null ,
+				hashType: null ,
+				metadata: {} ,
+			} ,
+			avatarJpeg: {
+				filename: 'avatar.jpg' ,
+				extension: 'jpg' ,
+				id: dbUser.avatarJpeg.id ,	// Unpredictable
+				contentType: 'image/jpeg' ,
+				binaryContentType: 'image/jpeg' ,
+				fileSize: 7816 ,
+				hash: null ,
+				hashType: null ,
+				metadata: {} ,
+			}
+		} ) ;
+
+		var dbAttachmentPng = dbUser.getAttachment( 'avatarPng' ) ;
+		expect( dbAttachmentPng ).to.be.partially.like( {
+			id: dbUser.avatarPng.id ,
+			filename: 'avatar.png' ,
+			extension: 'png' ,
+			contentType: 'image/png' ,
+			binaryContentType: 'image/png' ,
+			fileSize: 24312 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			driver: users.attachmentDriver ,
+			//path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + attachment.id ,
+			//publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
+		} ) ;
+
+		// Compare with the original file
+		var originalFileContentPng = await fs.promises.readFile( filePathPng ) ;
+		var savedFileContentPng = await dbAttachmentPng.load() ;
+		expect( Buffer.compare( originalFileContentPng , savedFileContentPng ) ).to.be( 0 ) ;
+
+		var dbAttachmentJpg = dbUser.getAttachment( 'avatarJpeg' ) ;
+		expect( dbAttachmentJpg ).to.be.partially.like( {
+			id: dbUser.avatarJpeg.id ,
+			filename: 'avatar.jpg' ,
+			extension: 'jpg' ,
+			contentType: 'image/jpeg' ,
+			binaryContentType: 'image/jpeg' ,
+			fileSize: 7816 ,
+			hash: null ,
+			hashType: null ,
+			metadata: {} ,
+			collectionName: 'users' ,
+			documentId: id.toString() ,
+			driver: users.attachmentDriver ,
+			//path: ( ATTACHMENT_MODE === 'file' ? USERS_ATTACHMENT_DIR : '' ) + dbUser.getId() + '/' + attachment.id ,
+			//publicUrl: ATTACHMENT_PUBLIC_BASE_URL + '/' + dbUser.getId() + '/' + attachment.id
+		} ) ;
+
+		// Compare with the original file
+		var originalFileContentJpg = await fs.promises.readFile( filePathJpg ) ;
+		var savedFileContentJpg = await dbAttachmentJpg.load() ;
+		expect( Buffer.compare( originalFileContentJpg , savedFileContentJpg ) ).to.be( 0 ) ;
+	} ) ;
+
+	it( "TODO: declared content-type" ) ;
+	it( "TODO: extension" ) ;
 } ) ;
 
 
