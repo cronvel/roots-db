@@ -1,4 +1,10 @@
 
+v0.46.0
+-------
+
+Attachments now support content-type (declared and real binary content) verifications
+
+
 v0.45.8
 -------
 
